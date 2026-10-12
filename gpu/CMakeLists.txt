@@ -190,6 +190,8 @@ endif()
 # linked here, where CMake knows its dependencies (build.sh builds them with ninja).
 if (WIN32)
     enable_language(RC)
+    add_executable(bmi1-compat-test ../tests/test_bmi1_compat.c)
+    set_target_properties(bmi1-compat-test PROPERTIES C_STANDARD 11)
     file(GLOB GOW3_RUNTIME CONFIGURE_DEPENDS ../src/runtime*.c)
     file(GLOB GOW3_ATRAC9 CONFIGURE_DEPENDS ../third_party/LibAtrac9/C/src/*.c)
     add_library(atrac9 STATIC ${GOW3_ATRAC9})

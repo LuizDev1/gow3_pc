@@ -16,6 +16,7 @@
 #endif
 #ifdef _WIN32
 #include <windows.h>
+#include "bmi1_compat_win.h"
 #else
 #include <sys/mman.h>
 #include <malloc.h>
@@ -40,6 +41,9 @@ static LinkedModule modules[16];
 static uint64_t module_count;
 static int entered_game;
 static int gpu_enabled;
+#ifdef _WIN32
+static int bmi1_fallback_enabled;
+#endif
 int vulkan_smoke(void);
 
 static void fail(const char *message) { fprintf(stderr, "ERROR: %s\n", message); exit(1); }
@@ -147,6 +151,13 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
 static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     const EXCEPTION_RECORD *record=info->ExceptionRecord;
     DWORD code=record->ExceptionCode;
+    /* Jaguar guest code uses BMI1, which Ivy Bridge does not implement.
+     * Only emulate verified BMI1 encodings in the guest image. Other faults
+     * retain the existing reporting path; no host/DLL AVX2 code is bypassed. */
+    uintptr_t bmi_rip=(uintptr_t)info->ContextRecord->Rip;
+    if (code==EXCEPTION_ILLEGAL_INSTRUCTION && image &&
+        bmi_rip-(uintptr_t)image<0x20000000 && bmi1_fallback_enabled &&
+        gow3_bmi1_fault(info)) return EXCEPTION_CONTINUE_EXECUTION;
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
         if (gpu_enabled && gow3gpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
@@ -605,6 +616,9 @@ int main(int argc, char **argv) {
     gow3gpu_register_kernel();
 #ifdef _WIN32
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
+    bmi1_fallback_enabled=!gow3_bmi1_available();
+    if (bmi1_fallback_enabled)
+        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR)");
     AddVectoredExceptionHandler(1, vectored_fault);
     SetUnhandledExceptionFilter(unhandled_fault);
     if (getenv("GOW3_STRICT_HANDLES")) {
