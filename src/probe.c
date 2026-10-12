@@ -133,6 +133,15 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
         fprintf(stderr,"Fault: exception 0x%08lx at %s (thread %lu)\n",record->ExceptionCode,where,GetCurrentThreadId());
     fprintf(stderr,"  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n",
             c->Rax,c->Rbx,c->Rcx,c->Rdx,c->Rsi,c->Rdi,c->Rbp,c->Rsp);
+    fprintf(stderr,"  r8=%016llx r9=%016llx r10=%016llx r11=%016llx\n  r12=%016llx r13=%016llx r14=%016llx r15=%016llx flags=%08lx\n",
+            c->R8,c->R9,c->R10,c->R11,c->R12,c->R13,c->R14,c->R15,c->EFlags);
+    unsigned char instruction[15];SIZE_T instruction_size=0;
+    if(ReadProcessMemory(GetCurrentProcess(),(void *)(uintptr_t)c->Rip,instruction,sizeof(instruction),&instruction_size)) {
+        fprintf(stderr,"  instruction bytes:");
+        for(SIZE_T i=0;i<instruction_size;i++) fprintf(stderr," %02x",instruction[i]);
+        fputc('\n',stderr);
+    }
+    if(bmi1_fallback_enabled) gow3_bmi1_dump((uintptr_t)image);
     if (gpu_enabled) gow3gpu_dump_guest_writes(info);
     /* rbp chain (guest and host code keep frame pointers). */
     uintptr_t rbp=(uintptr_t)c->Rbp;
@@ -618,7 +627,7 @@ int main(int argc, char **argv) {
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
     bmi1_fallback_enabled=!gow3_bmi1_available();
     if (bmi1_fallback_enabled)
-        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR)");
+        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR); diagnostics v2");
     AddVectoredExceptionHandler(1, vectored_fault);
     SetUnhandledExceptionFilter(unhandled_fault);
     if (getenv("GOW3_STRICT_HANDLES")) {
