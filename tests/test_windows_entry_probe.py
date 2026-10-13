@@ -6,6 +6,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
+from windows_boot import encode_boot
 
 EXE = Path(os.environ.get('TLG_ENTRY_PROBE', str(ROOT / 'out/tlg-entry-probe.exe')))
 
@@ -18,8 +19,41 @@ def package(code, relocs=(), imports=(), flags=5, capabilities=0):
             + b''.join(struct.pack('<4Q', *r) for r in relocs) + image)
 
 
+def canonical(raw, names, library='libc', version=1, module='libc', module_version=257, kind='function'):
+    return encode_boot(raw, dict(schema_version=1, imports=[dict(nid=name.split('#')[0],
+        library={'name': library, 'version': version}, module={'name': module, 'version': module_version},
+        kind=kind, references=[{'source': 'eboot.bin', 'symbol': name}]) for name in names]))
+
+
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_canonical_imports_resolve_independent_of_local_suffix(self):
+        code = (b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+                b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        names = ['bzQExy189ZI#X#Y', 'after-init#X#Y']
+        result = self.run_image(canonical(package(code, [(32,1,0,0),(40,1,1,0)], names,
+                                                  capabilities=1), names))
+        self.assertEqual(result.returncode, 20, result.stdout + result.stderr)
+        self.assertIn('Verified _init_env calls: 1', result.stdout)
+        self.assertIn('first unsupported PS4 import: after-init', result.stdout)
+
+    def test_canonical_scope_and_versions_cannot_resolve_same_nid(self):
+        names = ['bzQExy189ZI#V#V']
+        raw = package(b'\xff\x25\x02\0\0\0\x90\x90', [(8,1,0,0)], names, capabilities=1)
+        for options in [dict(library='other'), dict(module='other'), dict(version=2), dict(module_version=258)]:
+            with self.subTest(options=options):
+                result = self.run_image(canonical(raw, names, **options))
+                self.assertEqual(result.returncode, 20, result.stdout + result.stderr)
+                self.assertIn('Verified _init_env calls: 0', result.stdout)
+
+    def test_canonical_function_data_mismatch_fails_before_execution(self):
+        names = ['bzQExy189ZI#V#V']
+        raw = package(b'\xff\x25\x02\0\0\0\x90\x90', [(8,1,0,0)], names, capabilities=1)
+        result = self.run_image(canonical(raw, names, kind='data'))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('canonical symbol kind mismatch', result.stderr)
+        self.assertNotIn('Entering original', result.stdout)
+
     def test_mutex_attribute_lifecycle_and_invalid_handles(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-mutex'],
                                 capture_output=True, text=True, timeout=15)

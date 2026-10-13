@@ -13,6 +13,7 @@ from pathlib import Path
 from prepare import prepare, sfo, span
 from link_modules import link, module
 from import_manifest import build_manifest
+from windows_boot import encode_boot
 
 TITLE = 'CUSA03627'
 VERSION = '01.03'
@@ -59,6 +60,7 @@ def build(game, out):
         **{'sce_module/' + name: item for name, item in parsed.items()}},
         {'title_id': TITLE, 'app_ver': VERSION, 'image_sha256': IMAGE})
     (out / 'imports-canonical.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    (out / 'boot-windows.bin').write_bytes(encode_boot((out / 'boot.bin').read_bytes(), manifest))
     identities = {}
     by_identity = {}
     for item in [main, *parsed.values()]:
@@ -72,6 +74,9 @@ def build(game, out):
     report['status'] = 'Prepared and linked only. No host runtime or GPU execution validated.'
     report['host_platform'] = 'Linux x86-64 (inherited FS-to-GS TLS rewrite)'
     report['boot_linked_sha256'] = hashlib.sha256((out / 'boot-linked.bin').read_bytes()).hexdigest()
+    report['windows_diagnostic'] = dict(file='boot-windows.bin', format='TLGWIN01',
+        linked_modules=False, tls_rewrite=False,
+        sha256=hashlib.sha256((out / 'boot-windows.bin').read_bytes()).hexdigest())
     report['bloodborne_patches_applied'] = False
     host_imports = []
     for name in report['unresolved_imports']:

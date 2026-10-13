@@ -98,8 +98,25 @@ symbols). This includes imports eligible for native bindings, not just the
 391 residual host entries. Required unscoped imports and unsupported symbol
 kinds fail rather than being guessed. Four synthetic tests cover these rules.
 
-This is preparation metadata only. The current Windows entry probe still uses
-its exact scoped tables and stops at `strlen`; it does not consume this manifest.
-Next: carry full identities into the Windows linked-image format/resolver, then
-adapt native module initialization and Windows TLS. Linux linked output remains
-unsuitable for the Windows probe.
+The manifest is now consumed via a separate unlinked Windows image, described
+below. Native module initialization and Windows TLS still require adaptation.
+Linux linked output remains unsuitable for the Windows probe.
+
+## Windows identity-aware diagnostic image
+
+`scripts/windows_boot.py` converts the validated unlinked image and manifest to
+`boot-windows.bin` (`TLGWIN01`). Fixed-width import records preserve NID, library
+and module names/versions and function/data kind. Original import names remain
+diagnostic labels; their dump-local suffixes no longer select contracts.
+
+The Windows loader validates record bounds, NID correspondence and relocation
+kinds before execution. Contract dispatch requires an explicitly supported full
+identity. Different versions/scopes remain unresolved; inconsistent data/function
+types fail before entry. Legacy `BBPROBE2` is retained for regression diagnostics.
+Neither format links native modules or rewrites TLS.
+
+Thirteen native Windows tests pass, including remapped local aliases, rejected
+scope/version mismatches and a data/function mismatch. The observed USA 1.03
+image reaches `strlen` with identity `libc@1 / libc@257 / function`, matching the
+previous startup boundary. This is resolver integration, not additional gameplay
+progress. Next: Windows linked modules and their TCB/TLS initialization.

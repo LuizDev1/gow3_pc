@@ -36,10 +36,12 @@ Extract the artifact and use Windows Python 3.10 or newer. From its folder:
 
 ```powershell
 python scripts/prepare_tlg.py 'D:\path\to\CUSA03627'
-.\tlg-entry-probe.exe .\out\tlg\boot.bin
+.\tlg-entry-probe.exe .\out\tlg\boot-windows.bin
 ```
 
-Use **boot.bin**, never `boot-linked.bin`: the latter contains Linux TLS rewrites.
+Use **boot-windows.bin** (`TLGWIN01`), which carries complete import identities.
+The legacy unlinked `boot.bin` is retained for diagnostics; never use
+`boot-linked.bin`, which contains Linux TLS rewrites.
 Preparation accepts only the observed USA 1.03 image and bundled module hashes.
 The original game files are read only. The generated files remain local.
 Do not run the inherited Bloodborne launcher, patch scripts or `run.sh` on TLG.

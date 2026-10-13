@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Windows x86-64 entry diagnostic. Minimal startup contracts; no native modules,
  * GPU or game patches.
- * Accepts only unlinked BBPROBE2 images, never Linux FS-to-GS linked images.
+ * Accepts unlinked BBPROBE2/TLGWIN01 images, never Linux FS-to-GS linked images.
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -22,6 +22,14 @@ typedef struct { uint64_t target, kind, value, addend; } Reloc;
 static unsigned char *image, *data_traps;
 static char (*names)[128];
 static uint64_t image_size, import_count;
+typedef struct {
+    char nid[12], library[64];
+    uint32_t library_version;
+    char module[64];
+    uint32_t module_version, kind;
+} ImportIdentity;
+_Static_assert(sizeof(ImportIdentity) == 152, "canonical identity layout");
+static ImportIdentity *identities;
 static size_t page_size;
 static uint64_t init_env_calls;
 static uint64_t stack_canary;
@@ -126,6 +134,23 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     }
     return 0;
 }
+static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabilities) {
+    if (!identities) return resolve_verified(names[index], is_data, capabilities);
+    const ImportIdentity *id = &identities[index];
+    const char *scope = NULL;
+    /* Explicit contracts for the observed ABI identities. These aliases are
+     * internal dispatch keys, never untrusted dump-local library IDs.
+     */
+    if (id->library_version == 1 && id->module_version == 257) {
+        if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
+        else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
+        else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
+    }
+    if (!scope) return 0;
+    char dispatch[128];
+    snprintf(dispatch, sizeof(dispatch), "%s#%s", id->nid, scope);
+    return resolve_verified(dispatch, is_data, capabilities);
+}
 
 static void fail(const char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
@@ -162,6 +187,8 @@ static ABI __attribute__((noreturn)) void unsupported(uint32_t id, uintptr_t fir
     if (id >= import_count) fail("invalid import trap");
     printf("STOP: first unsupported PS4 import: %s (index %u)\n", names[id], id);
     printf("Diagnostic API name: %s\n", diagnostic_name(names[id]));
+    if (identities) printf("Identity: %s@%u / %s@%u / kind %u\n", identities[id].library,
+        identities[id].library_version, identities[id].module, identities[id].module_version, identities[id].kind);
     printf("Caller offset: 0x%" PRIxPTR "; first argument: 0x%" PRIxPTR "\n",
            (uintptr_t)__builtin_return_address(0) - (uintptr_t)image, first_arg);
     printf("Verified _init_env calls: %" PRIu64 "\n", init_env_calls);
@@ -216,8 +243,8 @@ int main(int argc, char **argv) {
     FILE *f = fopen(argv[1], "rb");
     if (!f) fail("cannot open boot file");
     char magic[8];
-    if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "BBPROBE2", 8))
-        fail("expected unlinked BBPROBE2; Linux linked images are not supported");
+    if (fread(magic, 1, 8, f) != 8 || (memcmp(magic, "BBPROBE2", 8) && memcmp(magic, "TLGWIN01", 8)))
+        fail("expected BBPROBE2 or TLGWIN01; Linux linked images are not supported");
     image_size = read64(f);
     uint64_t entry = read64(f), ns = read64(f), nr = read64(f);
     import_count = read64(f);
@@ -247,12 +274,28 @@ int main(int argc, char **argv) {
     if (fread(names, 128, (size_t)import_count, f) != import_count) fail("truncated imports");
     for (uint64_t i = 0; i < import_count; ++i)
         if (!memchr(names[i], 0, 128)) fail("unterminated import");
+    if (!memcmp(magic, "TLGWIN01", 8)) {
+        identities = calloc((size_t)(import_count ? import_count : 1), sizeof(*identities));
+        if (!identities || fread(identities, sizeof(*identities), (size_t)import_count, f) != import_count)
+            fail("truncated canonical identities");
+        for (uint64_t i = 0; i < import_count; ++i) {
+            ImportIdentity *id = &identities[i];
+            if (!memchr(id->nid, 0, sizeof(id->nid)) || !memchr(id->library, 0, sizeof(id->library)) ||
+                !memchr(id->module, 0, sizeof(id->module)) || !id->nid[0] || !id->library[0] || !id->module[0] ||
+                id->library_version > 65535 || id->module_version > 65535 || (id->kind != 1 && id->kind != 2))
+                fail("invalid canonical identity");
+            size_t length = strcspn(names[i], "#");
+            if (length != strlen(id->nid) || memcmp(names[i], id->nid, length)) fail("import NID mismatch");
+        }
+    }
     for (uint64_t i = 0; i < nr; ++i) {
         Reloc *r = &relocs[i];
         r->target = read64(f); r->kind = read64(f); r->value = read64(f); r->addend = read64(f);
         if (!mapped(segments, ns, r->target, 8) || r->kind > 2 ||
             (r->kind && r->value >= import_count) ||
             (r->kind != 2 && r->addend) || r->addend >= page_size) fail("invalid relocation");
+        if (r->kind && identities && identities[r->value].kind != (r->kind == 2 ? 1u : 2u))
+            fail("canonical symbol kind mismatch");
     }
     image = allocate(rounded((size_t)image_size));
     if (fread(image, 1, (size_t)image_size, f) != image_size || fgetc(f) != EOF) fail("incorrect image size");
@@ -275,7 +318,7 @@ int main(int argc, char **argv) {
                         : r->kind == 1 ? (uintptr_t)(traps + 32*r->value)
                         : (uintptr_t)image + r->value;
         if (r->kind) {
-            uintptr_t resolved = resolve_verified(names[r->value], r->kind == 2, capabilities);
+            uintptr_t resolved = resolve_identity(r->value, r->kind == 2, capabilities);
             if (resolved) value = resolved + r->addend;
         }
         memcpy(image + r->target, &value, 8);
