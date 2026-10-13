@@ -1,10 +1,20 @@
 from pathlib import Path
 import json
+import subprocess
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 BASE=ROOT/'platform/windows/gow3-base'
 
 class WindowsRendererBaseTests(unittest.TestCase):
+    def test_submodule_pins_are_registered_in_git(self):
+        provenance=json.loads((BASE/'SOURCE_MANIFEST.json').read_text())
+        for name, dependency in provenance['submodules'].items():
+            path=f'platform/windows/gow3-base/gpu/third_party/{name}'
+            with self.subTest(dependency=name):
+                entry=subprocess.check_output(
+                    ['git','ls-files','--stage','--',path],cwd=ROOT,text=True).strip()
+                self.assertEqual(entry,f"160000 {dependency['commit']} 0\t{path}")
+
     def test_ci_selects_windows_base_and_no_gow_loader_targets(self):
         workflow=(ROOT/'.github/workflows/windows-gpu-build.yml').read_text()
         self.assertIn('-S platform/windows/gow3-base/gpu',workflow)

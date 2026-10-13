@@ -433,3 +433,13 @@ renderer still contains GoW3 graphics heuristics and settings. Next: obtain a
 successful build of this selected base, audit game-specific renderer decisions,
 then implement the runtime callback/ABI bridge to the preserved TLG loader.
 No TLG frame or menu is claimed by this migration.
+
+### Register Windows renderer dependencies (October 13, 2026)
+
+Renderer run 38473995010 failed during CMake configuration because the imported
+submodule paths were declared in .gitmodules but their gitlinks were missing
+from the commit. Register all five dependencies at the recorded source revisions.
+A regression check verifies Git's indexed gitlink modes and commits against the
+source manifest, so checkout can retrieve the required dependency trees.
+CPU run 38473994772 passed. The corrected renderer configuration still needs CI
+validation; this change does not establish renderer runtime integration.
