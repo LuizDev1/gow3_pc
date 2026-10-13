@@ -516,3 +516,24 @@ null sentinels and distinct null/live values. With both experimental profiles
 enabled, the prior Fios2 assertion no longer occurs and startup reaches
 `sceKernelStat` (`eV9wAD2riIA`, caller offset `0x5c1a556`). File metadata translation
 is the next blocker. Complete Fios2 functionality, graphics and menu are not claimed.
+
+
+### File metadata translation (October 13, 2026)
+
+`sceKernelStat` and `sceKernelFstat` now write an explicit 120-byte PS4/FreeBSD
+stat structure using Windows basic/standard file information. Fields include size,
+allocated blocks, file/directory type, read-only mode, volume/file identity,
+link count and access/write/change/birth timestamps converted to Unix seconds
+and nanoseconds. Windows permissions are represented by the read-only mount
+profile, not translated ACLs. File identity uses the low 32 bits; link count is
+saturated to the guest field width. Rejected queries preserve output.
+Directory handles are opened with backup semantics; directory enumeration remains
+unsupported. Existing ANSI-path and reparse-point limitations still apply.
+
+All 28 Windows entry tests pass, including stat/fstat agreement, size/type,
+normalized timestamps, missing paths, invalid descriptors and unchanged errors.
+With both experimental profiles enabled, USA 1.03 now queries
+`/app0/trico_other.psarc` and `/app0/trico_boot.psarc`, then Fios2 executes UD2
+at guest offset `0x5c4a55f`. Archive reads or loading are not established by these
+metadata queries. The new Fios2 assertion is the next investigation; graphics
+and menu remain unavailable.

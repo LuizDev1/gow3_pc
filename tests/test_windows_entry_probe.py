@@ -76,6 +76,7 @@ class WindowsEntryTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(fixture.read_bytes(), b'ABCDE')
             self.assertIn('exact bytes, seek, EOF and stale descriptors passed', result.stdout)
+            self.assertIn('120-byte ABI, size, type, timestamp normalization and unchanged errors passed', result.stdout)
 
     def test_guest_clock_layout_translation_and_errors(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-timespec'], capture_output=True, text=True, timeout=15)

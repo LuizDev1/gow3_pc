@@ -296,7 +296,7 @@ static ABI int64_t guest_file_open(const char *path,int flags,int mode) {
     if(!root || !*root) return FILE_ERROR(2);
     char host[2048];
     if(snprintf(host,sizeof(host),"%s/%s",root,relative)>=(int)sizeof(host)) return FILE_ERROR(63);
-    HANDLE h=CreateFileA(host,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    HANDLE h=CreateFileA(host,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
     if(h==INVALID_HANDLE_VALUE) return FILE_ERROR(file_error(GetLastError()));
     AcquireSRWLockExclusive(&file_lock);
     for(unsigned i=0;i<128;i++) if(!guest_files[i].id && next_file<INT_MAX) {
@@ -331,10 +331,57 @@ static ABI int64_t guest_file_close(int fd) {
     }
     ReleaseSRWLockExclusive(&file_lock);return FILE_ERROR(9);
 }
+/* Explicit FreeBSD/PS4 stat layout, from the existing runtime_file.c. */
+typedef struct {
+    uint32_t dev,ino;uint16_t mode,nlink;uint32_t uid,gid,rdev;
+    GuestTimespec atime,mtime,ctime;int64_t size,blocks;
+    uint32_t blksize,flags,gen;int32_t spare;GuestTimespec birthtime;
+} GuestStat;
+_Static_assert(sizeof(GuestStat)==120,"guest stat ABI");
+static GuestTimespec stat_time(LARGE_INTEGER time) {
+    int64_t ticks=time.QuadPart-INT64_C(116444736000000000);
+    int64_t seconds=ticks/10000000,remainder=ticks%10000000;
+    if(remainder<0) {--seconds;remainder+=10000000;}
+    return (GuestTimespec){seconds,remainder*100};
+}
+static int64_t stat_handle(HANDLE h,GuestStat *out) {
+    FILE_BASIC_INFO basic;FILE_STANDARD_INFO standard;BY_HANDLE_FILE_INFORMATION identity;
+    if(!GetFileInformationByHandleEx(h,FileBasicInfo,&basic,sizeof(basic)) ||
+       !GetFileInformationByHandleEx(h,FileStandardInfo,&standard,sizeof(standard)) ||
+       !GetFileInformationByHandle(h,&identity)) return FILE_ERROR(file_error(GetLastError()));
+    GuestStat value={0};
+    value.dev=identity.dwVolumeSerialNumber;value.ino=identity.nFileIndexLow;
+    value.mode=(uint16_t)(standard.Directory?0040555:0100444);
+    value.nlink=(uint16_t)(standard.NumberOfLinks>UINT16_MAX?UINT16_MAX:standard.NumberOfLinks);
+    value.atime=stat_time(basic.LastAccessTime);value.mtime=stat_time(basic.LastWriteTime);
+    value.ctime=stat_time(basic.ChangeTime);value.birthtime=stat_time(basic.CreationTime);
+    value.size=standard.EndOfFile.QuadPart;value.blocks=(standard.AllocationSize.QuadPart+511)/512;
+    value.blksize=16384;*out=value;return 0;
+}
+static ABI int64_t guest_file_fstat(int fd,GuestStat *out) {
+    if(!out) return FILE_ERROR(14);
+    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);
+    int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):stat_handle(h,out);
+    ReleaseSRWLockExclusive(&file_lock);return result;
+}
+static ABI int64_t guest_file_stat(const char *path,GuestStat *out) {
+    if(!out) return FILE_ERROR(14);
+    int64_t fd=guest_file_open(path,0,0);if(fd<0) return fd;
+    int64_t result=guest_file_fstat((int)fd,out);guest_file_close((int)fd);return result;
+}
 static int selftest_files(void) {
     if(guest_file_open("/app0/../fixture.bin",0,0)!=FILE_ERROR(22) ||
        guest_file_open("/app0/fixture.bin",1,0)!=FILE_ERROR(45)) return 1;
+    GuestStat stat={0},descriptor={0},unchanged;memset(&unchanged,0x55,sizeof(unchanged));
+    GuestStat before=unchanged;
+    if(guest_file_stat("/app0/fixture.bin",&stat) || stat.size!=5 || (stat.mode&0170000)!=0100000 ||
+        stat.mtime.nanoseconds<0 || stat.mtime.nanoseconds>=1000000000 ||
+        guest_file_stat("/app0/missing.bin",&unchanged)!=FILE_ERROR(2) || memcmp(&unchanged,&before,sizeof(before)) ||
+        guest_file_stat("/app0/fixture.bin",NULL)!=FILE_ERROR(14)) return 1;
     int64_t fd=guest_file_open("/app0/fixture.bin",0,0);char bytes[8]={0};
+    if(fd<3 || guest_file_fstat((int)fd,&descriptor) || descriptor.size!=stat.size || descriptor.ino!=stat.ino ||
+        guest_file_fstat(-1,&unchanged)!=FILE_ERROR(9) || memcmp(&unchanged,&before,sizeof(before))) return 1;
+    puts("File metadata: 120-byte ABI, size, type, timestamp normalization and unchanged errors passed");
     if(fd<3 || guest_file_read((int)fd,bytes,3)!=3 || memcmp(bytes,"ABC",3) ||
        guest_file_seek((int)fd,-2,2)!=3 || guest_file_read((int)fd,bytes,8)!=2 || memcmp(bytes,"DE",2) ||
        guest_file_read((int)fd,bytes,1)!=0 || guest_file_close((int)fd) ||
@@ -555,6 +602,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
         if (!strcmp(name,"99b82IKXpH4#appcontent")) return (uintptr_t)guest_content_parameter;
         if (!strcmp(name,"R9lA82OraNs#appcontent")) return (uintptr_t)guest_content_init;
+        if (!strcmp(name,"eV9wAD2riIA#U#H")) return (uintptr_t)guest_file_stat;
+        if (!strcmp(name,"kBwCPsYX-m4#U#H")) return (uintptr_t)guest_file_fstat;
         if (!strcmp(name,"1G3lF1Gg1k8#U#H")) return (uintptr_t)guest_file_open;
         if (!strcmp(name,"Cg4srZ6TKbU#U#H")) return (uintptr_t)guest_file_read;
         if (!strcmp(name,"oib76F-12fk#U#H")) return (uintptr_t)guest_file_seek;
