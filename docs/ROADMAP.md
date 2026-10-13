@@ -4,8 +4,8 @@ LuizDev1 maintains this individual Windows project, based on
 `deadinside28/bloodborne_pc`. Spexxl's Linux project is developed separately.
 
 **Current stage:** offline target preparation and early Windows entry diagnostics.
-The USA 1.03 executable reaches original startup instructions and returns from
-the verified `_init_env` contract, then stops at `atexit`. No graphics or gameplay
+The USA 1.03 executable passes `_init_env`, registers `atexit` callbacks and reads
+its stack canary, then stops at `sceKernelCreateEqueue`. No graphics or gameplay
 has been validated. See [target inspection](TARGET_INSPECTION.md) for evidence.
 
 ## Initial priorities

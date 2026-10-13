@@ -94,3 +94,20 @@ This Windows work is maintained independently by LuizDev1, with bbport as the
 original upstream. Spexxl's Linux project is a separate effort. The current
 hosting location remains the dedicated `the-last-guardian` branch of `gow3_pc`;
 the God of War main branch is unrelated to these Windows diagnostic changes.
+
+## `atexit` and stack canary startup
+
+The Windows diagnostic registers `atexit` callbacks with SysV calling convention,
+an SRW lock and an allocation failure path. Normal guest termination drains the
+registry in reverse registration order. Callbacks are removed before invocation
+and can register additional callbacks; diagnostic stops do not run them.
+
+The exact observed `__stack_chk_guard` data import is backed by a random canary
+from Windows BCryptGenRandom, with its low byte cleared. Resolution distinguishes
+function and data imports and retains the preparation evidence and scope gates.
+
+The observed executable now registers two exit callbacks and reaches
+`D0OdFMjp46I#U#H` (`sceKernelCreateEqueue`), caller offset `0x14944fd`, exit 20.
+Eight native Windows tests cover previous behavior, callback order/reentrancy and
+readable canary data. Event queues are not implemented by this diagnostic yet;
+no graphics or gameplay has been validated.

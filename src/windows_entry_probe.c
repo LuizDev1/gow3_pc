@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Windows x86-64 entry diagnostic. One verified libc contract; no native modules,
+ * Windows x86-64 entry diagnostic. Minimal startup contracts; no native modules,
  * GPU or game patches.
  * Accepts only unlinked BBPROBE2 images, never Linux FS-to-GS linked images.
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <bcrypt.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,64 @@ static char (*names)[128];
 static uint64_t image_size, import_count;
 static size_t page_size;
 static uint64_t init_env_calls;
+static uint64_t stack_canary;
+static const struct { const char *nid, *label; } diagnostic_names[] = {
+#include "import_names.inc"
+};
+static const char *diagnostic_name(const char *name) {
+    const char *hash = strchr(name, '#');
+    size_t length = hash ? (size_t)(hash - name) : strlen(name);
+    /* NID-only lookup is for labels, never for resolving executable contracts. */
+    for (size_t i = 0; i < sizeof(diagnostic_names)/sizeof(*diagnostic_names); ++i)
+        if (!strncmp(name, diagnostic_names[i].nid, length) && diagnostic_names[i].nid[length] == '#')
+            return diagnostic_names[i].label;
+    return "unknown";
+}
+typedef void (ABI *ExitCallback)(void);
+static ExitCallback *exit_callbacks;
+static size_t exit_count, exit_capacity;
+static SRWLOCK exit_lock = SRWLOCK_INIT;
+static ABI int guest_atexit(ExitCallback callback) {
+    if (!callback) return -1;
+    AcquireSRWLockExclusive(&exit_lock);
+    if (exit_count == exit_capacity) {
+        size_t capacity = exit_capacity ? exit_capacity * 2 : 32;
+        ExitCallback *next = capacity <= 1024 * 1024
+                           ? realloc(exit_callbacks, capacity * sizeof(*next)) : NULL;
+        if (!next) { ReleaseSRWLockExclusive(&exit_lock); return -1; }
+        exit_callbacks = next;
+        exit_capacity = capacity;
+    }
+    exit_callbacks[exit_count++] = callback;
+    ReleaseSRWLockExclusive(&exit_lock);
+    return 0;
+}
+static void finalize_callbacks(void) {
+    for (;;) {
+        AcquireSRWLockExclusive(&exit_lock);
+        if (!exit_count) { ReleaseSRWLockExclusive(&exit_lock); return; }
+        ExitCallback callback = exit_callbacks[--exit_count];
+        ReleaseSRWLockExclusive(&exit_lock);
+        /* Pop before calling, and release the lock: callbacks can register more. */
+        callback();
+    }
+}
+static unsigned selftest_order;
+static ABI void test_first(void) { selftest_order = selftest_order * 10 + 1; }
+static ABI void test_last(void) {
+    selftest_order = selftest_order * 10 + 2;
+    if (guest_atexit(test_first)) ExitProcess(1);
+}
+static int selftest_atexit(void) {
+    if (guest_atexit(NULL) == 0 || guest_atexit(test_first) || guest_atexit(test_last)) return 1;
+    finalize_callbacks();
+    if (selftest_order != 211 || exit_count) return 1;
+    finalize_callbacks();
+    if (selftest_order != 211) return 1;
+    puts("atexit: reverse order, registration during finalization and exactly-once checks passed");
+    free(exit_callbacks);
+    return 0;
+}
 
 static ABI void init_env_ret(void) {
     ++init_env_calls;
@@ -33,6 +92,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
      */
     if (!is_data && (capabilities & 1) && !strcmp(name, "bzQExy189ZI#V#V"))
         return (uintptr_t)init_env_ret;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "8G2LB+A3rzg#V#V"))
+        return (uintptr_t)guest_atexit;
+    if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
+        return (uintptr_t)&stack_canary;
     return 0;
 }
 
@@ -70,14 +133,19 @@ static int mapped(Segment *segments, uint64_t count, uint64_t addr, uint64_t siz
 static ABI __attribute__((noreturn)) void unsupported(uint32_t id, uintptr_t first_arg) {
     if (id >= import_count) fail("invalid import trap");
     printf("STOP: first unsupported PS4 import: %s (index %u)\n", names[id], id);
+    printf("Diagnostic API name: %s\n", diagnostic_name(names[id]));
     printf("Caller offset: 0x%" PRIxPTR "; first argument: 0x%" PRIxPTR "\n",
            (uintptr_t)__builtin_return_address(0) - (uintptr_t)image, first_arg);
     printf("Verified _init_env calls: %" PRIu64 "\n", init_env_calls);
+    printf("Registered atexit callbacks: %zu\n", exit_count);
     puts("Original entry reached an unsupported import; game initialization is incomplete.");
     fflush(NULL);
     ExitProcess(20);
 }
-static ABI __attribute__((noreturn)) void guest_exit(void) { ExitProcess(24); }
+static ABI __attribute__((noreturn)) void guest_exit(void) {
+    finalize_callbacks();
+    ExitProcess(24);
+}
 static LONG WINAPI fault(EXCEPTION_POINTERS *e) {
     uintptr_t at = (uintptr_t)e->ExceptionRecord->ExceptionAddress;
     printf("STOP: Windows exception 0x%08lx at 0x%" PRIxPTR,
@@ -109,6 +177,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc != 2) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;
@@ -126,6 +195,9 @@ int main(int argc, char **argv) {
     if (!image_size || image_size > 512 * 1024 * 1024 || entry >= image_size ||
         !ns || ns > 64 || nr > 1000000 || import_count > 100000 || capabilities > 1)
         fail("boot file limits exceeded");
+    if (BCryptGenRandom(NULL, (PUCHAR)&stack_canary, sizeof(stack_canary),
+                        BCRYPT_USE_SYSTEM_PREFERRED_RNG) < 0) fail("stack canary generation failed");
+    stack_canary &= ~UINT64_C(255);
     Segment *segments = calloc((size_t)ns, sizeof(*segments));
     Reloc *relocs = calloc((size_t)(nr ? nr : 1), sizeof(*relocs));
     names = calloc((size_t)(import_count ? import_count : 1), sizeof(*names));
@@ -187,7 +259,7 @@ int main(int argc, char **argv) {
     if (!timer) fail("watchdog unavailable");
     CloseHandle(timer);
     printf("Windows entry diagnostic: mapped %" PRIu64 " bytes; %" PRIu64 " relocations\n", image_size, nr);
-    puts("Only verified _init_env RET enabled; no native modules, GPU, TLS rewrite or game patches.");
+    puts("Startup contracts: _init_env, atexit, stack canary; no native modules, GPU or TLS rewrite.");
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     typedef void (ABI *Entry)(void *, void (ABI *)(void));

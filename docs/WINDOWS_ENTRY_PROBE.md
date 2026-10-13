@@ -2,9 +2,12 @@
 
 This artifact is a CPU entry diagnostic, **not a playable port**. It maps an
 unlinked image, applies its relocations, and attempts the original x86-64 entry.
-The only implemented contract is the observed USA 1.03 `_init_env` return,
-enabled when preparation verified the supplied libc implementation as exactly
-RET. Other function and data imports remain unresolved. There is no complete
+Startup contracts currently include the observed USA 1.03 `_init_env` return,
+`atexit` callback registration and a Windows-generated stack canary. Resolution
+requires preparation evidence and the observed exact import scopes. The libc
+`_init_env` implementation was verified as exactly RET. Registered callbacks run
+in reverse order on normal guest termination; diagnostic failures skip them.
+Other function and data imports remain unresolved. There is no complete
 PS4 runtime, native library initialization, graphics, audio or TLS adaptation.
 A failure or an early unsupported import is an expected diagnostic result.
 

@@ -20,6 +20,12 @@ def package(code, relocs=(), imports=(), flags=5, capabilities=0):
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_atexit_callbacks_finalize_in_reverse_order_exactly_once(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-atexit'],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('exactly-once checks passed', result.stdout)
+
     def run_image(self, data):
         with tempfile.TemporaryDirectory() as folder:
             image = Path(folder) / 'fixture.bin'
@@ -62,6 +68,14 @@ class WindowsEntryTests(unittest.TestCase):
         result = self.run_image(package(b'\x0f\x0b'))
         self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
         self.assertIn('guest offset 0x0', result.stdout)
+
+    def test_verified_stack_canary_data_is_readable(self):
+        code = b'\x48\x8b\x05\x09\0\0\0\x48\x8b\x00\x0f\x0b'
+        result = self.run_image(package(code, [(16, 2, 0, 0)],
+                                       ['f7uOxY9mM1U#U#H'], capabilities=1))
+        self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
+        self.assertIn('guest offset 0xa', result.stdout)
+        self.assertNotIn('Unsupported data import', result.stdout)
 
     def test_bad_images_fail_before_execution(self):
         cases = [package(b'\xc3')[:-1], package(b'\xc3') + b'extra',
