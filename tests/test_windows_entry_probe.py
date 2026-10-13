@@ -118,6 +118,7 @@ class WindowsEntryTests(unittest.TestCase):
 
     def test_direct_memory_shared_storage_and_lifecycle(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-memory'], capture_output=True, text=True, timeout=15)
+        self.assertIn('Renderer memory queries: view bounds, gaps, overflow and unmap invalidation passed', result.stdout)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('shared aliases, low addresses and lifecycle passed', result.stdout)
         self.assertIn('no-overwrite alias placement and GPU permission metadata passed', result.stdout)

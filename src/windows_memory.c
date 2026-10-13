@@ -20,6 +20,44 @@ typedef struct { uint64_t start,size; HANDLE section; } Block;
 typedef struct { void *address; uint64_t size; HANDLE section; int protection; } View;
 static Block blocks[LIMIT];
 static View views[LIMIT];
+/* The caller holds the shared mapping lock. A gap ends at the next tracked
+ * view; past the last view there is no region and outputs stay untouched. */
+static int region_locked(uintptr_t address,uintptr_t *start,uintptr_t *end,int *mapped) {
+    uintptr_t previous=0,next=UINTPTR_MAX;
+    int found=0;
+    for(int i=0;i<LIMIT;i++) if(views[i].address) {
+        uintptr_t a=(uintptr_t)views[i].address,b=a+views[i].size;
+        if(address>=a && address<b) {*start=a;*end=b;*mapped=1;return 1;}
+        if(b<=address && b>previous) previous=b;
+        if(a>address && (!found || a<next)) {next=a;found=1;}
+    }
+    if(found) {*start=previous;*end=next;*mapped=0;}
+    return found;
+}
+int runtime_memory_region(uintptr_t address,uintptr_t *start,uintptr_t *end,int *mapped) {
+    if(!start || !end || !mapped) return 0;
+    AcquireSRWLockShared(&lock);
+    int result=region_locked(address,start,end,mapped);
+    ReleaseSRWLockShared(&lock);
+    return result;
+}
+uint64_t runtime_memory_clamp(uintptr_t address,uint64_t size) {
+    if(!size || size>UINTPTR_MAX-address) return 0;
+    uint64_t length=0;
+    AcquireSRWLockShared(&lock);
+    while(length<size) {
+        uintptr_t start,end;int mapped;
+        if(!region_locked(address+length,&start,&end,&mapped) || !mapped) break;
+        uint64_t available=end-(address+length);
+        length+=available<size-length?available:size-length;
+    }
+    ReleaseSRWLockShared(&lock);
+    return length;
+}
+int runtime_memory_is_mapped(uintptr_t address,uint64_t size) {
+    /* Empty/overflowing ranges are rejected rather than treated as GPU storage. */
+    return size && size<=UINTPTR_MAX-address && runtime_memory_clamp(address,size)==size;
+}
 static int aligned(uint64_t n) { return n>=PAGE && !(n&(n-1)); }
 static ABI uint64_t direct_size(void) { return POOL; }
 static ABI int32_t allocate(int64_t low,int64_t high,uint64_t size,uint64_t alignment,int type,int64_t *out) {
@@ -150,10 +188,26 @@ int windows_memory_selftest(void) {
     CHECK(direct_size()==POOL);CHECK(allocate(0,POOL,1,0,0,&a)==INVALID);
     CHECK(!allocate(0,POOL,PAGE,0,0,&a));CHECK(!allocate(0,POOL,PAGE,0,0,&b));CHECK(a!=b);
     CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,0x33,0x80,a,0));
+    uintptr_t start=0,end=0;int mapped_view=0;
+    CHECK(runtime_memory_region((uintptr_t)x+1,&start,&end,&mapped_view));
+    CHECK(start==(uintptr_t)x && end==(uintptr_t)x+PAGE && mapped_view);
+    CHECK(runtime_memory_is_mapped((uintptr_t)x,PAGE));
+    CHECK(runtime_memory_clamp((uintptr_t)x+PAGE-1,2)==1);
+    CHECK(!runtime_memory_is_mapped((uintptr_t)x,PAGE+1));
+    CHECK(runtime_memory_region(0,&start,&end,&mapped_view) && !mapped_view && !start);
+    CHECK(end==((uintptr_t)x<(uintptr_t)y?(uintptr_t)x:(uintptr_t)y));
+    CHECK(!runtime_memory_is_mapped(0,1));CHECK(!runtime_memory_is_mapped((uintptr_t)x,0));
+    CHECK(!runtime_memory_clamp(UINTPTR_MAX-1,4));
+    start=11;end=22;mapped_view=33;
+    CHECK(!runtime_memory_region(UINTPTR_MAX,&start,&end,&mapped_view));
+    CHECK(start==11 && end==22 && mapped_view==33);
+    CHECK(!runtime_memory_region((uintptr_t)x,NULL,&end,&mapped_view));
     *(volatile uint64_t *)x=UINT64_C(0x123456789abcdef0);CHECK(*(volatile uint64_t *)y==UINT64_C(0x123456789abcdef0));
     CHECK(release_flexible(x,PAGE)==INVALID);
     CHECK((uintptr_t)x<UINT64_C(0x10000000000));CHECK(release(a,PAGE)==BUSY);
     CHECK(unmap(x,PAGE*2)==INVALID);CHECK(!unmap(x,PAGE));CHECK(!unmap(y,PAGE));
+    CHECK(!runtime_memory_is_mapped((uintptr_t)x,1));
+    CHECK(!runtime_memory_is_mapped((uintptr_t)y,1));
     CHECK(!release(a,PAGE));CHECK(release(a,PAGE)==INVALID);CHECK(!release(b,PAGE));
     CHECK(!windows_memory_resolve("pO96TwzOm5E#other"));
     uint64_t available=0;CHECK(available_flexible(NULL)==INVALID);CHECK(!available_flexible(&available) && available==FLEXIBLE);
@@ -162,13 +216,23 @@ int windows_memory_selftest(void) {
     CHECK(map_flexible(&f,1,3,0)==INVALID);CHECK(map_flexible(&f,PAGE,3,16)==INVALID);
     CHECK(!map_flexible(&f,PAGE,3,0));CHECK(!map_named_flexible(&g,PAGE,3,0,"test"));
     CHECK(f!=g && *(volatile uint64_t *)f==0 && *(volatile uint64_t *)g==0);
+    CHECK(runtime_memory_is_mapped((uintptr_t)f,PAGE));
+    CHECK(runtime_memory_clamp((uintptr_t)g+PAGE-8,16)==8);
     *(volatile uint64_t *)f=42;CHECK(*(volatile uint64_t *)g==0);CHECK(flexible_bytes==PAGE*2);CHECK(!available_flexible(&available) && available==FLEXIBLE-PAGE*2);
     CHECK(release_flexible(f,PAGE*2)==INVALID);CHECK(!release_flexible(f,PAGE));
     CHECK(release_flexible(f,PAGE)==INVALID);
     void *fixed=f;CHECK(!map_flexible(&fixed,PAGE,3,0x10));CHECK(fixed==f);
     void *collision=f;CHECK(map_flexible(&collision,PAGE,3,0x10)==NOMEM);CHECK(collision==f);
     CHECK(!release_flexible(fixed,PAGE));CHECK(!unmap(g,PAGE));CHECK(!flexible_bytes);CHECK(!available_flexible(&available) && available==FLEXIBLE);
+    /* Two allocation-granularity views exercise crossing a real view boundary. */
+    f=NULL;g=NULL;CHECK(!map_flexible(&f,PAGE*4,3,0));
+    g=(void *)((uintptr_t)f+PAGE*4);CHECK(!map_flexible(&g,PAGE*4,3,0x10));
+    CHECK(runtime_memory_is_mapped((uintptr_t)f,PAGE*8));
+    CHECK(runtime_memory_clamp((uintptr_t)f+PAGE*4-1,PAGE*4+2)==PAGE*4+1);
+    CHECK(!release_flexible(f,PAGE*4));CHECK(!runtime_memory_is_mapped((uintptr_t)f,PAGE*8));
+    CHECK(runtime_memory_is_mapped((uintptr_t)g,PAGE*4));CHECK(!release_flexible(g,PAGE*4));
     puts("Flexible availability: initial budget, allocation debit and release credit passed");
+    puts("Renderer memory queries: view bounds, gaps, overflow and unmap invalidation passed");
     puts("Flexible memory: zero-fill, isolation, budget, invalid requests and release passed");
     puts("Direct mapping: no-overwrite alias placement and GPU permission metadata passed");
     puts("Direct memory: allocation isolation, shared aliases, low addresses and lifecycle passed");return 0;

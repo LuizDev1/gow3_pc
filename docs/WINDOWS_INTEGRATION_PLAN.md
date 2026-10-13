@@ -460,3 +460,19 @@ System library requirements and remaining loader callbacks are documented in the
 Windows base README. No additional missing build dependency was observed in the
 successful full build. Runtime memory services and Windows fault recovery remain
 integration work; the static archive is not a linked TLG executable.
+
+### First renderer memory query callbacks (October 13, 2026)
+
+Renderer run 38477060026 and CPU run 38477060129 passed, including the dependency
+preflight. The Windows memory backend now exposes host C ABI callbacks matching
+the selected renderer's runtime_memory_region, runtime_memory_clamp and
+runtime_memory_is_mapped interfaces. Queries use the existing locked direct and
+flexible view table, report gaps up to the next mapping, clamp across adjacent
+views, reject overflowing ranges and immediately reflect released views.
+
+These are mapping queries, not readable-memory guarantees or lifetime pins.
+Zero-length storage requests are rejected. Original image/stack registration,
+backing writes, GPU hooks, page protection and Windows fault recovery are still
+required before the selected library can be connected and run with TLG.
+The local Windows diagnostic builds with warnings as errors; its memory self-test
+covers mapped bounds, gaps, invalid pointers, overflow and release invalidation.
