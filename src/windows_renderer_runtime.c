@@ -49,19 +49,43 @@ int windows_renderer_recover(EXCEPTION_POINTERS *exception) {
 static LONG WINAPI recover_test(EXCEPTION_POINTERS *exception) {
     return windows_renderer_recover(exception)?EXCEPTION_CONTINUE_EXECUTION:EXCEPTION_CONTINUE_SEARCH;
 }
-int windows_renderer_recovery_selftest(void) {
+static DWORD WINAPI test_protected_read(void *page) {
     TlgRecovery recovery;
-    void *page=VirtualAlloc(NULL,4096,MEM_RESERVE|MEM_COMMIT,PAGE_NOACCESS);
-    void *handler=AddVectoredExceptionHandler(1,recover_test);
-    if(!page || !handler) return 1;
     int resumed=gow3_setjmp(recovery);
     if(!resumed) {
         runtime_fault_recover=&recovery;
         (void)*(volatile unsigned char *)page;
         abort();
     }
-    if(resumed!=1 || runtime_fault_recover) return 1;
+    return resumed!=1 || runtime_fault_recover;
+}
+int windows_renderer_recovery_selftest(void) {
+    void *page=VirtualAlloc(NULL,4096,MEM_RESERVE|MEM_COMMIT,PAGE_NOACCESS);
+    void *handler=AddVectoredExceptionHandler(1,recover_test);
+    if(!page || !handler || test_protected_read(page)) return 1;
+    TlgRecovery sentinel;
+    runtime_fault_recover=&sentinel;
+    EXCEPTION_RECORD record={.ExceptionCode=EXCEPTION_ACCESS_VIOLATION,.NumberParameters=2};
+    CONTEXT context={0};EXCEPTION_POINTERS exception={&record,&context};
+    record.ExceptionInformation[0]=8;
+    if(windows_renderer_recover(&exception) || runtime_fault_recover!=&sentinel) return 1;
+    record.ExceptionCode=EXCEPTION_ILLEGAL_INSTRUCTION;
+    if(windows_renderer_recover(&exception) || runtime_fault_recover!=&sentinel) return 1;
+    HANDLE workers[2];
+    for(int i=0;i<2;i++) {
+        workers[i]=CreateThread(NULL,0,test_protected_read,page,0,NULL);
+        if(!workers[i]) return 1;
+    }
+    if(WaitForMultipleObjects(2,workers,TRUE,10000)!=WAIT_OBJECT_0) return 1;
+    for(int i=0;i<2;i++) {
+        DWORD result=1;
+        if(!GetExitCodeThread(workers[i],&result) || result) return 1;
+        CloseHandle(workers[i]);
+    }
+    if(runtime_fault_recover!=&sentinel) return 1;
+    runtime_fault_recover=NULL;
     RemoveVectoredExceptionHandler(handler);VirtualFree(page,0,MEM_RELEASE);
     puts("Renderer fault recovery: protected read resumed at Win64 landing point passed");
+    puts("Renderer fault recovery: thread isolation and unrelated exception rejection passed");
     return 0;
 }

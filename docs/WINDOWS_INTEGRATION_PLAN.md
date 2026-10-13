@@ -500,3 +500,12 @@ link, memory and protected-read recovery paths without starting a GPU. No GoW3
 loader is imported; its overlay restart action is disabled. This stage still does
 not enable guest GPU imports, Vulkan startup or claim a frame/menu. Stack region
 registration and game-specific renderer assumptions remain to be addressed.
+
+The first whole-archive run (38480358619) compiled the renderer and TLG sources
+and reported a single unresolved Windows import, CreateFileMapping2 in IOFile.
+That call did not use extended parameters; it now uses CreateFileMappingW with
+the same read/write, whole-file mapping behavior. The CPU run also identified a
+stored-but-unused invalidation callback; it is no longer stored. CPU write
+invalidation is dispatched through the renderer's access-violation handlers.
+Recovery tests additionally verify thread isolation and reject execute faults
+and unrelated exception types. These fixes require the next CI validation.

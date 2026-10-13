@@ -266,8 +266,9 @@ uintptr_t IOFile::GetFileMapping() {
     HANDLE mapping = nullptr;
 
     if (file_access_mode == FileAccessMode::ReadWrite) {
-        mapping = CreateFileMapping2(hfile, NULL, FILE_MAP_WRITE, PAGE_READWRITE, SEC_COMMIT, 0,
-                                     NULL, NULL, 0);
+        // No extended parameters or explicit access restriction are needed here.
+        // The baseline API also links with the MinGW kernel32 import library.
+        mapping = CreateFileMappingW(hfile, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     } else {
         mapping = hfile;
     }

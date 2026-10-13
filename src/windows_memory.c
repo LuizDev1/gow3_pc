@@ -19,7 +19,7 @@ static SRWLOCK lock=SRWLOCK_INIT;
 /* Serialize mapping mutations and notifications, without holding the table lock
  * during renderer callbacks (which may query/protect the same mappings). */
 static SRWLOCK mutation_lock=SRWLOCK_INIT;
-static WindowsGpuRange gpu_map,gpu_unmap,gpu_invalidate;
+static WindowsGpuRange gpu_map,gpu_unmap;
 typedef struct { uint64_t start,size; HANDLE section; } Block;
 typedef struct { void *address; uint64_t size; HANDLE section; int protection,kind; } View;
 /* kind: 0 direct allocation; 1 owned flexible section; 2 external image/stack. */
@@ -225,7 +225,10 @@ void runtime_memory_set_gpu_hooks(WindowsGpuRange map_hook,WindowsGpuRange unmap
      * guest mapping table; query and protection callbacks are safe here. */
     if(gpu_unmap) for(int i=0;i<LIMIT;i++) if(views[i].address)
         gpu_unmap((uintptr_t)views[i].address,views[i].size);
-    gpu_map=map_hook;gpu_unmap=unmap_hook;gpu_invalidate=invalidate_hook;
+    gpu_map=map_hook;gpu_unmap=unmap_hook;
+    /* CPU writes are handled by the renderer's access-violation dispatcher.
+     * This backend currently emits map/unmap events, not explicit invalidations. */
+    (void)invalidate_hook;
     if(gpu_map) for(int i=0;i<LIMIT;i++) if(views[i].address)
         gpu_map((uintptr_t)views[i].address,views[i].size);
     ReleaseSRWLockExclusive(&mutation_lock);
