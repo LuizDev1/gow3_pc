@@ -27,6 +27,16 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_readonly_files_preserve_data_and_descriptor_lifecycle(self):
+        with tempfile.TemporaryDirectory() as root:
+            fixture = Path(root)/'fixture.bin'
+            fixture.write_bytes(b'ABCDE')
+            env = dict(os.environ, TLG_GAME_ROOT=root)
+            result = subprocess.run([str(EXE.resolve()), '--selftest-files'], env=env, capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(fixture.read_bytes(), b'ABCDE')
+            self.assertIn('exact bytes, seek, EOF and stale descriptors passed', result.stdout)
+
     def test_guest_clock_layout_translation_and_errors(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-timespec'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

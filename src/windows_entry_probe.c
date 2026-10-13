@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <x86intrin.h>
 #include "windows_equeue.h"
 #include "windows_mutex.h"
@@ -265,6 +266,80 @@ static int selftest_console(void) {
        guest_console_write(2,"console stderr\n",15)!=15) return 1;
     return 0;
 }
+/* Read-only /app0 mount. Guest descriptors never expose host HANDLE values. */
+static SRWLOCK file_lock=SRWLOCK_INIT;
+static struct { int id; HANDLE handle; } guest_files[128];
+static int next_file=3;
+#define FILE_ERROR(n) (-(int64_t)0x100000000+(int64_t)(0x80020000u|(n)))
+static int file_error(DWORD error) {
+    return error==ERROR_FILE_NOT_FOUND || error==ERROR_PATH_NOT_FOUND?2:
+        error==ERROR_ACCESS_DENIED?13:5;
+}
+static ABI int64_t guest_file_open(const char *path,int flags,int mode) {
+    (void)mode;
+    if(!path) return FILE_ERROR(14);
+    printf("Runtime: file open %s (flags 0x%x)\n",path,flags);
+    if(flags) return FILE_ERROR(45);
+    const char *relative=NULL;
+    if(!strncmp(path,"/app0/",6)) relative=path+6;
+    else if(!strncmp(path,"/hostapp/",9)) relative=path+9;
+    else if(path[0]!='/') relative=path;
+    if(!relative || !*relative || strlen(relative)>1024) return FILE_ERROR(22);
+    for(const char *at=relative;*at;) {
+        const char *end=strchr(at,'/');size_t n=end?(size_t)(end-at):strlen(at);
+        if(!n || (n==1 && at[0]=='.') || (n==2 && at[0]=='.' && at[1]=='.')) return FILE_ERROR(22);
+        for(size_t i=0;i<n;i++) if(at[i]=='\\' || at[i]==':' || at[i]=='*' || at[i]=='?') return FILE_ERROR(22);
+        if(!end) break;at=end+1;
+    }
+    const char *root=getenv("TLG_GAME_ROOT");
+    if(!root || !*root) return FILE_ERROR(2);
+    char host[2048];
+    if(snprintf(host,sizeof(host),"%s/%s",root,relative)>=(int)sizeof(host)) return FILE_ERROR(63);
+    HANDLE h=CreateFileA(host,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    if(h==INVALID_HANDLE_VALUE) return FILE_ERROR(file_error(GetLastError()));
+    AcquireSRWLockExclusive(&file_lock);
+    for(unsigned i=0;i<128;i++) if(!guest_files[i].id && next_file<INT_MAX) {
+        int id=next_file++;guest_files[i].id=id;guest_files[i].handle=h;
+        ReleaseSRWLockExclusive(&file_lock);return id;
+    }
+    ReleaseSRWLockExclusive(&file_lock);CloseHandle(h);return FILE_ERROR(24);
+}
+static HANDLE find_file(int id) {
+    for(unsigned i=0;i<128;i++) if(guest_files[i].id==id && id>=3) return guest_files[i].handle;
+    return INVALID_HANDLE_VALUE;
+}
+static ABI int64_t guest_file_read(int fd,void *buffer,uint64_t size) {
+    if((size && !buffer) || size>INT64_MAX) return FILE_ERROR(22);
+    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);DWORD count=0;
+    int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):
+        ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?(int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    ReleaseSRWLockExclusive(&file_lock);return result;
+}
+static ABI int64_t guest_file_seek(int fd,int64_t offset,int whence) {
+    if(whence<0 || whence>2) return FILE_ERROR(22);
+    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);LARGE_INTEGER move={.QuadPart=offset},position;
+    int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):
+        SetFilePointerEx(h,move,&position,(DWORD)whence)?position.QuadPart:FILE_ERROR(22);
+    ReleaseSRWLockExclusive(&file_lock);return result;
+}
+static ABI int64_t guest_file_close(int fd) {
+    AcquireSRWLockExclusive(&file_lock);
+    for(unsigned i=0;i<128;i++) if(guest_files[i].id==fd && fd>=3) {
+        if(!CloseHandle(guest_files[i].handle)) {ReleaseSRWLockExclusive(&file_lock);return FILE_ERROR(5);}
+        guest_files[i].id=0;ReleaseSRWLockExclusive(&file_lock);return 0;
+    }
+    ReleaseSRWLockExclusive(&file_lock);return FILE_ERROR(9);
+}
+static int selftest_files(void) {
+    if(guest_file_open("/app0/../fixture.bin",0,0)!=FILE_ERROR(22) ||
+       guest_file_open("/app0/fixture.bin",1,0)!=FILE_ERROR(45)) return 1;
+    int64_t fd=guest_file_open("/app0/fixture.bin",0,0);char bytes[8]={0};
+    if(fd<3 || guest_file_read((int)fd,bytes,3)!=3 || memcmp(bytes,"ABC",3) ||
+       guest_file_seek((int)fd,-2,2)!=3 || guest_file_read((int)fd,bytes,8)!=2 || memcmp(bytes,"DE",2) ||
+       guest_file_read((int)fd,bytes,1)!=0 || guest_file_close((int)fd) ||
+       guest_file_close((int)fd)!=FILE_ERROR(9) || guest_file_read((int)fd,bytes,1)!=FILE_ERROR(9)) return 1;
+    puts("Files: read-only mount, exact bytes, seek, EOF and stale descriptors passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -289,6 +364,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"1G3lF1Gg1k8#U#H")) return (uintptr_t)guest_file_open;
+        if (!strcmp(name,"Cg4srZ6TKbU#U#H")) return (uintptr_t)guest_file_read;
+        if (!strcmp(name,"oib76F-12fk#U#H")) return (uintptr_t)guest_file_seek;
+        if (!strcmp(name,"UK2Tl2DWUns#U#H")) return (uintptr_t)guest_file_close;
         if (!strcmp(name,"lLMT9vJAck0#U#H")) return (uintptr_t)guest_clock_gettime;
         if (!strcmp(name,"-2IRUCO--PM#U#H")) return (uintptr_t)guest_read_tsc;
         if (!strcmp(name,"1j3S3n-tTW4#U#H")) return (uintptr_t)guest_tsc_frequency;
@@ -402,6 +481,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
     if (argc == 2 && !strcmp(argv[1], "--selftest-clock")) return selftest_clock();
     if (argc == 2 && !strcmp(argv[1], "--selftest-console")) return selftest_console();

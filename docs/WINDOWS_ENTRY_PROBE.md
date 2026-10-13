@@ -258,3 +258,22 @@ and invalid handles. The validated USA 1.03 target proceeds without requesting a
 unsupported priority protocol, then stops at `sceKernelOpen` (`1G3lF1Gg1k8`, caller
 offset `0x5c48f6a` in Fios2). Guest file-path translation, descriptor ownership and
 file access are the next integration step. Graphics and menu remain unavailable.
+
+
+### Initial read-only file access (October 13, 2026)
+
+Set `TLG_GAME_ROOT` to the extracted game directory before running the diagnostic.
+`/app0/`, `/hostapp/` and relative paths resolve against that directory. The initial
+backend implements read-only open, read, 64-bit seek and close with private,
+non-reused descriptor IDs and synchronized host-handle ownership. It rejects write
+flags, unsupported mounts, dot/traversal components and Windows path separators,
+colon and wildcards. Host path conversion currently uses the Windows ANSI code
+page; Unicode paths and reparse-point containment are not implemented. This is not
+a complete filesystem or a security boundary for untrusted game files.
+
+All 22 entry tests pass, including byte-exact reads, seek, EOF, stale descriptors,
+read-only rejection and unchanged fixture contents. USA 1.03 first requests the
+relative optional file `memory.cfg`, then advances to `sceSysmoduleLoadModule`
+(`g8cM39EUZ6o`, libSceSysmodule, caller offset `0xd4c9ae`, module ID `0xb4`).
+2348 exit callbacks are registered at that point. No game archive loading or
+rendering has been demonstrated. Module-loading semantics are the next blocker.
