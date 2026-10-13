@@ -207,3 +207,22 @@ normalized local build the target prints its startup banner and stops normally
 at unresolved `sceKernelReadTsc` (`-2IRUCO--PM`, caller offset `0xd16a4a`), with
 exit code 20. The prior raw access violation is no longer observed in this run.
 Timing APIs are the next blocker; graphics and menu remain unavailable.
+
+
+### Hardware timing (October 13, 2026)
+
+`sceKernelReadTsc` reads the actual x86 hardware counter, preserving consistency
+with guest RDTSC instructions. `sceKernelGetTscFrequency` returns a frequency
+calibrated once against Windows QueryPerformanceCounter over a 20 ms interval.
+`sceKernelGetProcessTime` reports monotonic elapsed microseconds from runtime clock
+initialization. Integer scaling uses 128-bit intermediates to avoid overflow.
+Initialization is synchronized and fails explicitly if Windows clock queries fail.
+This is a measured host frequency, not a claimed PS4 clock rate. Calibration noise,
+non-invariant TSC hardware and virtual-machine migration remain limitations.
+
+All 20 Windows entry tests pass, including hardware-counter advancement, stable
+reported frequency and elapsed-time agreement with QPC. The USA 1.03 target now
+passes the previous timing import and stops at POSIX `clock_gettime`
+(`lLMT9vJAck0`, caller offset `0x5b7bdda`), requesting guest clock ID 13 (SECOND).
+Clock-ID translation and explicit guest timespec layout are the next step.
+Graphics and menu remain unavailable.

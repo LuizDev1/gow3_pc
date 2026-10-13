@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <x86intrin.h>
 #include "windows_equeue.h"
 #include "windows_mutex.h"
 #include "windows_tls.h"
@@ -161,6 +162,42 @@ static ABI void init_env_ret(void) {
     ++init_env_calls;
     puts("Runtime: _init_env returned (prepared libc export verified as RET)");
 }
+/* Keep the real x86 counter: guest code can also execute RDTSC directly.
+ * Calibrate once against Windows QPC instead of inventing a PS4 frequency. */
+static INIT_ONCE clock_once=INIT_ONCE_STATIC_INIT;
+static uint64_t counter_hz, qpc_hz, process_start;
+static BOOL CALLBACK initialize_clock(PINIT_ONCE once,PVOID argument,PVOID *context) {
+    (void)once;(void)argument;(void)context;
+    LARGE_INTEGER frequency,a,b;
+    if(!QueryPerformanceFrequency(&frequency) || frequency.QuadPart<=0 || !QueryPerformanceCounter(&a)) return FALSE;
+    uint64_t begin=__rdtsc();Sleep(20);uint64_t end=__rdtsc();
+    if(!QueryPerformanceCounter(&b) || b.QuadPart<=a.QuadPart || end<=begin) return FALSE;
+    qpc_hz=(uint64_t)frequency.QuadPart;
+    counter_hz=(uint64_t)(((__uint128_t)(end-begin)*qpc_hz)/(uint64_t)(b.QuadPart-a.QuadPart));
+    process_start=(uint64_t)a.QuadPart;
+    return counter_hz!=0;
+}
+static void require_clock(void) {
+    if(!InitOnceExecuteOnce(&clock_once,initialize_clock,NULL,NULL)) {
+        fputs("STOP: Windows clock initialization failed\n",stderr);ExitProcess(21);
+    }
+}
+static ABI uint64_t guest_read_tsc(void) { return __rdtsc(); }
+static ABI uint64_t guest_tsc_frequency(void) { require_clock();return counter_hz; }
+static ABI uint64_t guest_process_time(void) {
+    require_clock();LARGE_INTEGER now;
+    if(!QueryPerformanceCounter(&now) || (uint64_t)now.QuadPart<process_start) ExitProcess(21);
+    return (uint64_t)(((__uint128_t)((uint64_t)now.QuadPart-process_start)*1000000)/qpc_hz);
+}
+static int selftest_clock(void) {
+    uint64_t hz=guest_tsc_frequency(),a=guest_read_tsc(),before=guest_process_time();
+    Sleep(30);uint64_t b=guest_read_tsc(),after=guest_process_time();
+    if(!hz || guest_tsc_frequency()!=hz || b<=a || after<=before) return 1;
+    uint64_t elapsed=(uint64_t)(((__uint128_t)(b-a)*1000000)/hz);
+    uint64_t expected=after-before;
+    if(elapsed<expected/2 || elapsed>expected*2) return 1;
+    puts("Timing: advancing hardware counter, stable frequency and elapsed-time agreement passed");return 0;
+}
 /* POSIX console writes only. File descriptors are not host Win32 handles. */
 static _Thread_local int32_t console_errno;
 static ABI int32_t *guest_console_error(void) { return &console_errno; }
@@ -209,6 +246,9 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"-2IRUCO--PM#U#H")) return (uintptr_t)guest_read_tsc;
+        if (!strcmp(name,"1j3S3n-tTW4#U#H")) return (uintptr_t)guest_tsc_frequency;
+        if (!strcmp(name,"4J2sUJmuHZQ#U#H")) return (uintptr_t)guest_process_time;
         if (!strcmp(name,"FxVZqBAA7ks#U#H")) return (uintptr_t)guest_console_write;
         if (!strcmp(name,"9BcDykPmo1I#U#H")) return (uintptr_t)guest_console_error;
         uintptr_t resolved = windows_equeue_resolve(name);
@@ -318,6 +358,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-clock")) return selftest_clock();
     if (argc == 2 && !strcmp(argv[1], "--selftest-console")) return selftest_console();
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
@@ -489,6 +530,7 @@ int main(int argc, char **argv) {
     protect(image, rounded((size_t)image_size), 0);
     for (uint64_t i = 0; i < ns; ++i)
         protect(image + segments[i].address, rounded((size_t)segments[i].size), (unsigned)segments[i].flags);
+    require_clock();
     if (!AddVectoredExceptionHandler(1, fault)) fail("exception handler unavailable");
     HANDLE timer = CreateThread(NULL, 0, watchdog, NULL, 0, NULL);
     if (!timer) fail("watchdog unavailable");

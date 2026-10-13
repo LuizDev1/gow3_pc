@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_timing_uses_advancing_counter_and_consistent_frequency(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-clock'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('advancing hardware counter, stable frequency and elapsed-time agreement passed', result.stdout)
+
     def test_console_preserves_binary_data_and_routes_descriptors(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-console'], capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
