@@ -122,8 +122,15 @@ static ABI int32_t release(int64_t physical,uint64_t size) {
     }
     ReleaseSRWLockExclusive(&lock);return INVALID;
 }
+/* Signature/NID confirmed in shadPS4 kernel/memory.cpp. */
+static ABI int32_t available_flexible(uint64_t *out) {
+    if(!out) return INVALID;
+    AcquireSRWLockShared(&lock);*out=FLEXIBLE-flexible_bytes;ReleaseSRWLockShared(&lock);
+    return 0;
+}
 uintptr_t windows_memory_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
+    EXPORT("aNz11fnnzi4",available_flexible);
     EXPORT("IWIBBdTHit4",map_flexible);EXPORT("teiItL2boFw",release_flexible);
     EXPORT("mL8NDH86iQI",map_named_flexible);
     EXPORT("pO96TwzOm5E",direct_size);EXPORT("rTXw65xmLIA",allocate);
@@ -143,17 +150,19 @@ int windows_memory_selftest(void) {
     CHECK(unmap(x,PAGE*2)==INVALID);CHECK(!unmap(x,PAGE));CHECK(!unmap(y,PAGE));
     CHECK(!release(a,PAGE));CHECK(release(a,PAGE)==INVALID);CHECK(!release(b,PAGE));
     CHECK(!windows_memory_resolve("pO96TwzOm5E#other"));
+    uint64_t available=0;CHECK(available_flexible(NULL)==INVALID);CHECK(!available_flexible(&available) && available==FLEXIBLE);
     void *f=NULL,*g=NULL,*unchanged=(void *)(uintptr_t)123;
     CHECK(map_flexible(&unchanged,FLEXIBLE+PAGE,3,0)==NOMEM);CHECK(unchanged==(void *)(uintptr_t)123);
     CHECK(map_flexible(&f,1,3,0)==INVALID);CHECK(map_flexible(&f,PAGE,3,16)==INVALID);
     CHECK(!map_flexible(&f,PAGE,3,0));CHECK(!map_named_flexible(&g,PAGE,3,0,"test"));
     CHECK(f!=g && *(volatile uint64_t *)f==0 && *(volatile uint64_t *)g==0);
-    *(volatile uint64_t *)f=42;CHECK(*(volatile uint64_t *)g==0);CHECK(flexible_bytes==PAGE*2);
+    *(volatile uint64_t *)f=42;CHECK(*(volatile uint64_t *)g==0);CHECK(flexible_bytes==PAGE*2);CHECK(!available_flexible(&available) && available==FLEXIBLE-PAGE*2);
     CHECK(release_flexible(f,PAGE*2)==INVALID);CHECK(!release_flexible(f,PAGE));
     CHECK(release_flexible(f,PAGE)==INVALID);
     void *fixed=f;CHECK(!map_flexible(&fixed,PAGE,3,0x10));CHECK(fixed==f);
     void *collision=f;CHECK(map_flexible(&collision,PAGE,3,0x10)==NOMEM);CHECK(collision==f);
-    CHECK(!release_flexible(fixed,PAGE));CHECK(!unmap(g,PAGE));CHECK(!flexible_bytes);
+    CHECK(!release_flexible(fixed,PAGE));CHECK(!unmap(g,PAGE));CHECK(!flexible_bytes);CHECK(!available_flexible(&available) && available==FLEXIBLE);
+    puts("Flexible availability: initial budget, allocation debit and release credit passed");
     puts("Flexible memory: zero-fill, isolation, budget, invalid requests and release passed");
     puts("Direct memory: allocation isolation, shared aliases, low addresses and lifecycle passed");return 0;
 }

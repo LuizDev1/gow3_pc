@@ -110,6 +110,7 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('shared aliases, low addresses and lifecycle passed', result.stdout)
         self.assertIn('zero-fill, isolation, budget, invalid requests and release passed', result.stdout)
+        self.assertIn('initial budget, allocation debit and release credit passed', result.stdout)
 
     def test_console_profile_reports_base_ps4_to_guest(self):
         code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0\x48\x83\xc4\x08'

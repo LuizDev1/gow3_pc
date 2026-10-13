@@ -577,3 +577,20 @@ stops at unresolved libkernel NID `aNz11fnnzi4` (caller offset `0xdd3c36`). Its 
 is not yet identified in this repository; no behavior is guessed. 2349 exit
 callbacks are registered. The next step is identifying that ABI. Graphics/menu
 remain unavailable, and no functional dialog UI is claimed.
+
+
+### Available flexible-memory query identified (October 13, 2026)
+
+NID `aNz11fnnzi4` is `sceKernelAvailableFlexibleMemorySize`, confirmed by
+[shadPS4 memory registration and signature](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/kernel/memory.cpp).
+The Windows backend now returns its configured flexible-memory budget minus live
+allocations under the same registry lock. The output is a 64-bit byte count;
+null output is rejected. The diagnostic name table now identifies the symbol.
+
+All 29 Windows entry tests pass, with added availability checks before allocation,
+after allocation and after release. Under both experimental profiles, the query
+returns successfully, but startup still prints `Exit engine` and stops at unresolved
+`sceSaveDataTerminate` during cleanup. Inspection places the availability query
+in cleanup-related code; implementing it does not establish that engine startup
+succeeded. The primary reason for entering cleanup still needs tracing. No
+additional graphics/menu progress is claimed.
