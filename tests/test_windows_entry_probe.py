@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_direct_memory_shared_storage_and_lifecycle(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-memory'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('shared aliases, low addresses and lifecycle passed', result.stdout)
+
     def test_console_profile_reports_base_ps4_to_guest(self):
         code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0\x48\x83\xc4\x08'
               b'\x85\xc0\x75\x06\xff\x25\x10\0\0\0\x0f\x0b')

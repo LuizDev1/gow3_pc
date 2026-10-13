@@ -13,6 +13,7 @@
 #include "windows_equeue.h"
 #include "windows_mutex.h"
 #include "windows_tls.h"
+#include "windows_memory.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -184,7 +185,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
         uintptr_t resolved = windows_equeue_resolve(name);
-        return resolved ? resolved : windows_mutex_resolve(name);
+        if (!resolved) resolved = windows_mutex_resolve(name);
+        return resolved ? resolved : windows_memory_resolve(name);
     }
     return 0;
 }
@@ -291,6 +293,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-memory")) return windows_memory_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-tls")) return windows_tls_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-heap-trace")) return selftest_heap_trace();
     if (argc != 2) {

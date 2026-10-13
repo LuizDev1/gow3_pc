@@ -73,3 +73,25 @@ and the explicit base-PS4 profile, then stops at `sceKernelGetDirectMemorySize`.
 It has not returned successfully;
 Fios2 initialization and the game entry have not run in this mode.
 The unlinked mode still reaches `strlen`. Neither result proves gameplay support.
+
+
+### Direct-memory backend (October 13, 2026)
+
+The Windows diagnostic now exposes a 5056 MiB retail PS4 direct-memory budget,
+with synchronized physical allocation accounting and independent pagefile-backed
+sections. Complete allocations can be mapped multiple times below 1 TiB; aliases
+share actual storage. Allocation alignment, overlap, bounds, stale releases and
+mapped-allocation lifetime are checked. The section commits backing storage for
+allocated bytes, rather than committing the entire advertised pool up front.
+
+This initial mapping contract accepts CPU read/write protection (`3`), zero flags,
+no requested address, and complete allocations only. Fixed mappings, subranges,
+GPU protections, partial unmapping and releasing mapped allocations are not yet
+supported. Unsupported requests return an error; no renderer is connected.
+Address placement has a bounded search and can fail under fragmentation.
+
+Validation: 17 Windows entry tests pass, including a synthetic test that writes
+through one alias and reads the same bytes through another. With the validated
+USA 1.03 native image, execution passes the direct-memory-size query and stops at
+`sceKernelMapFlexibleMemory` (`IWIBBdTHit4`, caller offset `0x207dbc`) during libc
+initialization. Original game entry, graphics and the menu remain untested.

@@ -9,6 +9,7 @@ on:
       - 'src/windows_equeue.*'
       - 'src/windows_mutex.*'
       - 'src/windows_tls.*'
+      - 'src/windows_memory.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/audit_runtime.py'
@@ -22,6 +23,7 @@ on:
       - 'src/windows_equeue.*'
       - 'src/windows_mutex.*'
       - 'src/windows_tls.*'
+      - 'src/windows_memory.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/audit_runtime.py'
@@ -55,7 +57,7 @@ jobs:
           mkdir -p out
           clang -std=c11 -O2 -Wall -Wextra -Werror -static \
             -Wl,--disable-high-entropy-va -Xlinker --stack -Xlinker '16777216,16777216' \
-            src/windows_entry_probe.c src/windows_equeue.c src/windows_mutex.c src/windows_tls.c -lbcrypt -o out/tlg-entry-probe.exe
+            src/windows_entry_probe.c src/windows_equeue.c src/windows_mutex.c src/windows_tls.c src/windows_memory.c -lbcrypt -o out/tlg-entry-probe.exe
       - name: Test preparation and native entry diagnostics (synthetic inputs)
         shell: pwsh
         run: |
