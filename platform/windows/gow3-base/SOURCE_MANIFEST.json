@@ -1,0 +1,2521 @@
+{
+  "source_repository": "https://github.com/LuizDev1/gow3_pc",
+  "source_commit": "97f1f8d4410ac8ad4fde29d29041f06e3af51b66",
+  "source_checkout": "user-provided Windows compatibility source; includes local CMake changes",
+  "files": [
+    {
+      "path": "gpu/CMakeLists.txt",
+      "sha256": "a383dbf1d7f82d88f3438773aa856e8f9dc4505e04302915c3c7286a0212041b"
+    },
+    {
+      "path": "gpu/dlss_bridge/CMakeLists.txt",
+      "sha256": "949d2f169973f7f0e6277cccda07ffa450a2964598b8d11e8c8f03753d57f257"
+    },
+    {
+      "path": "gpu/dlss_bridge/gow3_dlss_bridge.cpp",
+      "sha256": "9bb76562d2d1751b6722cf5496bc0075ec50d425b7b0dc784718b0af5ff22aa6"
+    },
+    {
+      "path": "gpu/dlss_bridge/gow3_dlss_bridge.h",
+      "sha256": "9c8b02ed077a345065e36e3695d3b009b480865b6125e945a0dc74bf7b41222b"
+    },
+    {
+      "path": "gpu/dlss_bridge/LICENSE.txt",
+      "sha256": "128650b63ea3474db90209d99770eb7912f37beb8c17730abf54c70df74be804"
+    },
+    {
+      "path": "gpu/gow3gpu.h",
+      "sha256": "aa02639b3898461c3be655d0ef158adc74b0d66837311a390264deb944d2f5be"
+    },
+    {
+      "path": "gpu/shadps4/common/adaptive_mutex.h",
+      "sha256": "7be574a8250af109f9066c51e0ed834ac54167188ce09c77434d55e3ed82226c"
+    },
+    {
+      "path": "gpu/shadps4/common/aes.h",
+      "sha256": "35260236df1c03ca1a3d8e9cce016d81dfa2cd93d9701ac8071929d2c7082684"
+    },
+    {
+      "path": "gpu/shadps4/common/alignment.h",
+      "sha256": "18e0d4da0af9f074a3aa22df4cef610b3b671b001d7acb962afb7e6a6bf8a81d"
+    },
+    {
+      "path": "gpu/shadps4/common/arch.h",
+      "sha256": "65b26d9a277d0be4c8f49face5f345a53b69a264efdeeb67b790e2316736d89f"
+    },
+    {
+      "path": "gpu/shadps4/common/assert.cpp",
+      "sha256": "89ffd7cd56a62eb6186023d8aad4d8ca15c256a51c11a5ac89f7d17ded352136"
+    },
+    {
+      "path": "gpu/shadps4/common/assert.h",
+      "sha256": "d0b09c3f389647a67154fc6ba96f642bbb1af098256da659f2d25cd507a165d8"
+    },
+    {
+      "path": "gpu/shadps4/common/bit_array.h",
+      "sha256": "6bde9fdf8dbc0d46e60ef6e848bd1190e2b4c1595c1f1d9e2d45265cceac5f8a"
+    },
+    {
+      "path": "gpu/shadps4/common/bit_field.h",
+      "sha256": "133164b935fcbc0698b8607a0bc9e493cd46b0372c6ece630b2add450c62a503"
+    },
+    {
+      "path": "gpu/shadps4/common/bounded_threadsafe_queue.h",
+      "sha256": "999e58b486092476938b3e91226a6b638dc9d6f74566559118c07332d72a3310"
+    },
+    {
+      "path": "gpu/shadps4/common/concepts.h",
+      "sha256": "ab4b7f9feef67ef50b1b7fabf5132dad2018d39316aeb74e2ef66ae59a62c989"
+    },
+    {
+      "path": "gpu/shadps4/common/cstring.h",
+      "sha256": "af57c13c57493ed1e58257283a52269d0957e2d203761b0ad3a6fe51da4fc97d"
+    },
+    {
+      "path": "gpu/shadps4/common/debug.h",
+      "sha256": "c61261a1df5831068b16cc284156c861e46558df6b133b703af573c27a2f9d83"
+    },
+    {
+      "path": "gpu/shadps4/common/decoder.cpp",
+      "sha256": "1996311a0df6ca6ca7f924a6285dd05ab78574aefaae8350b1cecf5ec53bb2a0"
+    },
+    {
+      "path": "gpu/shadps4/common/decoder.h",
+      "sha256": "83dd6a33923c4599fb0f45a2f623bd68e6bb010dc0c204dc2ea7f79d1dcd6852"
+    },
+    {
+      "path": "gpu/shadps4/common/discord_rpc_handler.cpp",
+      "sha256": "48c03ec4fdb12fdfb97e905c804d6b372756751221dc3dc4be68d169bd22581c"
+    },
+    {
+      "path": "gpu/shadps4/common/discord_rpc_handler.h",
+      "sha256": "09a8041119d39140e3c29f4cf3c58e2cce590097e8d644339db5024d9677df4d"
+    },
+    {
+      "path": "gpu/shadps4/common/div_ceil.h",
+      "sha256": "0eca366a6137cb1192a37afee10c409ab3e75af103bb8c5c301482da21ee130b"
+    },
+    {
+      "path": "gpu/shadps4/common/elf_info.h",
+      "sha256": "2b5b99ebe379266cefe6fb25dd96149a83fd63374fca2a7f2d44c825454dd775"
+    },
+    {
+      "path": "gpu/shadps4/common/endian.h",
+      "sha256": "38b8d3c0ea87da77136c57bf2cf8059f11b985aca7c89a60a117db0a0f10b9fc"
+    },
+    {
+      "path": "gpu/shadps4/common/enum.h",
+      "sha256": "e89e3938e08c784a750797d36b4f53a81810a353fc9b4d04f92720a5ed248168"
+    },
+    {
+      "path": "gpu/shadps4/common/error.cpp",
+      "sha256": "9171c7e9d2b090f9e704c1c4d5537b63ba08dd3810d08e431adb24250f58e6d3"
+    },
+    {
+      "path": "gpu/shadps4/common/error.h",
+      "sha256": "df69dd7376debee634361ca7fbec6a8af89abe946bc4b48848b3b3ea3e89485c"
+    },
+    {
+      "path": "gpu/shadps4/common/fixed_value.h",
+      "sha256": "823ab465428d4f5282c2dfdcdeb05879cb281598e7cda11610243f6e8689e192"
+    },
+    {
+      "path": "gpu/shadps4/common/func_traits.h",
+      "sha256": "b173cf9998f7bbf7c0283366cd0240b236d9f40626652e9292f6ef264042c96c"
+    },
+    {
+      "path": "gpu/shadps4/common/hash.h",
+      "sha256": "2224707221bb00fc510c8a3559e6a3d3de0c6b4544a1699cda3f678039418f37"
+    },
+    {
+      "path": "gpu/shadps4/common/incremental_id.h",
+      "sha256": "9e6f4eb82700ed0292825c43ab021ac9de580e48d69039d3f86ced1e053ec1e3"
+    },
+    {
+      "path": "gpu/shadps4/common/interval_set.h",
+      "sha256": "21e4e35c63c2d193d34206f6a4dd87307a10ef8d9429d986cf47006ffa275e3b"
+    },
+    {
+      "path": "gpu/shadps4/common/io_file.cpp",
+      "sha256": "25e367dd6f8b8139ebfb97c8a841d095085804d8d61cab8d6e58dc3c76e0eee0"
+    },
+    {
+      "path": "gpu/shadps4/common/io_file.h",
+      "sha256": "0469f018cb4c68abcf1b685ad862e10d223266b7489119e311ebc9ead3eab274"
+    },
+    {
+      "path": "gpu/shadps4/common/key_manager.cpp",
+      "sha256": "3a15d02941197450e1070f02f378ab2d87d8afe900bd872b65fbd2c6e63a54b7"
+    },
+    {
+      "path": "gpu/shadps4/common/key_manager.h",
+      "sha256": "1da737863e306b014ffd8082d23f5903e5a844f3f1dad2a374dd9f1a193d52c6"
+    },
+    {
+      "path": "gpu/shadps4/common/logging/classes.h",
+      "sha256": "2c5f6db5292399490a2bc0aa130874cca74a56bc6a48da27eeaf843e584a3c6f"
+    },
+    {
+      "path": "gpu/shadps4/common/logging/formatter.h",
+      "sha256": "de68f73fa3e605445dc4c2e915c9111e50b775becb3f956f07a7b7d62de7c13f"
+    },
+    {
+      "path": "gpu/shadps4/common/logging/log.cpp",
+      "sha256": "4fd0f688bd09298eaf1f631b2c41ecde05392ea10959a31ff2c7ec7b53bce9e1"
+    },
+    {
+      "path": "gpu/shadps4/common/logging/log.h",
+      "sha256": "3123a2cc05b8ac4f36ba9032c7d29759499f2b9f750eb0e5dca16cd752709c1f"
+    },
+    {
+      "path": "gpu/shadps4/common/logging/log_file_sink.h",
+      "sha256": "42c15acbb7d898fb895a416abad1ad323d600ff49630c21603a5857fd5843456"
+    },
+    {
+      "path": "gpu/shadps4/common/lru_cache.h",
+      "sha256": "c02cfc6d50ef53c1fb6b5366724538df903066ce1ab40aa89743cd43cb9c46e0"
+    },
+    {
+      "path": "gpu/shadps4/common/memory_patcher.cpp",
+      "sha256": "85b7b143c986ee0d73887b3ccc79cf5c95bf87e7bec3301f10ef2505a971d8fc"
+    },
+    {
+      "path": "gpu/shadps4/common/memory_patcher.h",
+      "sha256": "186cb72728d2a91d8d2a0546416270c89fdbdeff48b728ea14fdf2892360064d"
+    },
+    {
+      "path": "gpu/shadps4/common/native_clock.cpp",
+      "sha256": "cda2eed85e3d0ac04ca98d65cdd7ad6d3b399d233aa5a20924a3aece5aa9986c"
+    },
+    {
+      "path": "gpu/shadps4/common/native_clock.h",
+      "sha256": "817b4b6a210bc6103a5a4e7f3905341c6dfdf35285b3f321319dcdd0ba2439fa"
+    },
+    {
+      "path": "gpu/shadps4/common/ntapi.cpp",
+      "sha256": "35b77ce5b63c6b814bd7fbacc7c683bd89ed3d1e04102df76e10a422b5e70aab"
+    },
+    {
+      "path": "gpu/shadps4/common/ntapi.h",
+      "sha256": "ec838578601cb8364557b658afac9d642b614504e68cc34a4107cebed9fb5831"
+    },
+    {
+      "path": "gpu/shadps4/common/number_utils.cpp",
+      "sha256": "f2d1d8055d15d78cd205dc96a464c48958ec6f1f497bfb96f05db2221a9248a5"
+    },
+    {
+      "path": "gpu/shadps4/common/number_utils.h",
+      "sha256": "81b37cb6441c53cbe733c580624877b1310360a9949cea759699a7de71d40bdb"
+    },
+    {
+      "path": "gpu/shadps4/common/object_pool.h",
+      "sha256": "cba008836320d8738b9bdd79630efdaf54efab557c65d9a457440f677033d557"
+    },
+    {
+      "path": "gpu/shadps4/common/path_util.cpp",
+      "sha256": "c87ed69d10155574fc05e18e8b78900ae93b36d882f8adc29379ceb8a7524cc2"
+    },
+    {
+      "path": "gpu/shadps4/common/path_util.h",
+      "sha256": "481f70b39dd3e3ecee511508110437128b1b238eebfbaaf6888c5a53d8f10131"
+    },
+    {
+      "path": "gpu/shadps4/common/polyfill_thread.h",
+      "sha256": "d57d22c64765e145361e0241ec15342a18c3b76ff6584623afc52d8f36e776fb"
+    },
+    {
+      "path": "gpu/shadps4/common/range_lock.h",
+      "sha256": "965ff51a13fd413f9248743ca408f3b1b2facd1eea5f1fe6cfb1a8c259b2f2cf"
+    },
+    {
+      "path": "gpu/shadps4/common/rdtsc.cpp",
+      "sha256": "22ce26e29b28ffae02e52d3d9e3aac82fd5fb9a24d897114247f27f8b055b956"
+    },
+    {
+      "path": "gpu/shadps4/common/rdtsc.h",
+      "sha256": "fff4cbe7a68f7afe244c98f62f9a677fb4bab4949214f175adb1f6f98bebc8a4"
+    },
+    {
+      "path": "gpu/shadps4/common/recursive_lock.cpp",
+      "sha256": "166f247cb8b0dc6b23cf606d28b47da372a96bc2040e00fbd11286e1cc49c731"
+    },
+    {
+      "path": "gpu/shadps4/common/recursive_lock.h",
+      "sha256": "ab7b8a736e0d0a6d7751aada3d91408de6c4beb94b8910cab0e7dce73daa2f2b"
+    },
+    {
+      "path": "gpu/shadps4/common/ring_buffer_queue.h",
+      "sha256": "3038b3fd13c35b911191c3c7c0006de70138184bf1b62df20984782adbd4d95c"
+    },
+    {
+      "path": "gpu/shadps4/common/scm_rev.cpp.in",
+      "sha256": "671d41f60c86fde2d47df1ffe4b2930a36edc14af4c24bcc10428fdebf007dd8"
+    },
+    {
+      "path": "gpu/shadps4/common/scm_rev.h",
+      "sha256": "bd91eacc37fd8da2b44fa7aa6c9a69a1167c060052afaa34807549f92b6e5063"
+    },
+    {
+      "path": "gpu/shadps4/common/scope_exit.h",
+      "sha256": "0ab104a16cd56ae17ad4c4755f85cdaa23c112fa6e5acc712b026b07ad79e03a"
+    },
+    {
+      "path": "gpu/shadps4/common/serdes.h",
+      "sha256": "2553eea433a2910283a3ec04338a2b44f7afd7f888cdabf5ed54904534355d8f"
+    },
+    {
+      "path": "gpu/shadps4/common/sha1.h",
+      "sha256": "a51b86335f8ba8084602d702c5e8df42b70ef4e805552dab140b76c6d4dec42f"
+    },
+    {
+      "path": "gpu/shadps4/common/shared_first_mutex.h",
+      "sha256": "067815b9a7c5e2cad71a5527335aab78d87ef8246f0d32a98a3c591dd64ed3b5"
+    },
+    {
+      "path": "gpu/shadps4/common/signal_context.cpp",
+      "sha256": "0dcae4497a398b7c28dfbd228f1e7086ea3c6285a130d98d48e8601621a72e37"
+    },
+    {
+      "path": "gpu/shadps4/common/signal_context.h",
+      "sha256": "31f3bf86a03b1946c0a8fb6a73617be0d271500210ad02f50a469753b6754630"
+    },
+    {
+      "path": "gpu/shadps4/common/singleton.h",
+      "sha256": "51113d29554ec09613d33425cee0eff189df091150dc6b57a918750c3a179b28"
+    },
+    {
+      "path": "gpu/shadps4/common/slab_heap.h",
+      "sha256": "efcf0bb59f49b7b9af030cb98985940cb229818be3a569a57b71d5b89818370f"
+    },
+    {
+      "path": "gpu/shadps4/common/slot_array.h",
+      "sha256": "c93b8120fdbf83db5ae45e468441d1b4327d1117de9c7287b27a431c936935a0"
+    },
+    {
+      "path": "gpu/shadps4/common/slot_vector.h",
+      "sha256": "b8fd1198742dfbc70c8c2387246b14caef616cfef89d7f424132b677833e8bb1"
+    },
+    {
+      "path": "gpu/shadps4/common/spin_lock.cpp",
+      "sha256": "43f6705450721de742cb0dff3fced2af2f2fda3197b356d6995ddef876ed9bbf"
+    },
+    {
+      "path": "gpu/shadps4/common/spin_lock.h",
+      "sha256": "18065a656b6193130495fa42fc1314d2d2d1caa5ff6467878ecdbfee679c1e83"
+    },
+    {
+      "path": "gpu/shadps4/common/stb.cpp",
+      "sha256": "51246409bdbaa3d5c0b89221a21211f9d60e921160a9b70afbc41cb0b54bae19"
+    },
+    {
+      "path": "gpu/shadps4/common/stb.h",
+      "sha256": "684e587c9808298bf8cb8dade25c2eeaea73baa8a0be17dfce576266a241e3f0"
+    },
+    {
+      "path": "gpu/shadps4/common/string_literal.h",
+      "sha256": "51dab04f29dd84dfe4148a6968f13f9d27225da33dfa3e5cfb8a8c34249f4630"
+    },
+    {
+      "path": "gpu/shadps4/common/string_util.cpp",
+      "sha256": "3ea3a15bc14adc2f64f8a979335a7b3f25356e8d72ee1c82981de096840b3a15"
+    },
+    {
+      "path": "gpu/shadps4/common/string_util.h",
+      "sha256": "57c8ec3b55a888067242a584e7dd907976656ae01f978f1753106cafef05d4c1"
+    },
+    {
+      "path": "gpu/shadps4/common/support/avdec.h",
+      "sha256": "7c7fc1f59318a8f3ff75d1d872d386cd8d7061a50ad60d2c20ff3bdb327b1636"
+    },
+    {
+      "path": "gpu/shadps4/common/thread.cpp",
+      "sha256": "91597c6b0c56ab18c36818410d3894df1c2e4df7809863b2f67a56e35f6e2400"
+    },
+    {
+      "path": "gpu/shadps4/common/thread.h",
+      "sha256": "3941743ea2a37353f60f585b1dbd597242c0b79893493a469b0a7ddb23f2fa2e"
+    },
+    {
+      "path": "gpu/shadps4/common/types.h",
+      "sha256": "e22a770377555894e03a9cb59e7fd2d6fc50e1ca500c3d0de2ceba171b53703d"
+    },
+    {
+      "path": "gpu/shadps4/common/uint128.h",
+      "sha256": "5d0c51828cd2180d58d8a5d7df40a396ac725bc0c1b23870baaef0d7d538a763"
+    },
+    {
+      "path": "gpu/shadps4/common/unique_function.h",
+      "sha256": "0f9f95367fced953f813d60c32a399e9d23f6c022c5d2b282299783d481189b9"
+    },
+    {
+      "path": "gpu/shadps4/common/va_ctx.h",
+      "sha256": "30e88c25cccd48bb68b089547e11bd0d1e7643553e1975e5bf07df1d6288d31b"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer.cpp",
+      "sha256": "959ef50ef997fc9f8287dd07a12c12c6bea29da406c77f0ad39e5dcd457ee4f6"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer.h",
+      "sha256": "80a221b89aa543d98bc6880ffcd3d30f94ff0e12a6cde5807910ce291c3fca7c"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_common.cpp",
+      "sha256": "5496fd7f94443b3b577e9f1e16d3ca6c110ce3bebd8cc2f00493d4d290746afa"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_common.h",
+      "sha256": "ec73798f7dc0f351fb9c35406a18cf05383a3121d4455bde1e8af037e7b2e02f"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_data_streamer.h",
+      "sha256": "20c1f262c2e66b885f47272ff80b44b55c733f2242c9301a1c8ec24f33d3a8a7"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_error.h",
+      "sha256": "d608f92d8d5a89ad5c1d5f0fbc150cf8a8145b510fbfb228f897dcc357fb8722"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_file_streamer.cpp",
+      "sha256": "dac34fa2de99d5d8cb32c8f5d630034c94550c0b4bc8a2210139c09e7bb959a3"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_file_streamer.h",
+      "sha256": "f290cef19a4d9e5e450d7dd7aaa4f45351814c967104c3e4fcdc49f85d21ffaa"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_impl.cpp",
+      "sha256": "559f5540f4c6fc13d561e953f2c27b2bc263aacd6161131b3de05aa365207763"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_impl.h",
+      "sha256": "213435100cf8583a62aa852954fbda875603e0158b0550949b813e0b8523b05b"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_source.cpp",
+      "sha256": "14990d0936349e8fa544d99984b6a1b5ce6a3d04fe1f343648b77bb2d005cc07"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_source.h",
+      "sha256": "7956b38bd705046b2fd3c91d574263d1ed1b9780c6984bda20e1ad14c1a1e008"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_state.cpp",
+      "sha256": "c3069bec8055901dea845654202f92170ce157a15882a538dfe7359548bd5ab1"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/avplayer/avplayer_state.h",
+      "sha256": "ddfde012e53937d070d7afca8104dec095f4916a8e5cbf2cff7c80d5bb947345"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/error_codes.h",
+      "sha256": "a0346c868f21a27791999a27d0f0f7b542404c78044932107439eb44107fa277"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/gnmdriver/gnm_error.h",
+      "sha256": "dbe9d31742f2e9ca105e9b5e3d37911fb6247c75147d6d6878e72d9614867417"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/gnmdriver/gnmdriver.cpp",
+      "sha256": "92b528a3ba1d40e0e8c0490a353eda1069d04e525ed95aa7975c16615a6f0715"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/gnmdriver/gnmdriver.h",
+      "sha256": "2d7593400842ce1e808409cce6ae7249cd25e759ffddb5ea72db905894188004"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/gnmdriver/gnmdriver_init.h",
+      "sha256": "b197e5069d801d3459dc89f234509eb3d191d5468eb61766a6cbcf6eab80f373"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/equeue.cpp",
+      "sha256": "758d8343f9c2abc555e36caf835adf41be18898da8c1086ee543fa9e3cb0b95c"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/equeue.h",
+      "sha256": "903256b0d2f23eaf30ef3e09410873e4a9e324360f144c21e53ee91b8a47c9d2"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/orbis_error.h",
+      "sha256": "a04bbf0af6b9f4bd779c771262cbfd4331b7f8d2452522278dcc5698e6341b66"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/posix_error.h",
+      "sha256": "79e144942c9e72899fca0514a5695a06fc64376832b6589b5b2b6e123ae38790"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/process.h",
+      "sha256": "7ebd3b2cddb91bd7ee39dd2879a4016f46caaf2bb012dc326560363b6b2faa36"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/kernel/time.h",
+      "sha256": "39d6d7d5e3efb16d981c80393895181ff1e0a0dc5297d29285e85027f7d4bcc4"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/system/systemservice.h",
+      "sha256": "c92a4e159ae62205f90b94b8bfdd0c09a50d00cbacf0928c48824c4a63452a3c"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/system/userservice.h",
+      "sha256": "c7ca1d343214c4c2fe217917b0a66d9e2b83d5b1072c631581d8cbe2fed189dd"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videodec/video_utils.cpp",
+      "sha256": "a9edbc6e7484c7e93f7d75e1a9fb1f8a438ee2e5730e38cbdc92e113f4542e5a"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videodec/video_utils.h",
+      "sha256": "4b1193f6cdde0deb129f515345d5f3ea561e0fb4a2338542b91dcd854a88c9b1"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/buffer.h",
+      "sha256": "b82dc3c67f2927ce317af9732ade6ca9c701b68cc72becc550acdb02810d6b4d"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/driver.cpp",
+      "sha256": "aa84d87532cdafdfbd45455978797635b07b4a2508947207d0950461dd10bf4f"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/driver.h",
+      "sha256": "8b50d1d826c023b9857e5ea256090ec5eb98c63df1dd6c11cf895682bec9fdee"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/video_out.cpp",
+      "sha256": "9abae8fd87e5f8816467dc18343469d33249d1aa48b14ed6811013840323ecc1"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/video_out.h",
+      "sha256": "366bf8c9ae8e5cc1dd79b67bb855b34f75596487dae3af3e6af92e02569f5f34"
+    },
+    {
+      "path": "gpu/shadps4/core/libraries/videoout/videoout_error.h",
+      "sha256": "94746e937545bd36d2cc314d0ab407f733ede14d74a101b07ab931d8733ebdfd"
+    },
+    {
+      "path": "gpu/shadps4/core/platform.h",
+      "sha256": "4a00aa77065aa7014e8261be09cb4e3c6f16890b763868caad957a03eed3bfac"
+    },
+    {
+      "path": "gpu/shadps4/LICENSE",
+      "sha256": "189b1af95d661151e054cea10c91b3d754e4de4d3fecfb074c1fb29476f7167b"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/bindings.h",
+      "sha256": "88ae2be1e790928b6ffe4803cac9ad53e38c89432449047636b148bdbe5d20ed"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv.cpp",
+      "sha256": "be0705d4e045165507be9d16392db2bc1b69bdc059331a522c0016b67fcf9984"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv.h",
+      "sha256": "8174754462b5b2791b070428b46d7e4292f17d3602cd90187bbd869a4f31c632"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_atomic.cpp",
+      "sha256": "e3f6d99dac7a40d9fd1ed1512e6f54074996ba5b3d34e1e71f0550bf8b0e854a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_barriers.cpp",
+      "sha256": "f101789a517d7a5a6a44ed837123cf3fc1285e9ace35ab5607766c1b6ec544f3"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_bitwise_conversion.cpp",
+      "sha256": "4a5b0320ed5dd2313c587ef4c58b892dccf9b7e723f0b7c81ed15cca6802b5cc"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_composite.cpp",
+      "sha256": "1f677a72fdd4c8a60672e9e2d2d74f105254ee798df2c4c15d55907028371bd5"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_context_get_set.cpp",
+      "sha256": "82670c31c3b5b26b0305de6b7844bf0d0d5068607ffb1bb4158c404e92033b7b"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_convert.cpp",
+      "sha256": "74d8b3cf263a6e0d7c67077691ae5b412555bf31778835ce235aad45c74654bd"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_discard_frag.cpp",
+      "sha256": "339a40ab05be417c8cb342ba67242733dc1cb288a6357727905031e74d78a5d6"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_discard_frag.h",
+      "sha256": "996e42f267b4806872a316068aa2dedb0d96d16713e7544c3fc5cc22b63a3996"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_floating_point.cpp",
+      "sha256": "4d5fe543211357fcf533a2650014db4ade3c2fc1ec19786ec315cd672d76689c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_image.cpp",
+      "sha256": "9d0de3ec7b4837aa9b526f82eb5f0d991be7e1e0edb399daea3e30b50d53e457"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_instructions.h",
+      "sha256": "42440e837aaf2b6730fe3d2ba5a7b3f8e03fa0736478fe7684e85bf2f77ee66c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_integer.cpp",
+      "sha256": "b5ef06f644de349bf7384df31b71d004b09881a085aff40b789c9339b9992a65"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_logical.cpp",
+      "sha256": "53039b38828dc2565169919ad4b25feac68bc6ee9783f9208a041b41461ccbc6"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_quad_rect.cpp",
+      "sha256": "e9c34864cb062e3074248e8c0e66aceb70f6e9f4a662b13eb78169db8bf9d8bd"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_quad_rect.h",
+      "sha256": "e20772c42a057d0608b523618851278fba925d9da192672bbbb685f793233c98"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_select.cpp",
+      "sha256": "73063c3be7115254851b12a4064d007f35d134669263b1f308bd5d75eb95a632"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_shared_memory.cpp",
+      "sha256": "bddb59f91c9b410012b32189ae14203261f37469369077b1267a993d0b1e21f6"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_special.cpp",
+      "sha256": "be70907c81ad65ae15effa92fc355373e342231cde46d9e34a1395daf68a3875"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_undefined.cpp",
+      "sha256": "bcaccbbb436ed42afce06b612e7a066b5be5fdfc0274d9501284a87cf6059b61"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/emit_spirv_warp.cpp",
+      "sha256": "bef08f88e13a27797c809496b3d7ab5d73ed3243fcce4f053c487157fa0470a1"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/spirv_emit_context.cpp",
+      "sha256": "7b4c2a59ebe3fc9a0a062803c24b1a2336e38318098c0b9bf67512e2c53c8d16"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/backend/spirv/spirv_emit_context.h",
+      "sha256": "6f47ef9c0234b9881f3f4677d280768a6e1e31c246a1bf43d8fe9093df7570e9"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/control_flow_graph.cpp",
+      "sha256": "7649a3a5281547f350329e66aeabe0ca9b79e8fede3d7fa4009cf877f643d22c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/control_flow_graph.h",
+      "sha256": "b5654f80a406de75c579b916251bddef66d5d0c69ea6561bff8bbedf37a5a032"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/copy_shader.cpp",
+      "sha256": "cf4a57c6bb9c71909fbf893ea34cca1fc103c2887173d90ec4a03a83ebea9ff7"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/copy_shader.h",
+      "sha256": "41be93e08169cc14a6a32be57e27c4efef5cc6be0bcf4b7341f7374f9b9dbe3a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/decode.cpp",
+      "sha256": "90adf469f5efa882f51cbe5e222b386c26fbda56d82e90d7468343cce3e87043"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/decode.h",
+      "sha256": "b1f042fff8cb16b577ac28e93a437157b16b323296f4dc4205336c237cc1a0e2"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/fetch_shader.cpp",
+      "sha256": "498e64406a745dd3767997312ee802f92448942a23cfb76601b7ce7cd255fe5a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/fetch_shader.h",
+      "sha256": "92119b02f42348d1fd470d26822a08f84f876e131c9f4cfa51ee7ae33e4eb921"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/format.cpp",
+      "sha256": "4f98cc2ec5505006fb6cb97662b5d8edbeb1a237866df0590ed75935061e06d0"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/instruction.cpp",
+      "sha256": "e06d4085b83d754ef4ed5be8ee13fdd0029fea814762c7132ba811edc4ed9ecd"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/instruction.h",
+      "sha256": "e1573dae87e513977f9e07df3e3d8022741918ca5d27f726fa8db6bfe7db18d1"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/opcodes.h",
+      "sha256": "a3fc5fd776f9cbf241b916f09f0ff8498ea9c10db6d3b10e00dacaf20e086eaf"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/structured_control_flow.cpp",
+      "sha256": "b38bb3e006720b60af34f87e4883e65df0be2f2883505bef378057486a02dc0a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/structured_control_flow.h",
+      "sha256": "477f38a9d30c1a5f2fdff77c62c32c79adade8bc2ff79f9a43883a0d439e3a93"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/tessellation.h",
+      "sha256": "851e2081f90a2da6e635ded7b9c16c7a65696a4cd997486b63134ea11fa2495c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/data_share.cpp",
+      "sha256": "a6b88b059ba9e1de972c51eeeccbb0e21465f5e0b12cfbc44944de16cf216b37"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/export.cpp",
+      "sha256": "13d3e5ea5f470b7cc7a9e3f267e2f70a416745a469a77d814842c8c3c96564c1"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/scalar_alu.cpp",
+      "sha256": "ded00a80b187f02229357a9da65621de5e644f334e9c6a62032094f431d34729"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/scalar_flow.cpp",
+      "sha256": "d5d3e7f9a38b16748da62052b93fe9902ad8505d9604b07b5f87086b21e59fb0"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/scalar_memory.cpp",
+      "sha256": "533f87e4b32f7fd9a2ff99402cd67c3a907ccdb3d2fc7284fed9b7b9d7c9fd42"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/translate.cpp",
+      "sha256": "88400cfaf46deaf0539950aec06b105c87f212d8d281ec4da09e19ea7254a522"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/translate.h",
+      "sha256": "ca0a55b982c6a370c23bf96f05b4f8c43d258f732aab215a26cee9116df31cfd"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/vector_alu.cpp",
+      "sha256": "e286e3444d3de2f9396ff927e6eb38353ee8cb9e309ef8c7c44c51132e35ff9c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/vector_interpolation.cpp",
+      "sha256": "dfbaed14fffbe8cb2914679422e94d2b4b77721f6f8898e7177816aa4e75342f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/frontend/translate/vector_memory.cpp",
+      "sha256": "9f99870215cfefb5486174f855a1f5837cd44d4e74361c83a1f100eb778f1a4a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/info.h",
+      "sha256": "4993434439c2ba046133caf64a9bfa03b94bbd79b76e22c9314eb46652c7e822"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/abstract_syntax_list.cpp",
+      "sha256": "b0a92b103aec4ac41af8eada3e8a6733db79d22b86e2958de94fe759060b7e6a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/abstract_syntax_list.h",
+      "sha256": "3ed99adbf3a5fadfd88f6740886a3cf428944e5c70f4ca84554e3c73703e9e65"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/attribute.cpp",
+      "sha256": "8ea63d89af462243d6f36c86ead3d4c6150d7f3b804fbf5fbb062c4d35a39a1c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/attribute.h",
+      "sha256": "10cefa85ab396cd42a184b8f84dc69e5a49010b350636fbbcb9190b64ecd9e6a"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/basic_block.cpp",
+      "sha256": "994e817536585486112d06b81b742c76550d2d18be38dab49adf5fceb7751cca"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/basic_block.h",
+      "sha256": "19d2e1a0c9280a955996967ed116b7f0760ce1c6167a9f4661338d1c57f06100"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/breadth_first_search.h",
+      "sha256": "da66623771eb9c9623071ed9affcf336e854f9cbab63c655a903f3d1cbfc9fa8"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/condition.h",
+      "sha256": "be1af3973bb1d216f4121a0b930edf4586aaf808dfe1f50192d3d203be7bca73"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/debug_print.h",
+      "sha256": "2578bb1b53db08baad827c83d9be687a2c8ea546683df71cd11d0e18f007f3f3"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/dominance.cpp",
+      "sha256": "7864d01533c75d65fadab3942a4ca19d2a2bbc4ee75dd286ed1266fb7f94f1bb"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/dominance.h",
+      "sha256": "307990c8f2e6277cca8c760c229be955045f799940973ec5b38ad88a0f3c5ff2"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/ir_emitter.cpp",
+      "sha256": "aa4d6d38d97ed6666eba54df1ea64c858b990dc23ab96f6eea7ff1f4cdb38bfd"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/ir_emitter.h",
+      "sha256": "135c871d1327345cdf02b1b84d98c34d4fb74ad2ecd50b7ade8a89c3f2b7a8e3"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/microinstruction.cpp",
+      "sha256": "775b8d62f6c870fb41ad27ddf97b388c14a0df94847cba0f0f3f8dc88e43a870"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/microinstruction.h",
+      "sha256": "e728624bfd3887f98fe2f9d0ae3b2492e9605ca38720f571323327ee25d2de09"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/opcodes.cpp",
+      "sha256": "877d0c13f4225730d4bd28ab1b7449c62fb8bbe11c67118ec13cc918a6ef4832"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/opcodes.h",
+      "sha256": "150351e0f11602a5772a99a2bfd677641085856a8df960358e3c73a7e5a18643"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/opcodes.inc",
+      "sha256": "8d0ebe264ca05472b4ab564c466e60c616cb091c89ad046f88291168ba543f13"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/operand_helper.h",
+      "sha256": "5ea3413c5e20bee338b6cec4015cdc9fec647ce318ffab3bd0b056c1e64266ab"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/constant_propagation_pass.cpp",
+      "sha256": "63b752661c1ac144caade80d85f3d9cd7e5d02788bb7ef106ed58c26b2f49b03"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/constant_propogation.h",
+      "sha256": "c80553d868f71698b4f78ed69f8c81587e1b1ff724dca04922de16397fbf3227"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/dead_code_elimination_pass.cpp",
+      "sha256": "be72e0eb0d2995310aed6c420370df0cc210eb386e29164812686a81d0bd725f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/expression_elimination.h",
+      "sha256": "e267c7a3185af87d67ddd8320912478a934a869889b00f4864e894e0afb87db0"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/flatten_extended_userdata_pass.cpp",
+      "sha256": "673119d046d17867f9a0e83cc72fdff0d88924a55024c9c67f92decaaa7a1bf7"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/hull_shader_transform.cpp",
+      "sha256": "0b2660a61f39d436cc3b2231d39df4e68a5355da431fceaad4bfaf22f1e9d1f9"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/inject_clip_distance_attributes.cpp",
+      "sha256": "61859335d6b6d212810264ecb5370a1b262617a0ad474344b70378ee1da3cb14"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/interpolated_integer_pass.cpp",
+      "sha256": "4eb127a6a15fcbd3fc21b8fc7867cd235d92d3adfa798f03f2143f95e4c55c6e"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/inverse_ballot_elimination_pass.cpp",
+      "sha256": "6b9d6741dd66ebae1e75fa9b3bd774d6098deef50f273927bf2f966989c399a7"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/ir_passes.h",
+      "sha256": "518287589ab411f45db73a1bd9ff9300ca925e44d6b2a0580b96beb004f37088"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_buffer_format_to_raw.cpp",
+      "sha256": "f2b964a67054a74b871b5c1bb023d866d4773319ae96b2233ebe45b090d7a9a6"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_fp64_to_fp32.cpp",
+      "sha256": "c229b9a98bd81bb74a15533989053d1ad01b8921f5b6a989116d0acd76894748"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_hardware_intrinsics.cpp",
+      "sha256": "855e1d4f954eac07544e5a07b2701af91999b4adeb86e79d53bc0edf42eaf6f9"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_phis_to_regs_pass.cpp",
+      "sha256": "b093d5b1ce26a5b9ab5c18a7adade0b745b48e42b8053b4372b0825e2e616a17"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_user_clip_planes.cpp",
+      "sha256": "fd65a7e297f338ca89332e5fba7f3d0c4dc167900a62f4f881d055e8ff1b5f86"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/lower_wave64_pass.cpp",
+      "sha256": "6de13c84973cbc544e0ef6013ab71c500b5644e1f4feddf7cfcd60a68efd9832"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/phi_simplification_pass.cpp",
+      "sha256": "8087568392859cd2d5dbcc2d50fe36f6453f71f872bcceb073ee8069e839b4d3"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/readlane_elimination_pass.cpp",
+      "sha256": "19ae660d91bbc03953815cec1330ab65e72ca14a120735d499f331d68a0a904f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/resource_discover_pass.cpp",
+      "sha256": "9933fd97262babdb733f1a1d0e94f9cd43369ac408c5dcb5b00501664bf3ec6f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/resource_pass.h",
+      "sha256": "0d280408084631e1b86fd531c367a1bdfca7ffd5bfdedd55fcd2f2aebf080740"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/resource_patching_pass.cpp",
+      "sha256": "19896673d7d97e6d700fadba2507a371b6ac152060238a0abff2266498a7f7f5"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/ring_access_elimination.cpp",
+      "sha256": "e70ce07671afb3e0d1d632a13e4fddf34e780264ff4fec6633e8df0283586baa"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/shader_info_collection_pass.cpp",
+      "sha256": "b7753ad899ffd2068e22d2377c85f3ff5983152972e3cbab34935ae5fa564eaa"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/shared_memory_barrier_pass.cpp",
+      "sha256": "8a466289557800540e90fc3dbae3de7cb26342bc31178ba7604abcf3028b2090"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/shared_memory_simplify_pass.cpp",
+      "sha256": "d4c1d815af40632e38eb9f25dc3dd0fe4ff8a24993f8b6a8b99c2e100bad1239"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/shared_memory_to_storage_pass.cpp",
+      "sha256": "5c41da25ec74d794d527c4f6dc2ed5f5d6df01555064ae59f94f91e7c0375aff"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/srt.h",
+      "sha256": "e8f1a3c0a76ea8b54e59888b0cbc532aa79c7ce6378d958ec8a666601800099e"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/ssa_repair_pass.cpp",
+      "sha256": "61c9e4a9a407711c9dbde06fc683f5bf9754bf003d0168210d2f20ba2a040a2f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/passes/ssa_rewrite_pass.cpp",
+      "sha256": "2fc3c0a55053947f3f7442e489ceded025a16086b92c92e5221a50e9eb370821"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/patch.cpp",
+      "sha256": "fdc23b0edb97f011a149674fc898deb99effe710ce512f9a6cc038412a94c359"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/patch.h",
+      "sha256": "22458f4540f6ad514112d8ce98ce4527b4d32ac77235bca7f41596b5d94b07cb"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/pattern_matching.h",
+      "sha256": "ac308e21dfad00e88b877bbcb54e65083c43e780dc383954fa7f663495fcdfb3"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/position.h",
+      "sha256": "9db99f3f172ca81f57c9adfb385b68c33a84ac4fe4bfb2f42f064f41d5666e7f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/post_order.cpp",
+      "sha256": "d95c538eadf5f16965b3abbb9f33addc51b5b7c21563df595b77f80a63dcf70c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/post_order.h",
+      "sha256": "ae654e2825029d3135e0869c051c3ee28f9bef692d8a4e808424836356f34b32"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/program.cpp",
+      "sha256": "4b69cc1e352a55bfa1954c35f62c36ec6a174481252663ac80478758a53716a2"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/program.h",
+      "sha256": "06095aa7ced7f5857d8ac8800ef21e4a82b78efacbbcc579600836257f60f67d"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/reg.h",
+      "sha256": "8a368c9db04a2440bc88029a01ad2de2c157d01970d9e3ba3047359cb3f76aa1"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/reinterpret.h",
+      "sha256": "2168fb191023e27a513939b87e737b86e7191d424a15577c62213d8e1a3ae003"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/srt_gvn_table.h",
+      "sha256": "0c92f65784fc3e922a81d20360a7bd0d4d568477f2b99d88f11ccb6417eee42d"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/ssa.h",
+      "sha256": "d0700eea4651f1db49c1448fefeb860371b301b31b746ac3a7b227760301e1ba"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/type.cpp",
+      "sha256": "5d503239e1a38439e32c0032ba0c1708bda63cf8b1c6bcabf27303b2295aef36"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/type.h",
+      "sha256": "e97a6d7e7c6225f8489f2cc51bb1eee0f792330950a4c5df96d08c7bcd5c7bdf"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/value.cpp",
+      "sha256": "1e5b562969abe40600565d4f272c9bce282ab0b16eec378120d82f6224cb5543"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/ir/value.h",
+      "sha256": "c1708e3f46dbe7b3c91d88df151577bf32772e479e50c84ff345468f9891c43c"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/params.h",
+      "sha256": "dbdae6e5155ab86b8732f63dba7bb29216c3f4bac24b3ade4a2cdbf17ef90f6f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/profile.h",
+      "sha256": "fbc3155adb02fcf2b1ca276b5181288c7b70ae30de3a672a309ac87c574edf46"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/recompiler.cpp",
+      "sha256": "bbecde5ea555fb72f341c4d1f75641e68bbd0452f77f26ef3d1d732974940a1f"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/recompiler.h",
+      "sha256": "bcbdf19703f84949afc1862ab4f81f926ebdad9f547b6556ea485b80fdc1d197"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/resource.h",
+      "sha256": "b71b6de8c5173a082e69d6a3bafaeb77859b4441d5d144a86437f5c8f164cd7d"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/runtime_info.h",
+      "sha256": "5c62cff268514b98f1d4fd7cadb51ae0cd8ef0ddaccfe3911da0f1e0de84d995"
+    },
+    {
+      "path": "gpu/shadps4/shader_recompiler/specialization.h",
+      "sha256": "b8d318a33b166940aea78c77898c80878cf918a24f44edfe30207da18cccac4c"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/cb_db_extent.h",
+      "sha256": "f673bb3e3a753fcf9993e510aa01ada9191c56ed9633607c4126964418f3695f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/liverpool.cpp",
+      "sha256": "a4667b881e51d087e77419fd6b3b0d805b7e9adc50a92bd95e4c0f192e74487b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/liverpool.h",
+      "sha256": "65e2ac92538f969fa92e760236a29f4aa952a6610acdde5317bdd929b6bd7ba8"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/pixel_format.cpp",
+      "sha256": "10fb8b514ac09fa917b5046a358f94b321e75bd25be53e000bb0b9c0b7578a38"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/pixel_format.h",
+      "sha256": "3031c5de014abc4ed226363e5d297b23a01070f579cf2865d6aaf0039fb7ae89"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/pm4_cmds.h",
+      "sha256": "2d4ce5ae0728027eee1fdb9d01bdfce98bbb46b9d338bc5cc369c5468d82376a"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/pm4_opcodes.h",
+      "sha256": "8bcc1ca9016fbdbd3dfc3f8d64bc506cb739986c7a9da4e51f7e4f30934f00ca"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs.cpp",
+      "sha256": "602781c2a86eb824b27da0818ce107441eb5b1d7c7ac8807fa5c482c4adf0a3b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs.h",
+      "sha256": "a3b26dda033261643336941409218656e02a70a46ea77298765bca0993b09865"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_color.h",
+      "sha256": "ff09258524fded337e1e475de10ae378af4a2690de63aaa773678d75dc54191d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_depth.h",
+      "sha256": "957c79c816e5a2bd8267a3902190fcb6c3aa507fe3b7ab0b8139ac9f6bd8f62c"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_primitive.h",
+      "sha256": "f47c952ac2e6b03456296c4e019c7c0279c14d326e52029de397a185391ccf96"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_shader.h",
+      "sha256": "6c286fe75ffb46efb1107bd685d18dd17a7b9c4cb9abf7b877e7985784aad1b7"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_texture.h",
+      "sha256": "02ff8d29919b7f56195fe7ed1e8dc16faac8aead4dbf221d170f1bb0041fbbab"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/regs_vertex.h",
+      "sha256": "9066593988015eda60ff219247c0c9f00a77ddb8de524fea5f952ab0702d742e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/resource.h",
+      "sha256": "c3ac643d8a0146b5d2f6dfb882200c2cae1e663c4edcd9c9323ebccffd87efc2"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/tiling.cpp",
+      "sha256": "f063de5a75c9fd83040a680559a27f82ce36e0f4b6a3bc895fbd4ed0881779d0"
+    },
+    {
+      "path": "gpu/shadps4/video_core/amdgpu/tiling.h",
+      "sha256": "07363856a750eaf42021df17167e281fa5a534af097e789d9f0ba9d257a86b5e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/buffer.cpp",
+      "sha256": "24a6ae872260728763bd56773408948d72e4170bf5d6575024128d47bf62f983"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/buffer.h",
+      "sha256": "770c180b46c4ba53b831edbb719cf9c8c5a98af7a36b480b07c8d9e5214a171b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/buffer_cache.cpp",
+      "sha256": "0ea45b7d76ff67af0990b8776148f1ae0bc811ae5914c462a486ca35c046f375"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/buffer_cache.h",
+      "sha256": "0f2ebf33fd56138a26637605d607f321d715477811467500a5a3ef59fe616e98"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/fault_manager.cpp",
+      "sha256": "2fabd7eba2bffc89d651174539e46869411b38a5c45123a570131e6d49fba3a4"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/fault_manager.h",
+      "sha256": "53d2b195ba54b34fcca42c3166e773fe781a1730904a0e3003575c57e8670ad5"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/memory_tracker.h",
+      "sha256": "61b8ff3f22b38dde6ab7763a84b504c5d8f55bcab0708c7e3087d01300712417"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/range_set.h",
+      "sha256": "6c114e821dd93a50e281641aa530a0beae3376af0a9e3c35ec89996048001ed0"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/region_definitions.h",
+      "sha256": "bc53be50a3b5aafea25d193303128436483f3df00e36887e80d6a5e6c99d6f54"
+    },
+    {
+      "path": "gpu/shadps4/video_core/buffer_cache/region_manager.h",
+      "sha256": "30ef83e45c85af85599d46c13d147f81daea2d1d0aec972b4f45580c14cecd2e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/cache_storage.cpp",
+      "sha256": "53c7ea816e02f8c0f5d66503ae418f5959ab5916da10d5a1a6f1f1b27abe63a8"
+    },
+    {
+      "path": "gpu/shadps4/video_core/cache_storage.h",
+      "sha256": "774ff3f2acf0bb0418b500fe980db302494c1035697d359573a1239e5ae7b572"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/AddShaderHeaderInclude.cmake",
+      "sha256": "7fc5f3af1dcab304e4804317e2232edf614de353c0125889c0308daddef37025"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/buffer_multi_copy.comp",
+      "sha256": "93f60404de802e74799f0f93ad164c8e64b6296e88806513c354fb5bb2cbfc31"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/camera_motion.comp",
+      "sha256": "22a9e3069e5a196b2daa7cf23ae26ac1b0c1a4256bdca132856fb140ed1f6abb"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/CMakeLists.txt",
+      "sha256": "c08cee5ac2bb21c277aa010dfd49383920a066e7fc2f777b4ad1fbd38b8b57e9"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/color_to_ms_depth.frag",
+      "sha256": "0ebbc2a3c81dfe9cbf9ee97d70e3e480e6479b34b2798bb526c8b65cd0a1591b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/depth_resample.frag",
+      "sha256": "b53bef98e6e418c9400cc2182719e933f2c0bf14b76374f0944271cd02ea4dc4"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/fault_buffer_process.comp",
+      "sha256": "965d4adf187676a814baf1bbf565c0fec6fbf0cb673f4e98dff3b6175d13fc08"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/fs_tri.vert",
+      "sha256": "24d6107536db2f3948a723d4731f652e7a8ab149341266cccb6d79c69d583f10"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/fsr/ffx_a.h",
+      "sha256": "94d8d663b6925c72fbecc8a5a6d6dcc88cd99a82033c8b8663a83f1938a192c6"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/fsr/ffx_fsr1.h",
+      "sha256": "4dc2022ee8a0463446f5d56ae8bc310a6bba1079e1d92235e35c324fee66fc22"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/fsr.comp",
+      "sha256": "6ae045362713a8ddbf720c387f1e05708c285bda27820978a7f755a250f0bee9"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/ms_image_blit.frag",
+      "sha256": "89988ee29802c89d2c451f1a991b4c2a8aa817956b8ad27960228c30380f1f7b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/post_process.frag",
+      "sha256": "719df05e08be6a78c0c598893cb6022e16b5e177937e6f70e8beb750897dc785"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/taa.comp",
+      "sha256": "eccfffb10a2593fdd3cc628ebc18a777889abe0e7d57963901a24210e4b39b97"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/taa_sharpen.comp",
+      "sha256": "d864126b9c7a05c80675f7c02f8c26aecc44015606cfecbb2922d3d85b91e4ad"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/tiling.comp",
+      "sha256": "3b2bf32f7836376c8adc1bcf66c68612a1d22149f4a04bdecf03084ec9310b46"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/upscale_merge.comp",
+      "sha256": "28d59a434b0cb298b723811cc27605046d4dc8abb98728359759f15d63919be5"
+    },
+    {
+      "path": "gpu/shadps4/video_core/host_shaders/upscale_reactive.comp",
+      "sha256": "a37a39f09e2095d81c64ab5903534e72d1b98a02967312de75ac07a6ce3913a3"
+    },
+    {
+      "path": "gpu/shadps4/video_core/multi_level_page_table.h",
+      "sha256": "fe8f6adc34ec9090c309b7adafe819e16fe2f3abf51c7799ae59191652486632"
+    },
+    {
+      "path": "gpu/shadps4/video_core/page_manager.cpp",
+      "sha256": "5dc18b9e99b4fd32a89459b24bd63a53f9d05d9310d6662c69cdea4be4c88f06"
+    },
+    {
+      "path": "gpu/shadps4/video_core/page_manager.h",
+      "sha256": "a992bd17b616f289b1c7e57628b05d1a42fe608f2320a11ee8573c2fee4313bf"
+    },
+    {
+      "path": "gpu/shadps4/video_core/page_state.h",
+      "sha256": "b57ae8056b78945c2d5e6277443073e32ac511eb0c720278a84f9064b474a65f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderdoc.cpp",
+      "sha256": "35a34eeb69029036f8ca7c330c87a3584be7e21273cdc8fa208620f4eca8dbb5"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderdoc.h",
+      "sha256": "d67d11fa8ce1d3c120ff7df11cbfd3c75b3ebdf5e2e8ebeeb5c4d5ca3a129817"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/fsr411/fsr411.cpp",
+      "sha256": "60c150365e19937023c34d4cf8b068c3d7e6db8549e77926ff32383027a0b056"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/fsr411/fsr411.h",
+      "sha256": "63ed62b52fff07760e15e9f6458706803ce5b2043fafc4e4ed22d01608862d36"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/host_passes/fsr_pass.cpp",
+      "sha256": "e57e10bf7e9daf064b61a77ae5e84fb70a78e3f3ff6eedee96d5076cd2757507"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/host_passes/fsr_pass.h",
+      "sha256": "b70821f38d5f2c91f306688c370e639e2cb9219b3a85a9f636c67838eae66f59"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/host_passes/pp_pass.cpp",
+      "sha256": "36df0b62c477a7984f975d16e23b5cdfc332410ee04a4fc2f335b16606e5c73c"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/host_passes/pp_pass.h",
+      "sha256": "527c893d37186c9589e9a5e92322831b361027ae85bcbf65b78aa7a3b13d7b8e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp",
+      "sha256": "3a8a5feb7cf24946da3f2800fff7e4b93e3d7f180ab7ac379984c26c60cfd544"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/liverpool_to_vk.h",
+      "sha256": "389199d8a6bb6966f7358636fb6a25da8799b700d5a6d0b71c4d1a41e62d2ff0"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/motion_history.h",
+      "sha256": "cc1c9c9776abdde69517e60d3d7948a9d298443e296c16e0a220f1cce22bb17d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/scene_resolution.h",
+      "sha256": "c60b9107b9ae88ada8a9cd3e29d95b485ba5386264edc1dae3cd360e43e50329"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/ui_composition.h",
+      "sha256": "d1b91c59dc1f004090202314255b7b38d06a0c21e1b47349a63535dd38ab3c2a"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_async_compiler.h",
+      "sha256": "22971f17abbc5a2ecb0ede3e010c1b22afc5343ce0b81cd4bc35a4bc6db46812"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_barrier_tracker.cpp",
+      "sha256": "4cc1723e8ec9fe96e86ef908b5e7377e68c503a6f929e35d7d7b10d1f4301be7"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_barrier_tracker.h",
+      "sha256": "51ee62dda0a21a8de06bd56ed35179f08f4e1c477f6a70f55e7b4b7e6a138296"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_bind_helper.h",
+      "sha256": "6dfba70db978a453f247ea001991faf5401dbc46d8d1e0d3027bde0e5f0b4155"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_blend_rewrite.h",
+      "sha256": "64f11258d5e2b7c82655cd82e956334140e2525f782d31d87ba60bbb8d483788"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_camera_motion.cpp",
+      "sha256": "160e03d84e501d4fca4d152b47385a14ebf13b1b094334632ca28afdb35da137"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_camera_motion.h",
+      "sha256": "2123d534c4c8d97860148b470177c0d87cc4b321d8e955ae597cd00e997ce658"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_common.cpp",
+      "sha256": "0156835ff5c7dcc5242f7ef4197d77723a3bc935061e8290ab283b6bd022dba2"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_common.h",
+      "sha256": "341b63c99ec6ee75d4d46036a897c041e0bffdf1f0ea18f70cee14f12b08471d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_compute_pipeline.cpp",
+      "sha256": "6d536fcc78b49c6d790d6595a21a34ddc123be89a94afcd0643bb907e6fecd83"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_compute_pipeline.h",
+      "sha256": "1e549b4eeae3fef96e247680d947076cae76c4bc1c2fc277ee1c79ca6a32367f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_constant_ring.h",
+      "sha256": "b465df845b6bb9413b1ffa6986887520a141e57151643a6c7ef0ad3339866e06"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_depth_stencil_state.h",
+      "sha256": "e549348dab560b35566337c5bc4669a30b4c2f883fd6990a9f98b075c7320961"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_dlss.cpp",
+      "sha256": "26318d149eb3cf2f9cd06f9f5550499ef9eb47a01eca3f0b56a6b1a32fccc383"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_dlss.h",
+      "sha256": "a7cb17fcf02a51add9e760c65f87d14de5b43de2875cb4648ff0e05d7fdec3b0"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_draw_pipe.h",
+      "sha256": "14d940a58a0fb7319c7fee5428ae69df276047cdd8f6989ee2fbed1599cff477"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_draw_prep.cpp",
+      "sha256": "cacf3535698f910cbe8142800353c6a216ae452d0b2747e1d3d43326aac74029"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_draw_prep.h",
+      "sha256": "bc867ffb7dddd1b4f2e6ea7205ab86eb05fe15b13de41cf4058e38bb7e70c228"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_frame_capture.cpp",
+      "sha256": "45c0e14768b77eb86c8c4f2fd87db6ad1ebeb4cfa81363553a6e4efcfb978d6f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_frame_capture.h",
+      "sha256": "f59e691ede6e301772b34726a032883ac2dbd3862acba2de0bbcbdc58cb5b1cc"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_fsr4.cpp",
+      "sha256": "412fcf7e08b99ce75f204d118e8d8930474a1a9af483c96d27128dd4d7b56b12"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_fsr4.h",
+      "sha256": "8d1b293c6d8677d5285e20601cb98abe3fd1c3268f40de76a6fabb80b07d1435"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_gpu_profiler.cpp",
+      "sha256": "ea72a44328d4362ab9dfc37e04db78e3f52b47a91403698ba0861ce09188f71d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_gpu_profiler.h",
+      "sha256": "ef53c739a600ac83a232cb9163ef7c9d4ad1f53ab6d43e299cbdb72decb7cd9a"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_graphics_pipeline.cpp",
+      "sha256": "4888b8372390c46de29b386705e98b0e2e71ced3734e1fd175c2b1c1c51d2a6f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_graphics_pipeline.h",
+      "sha256": "03f8c944d1c55d182b70d8a070468eed7236d057196b137626fb938433ad546e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_instance.cpp",
+      "sha256": "db7eab49d54ab3949ce3d8c8d38991e8035de57e1df42fa9654e10aeb6e26a7d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_instance.h",
+      "sha256": "38dc1eab767bbcb168b7193d54a735b75c3d6e0dfcc2803a2fb965d5a28b1d66"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_object_motion.cpp",
+      "sha256": "014978f98e25f2743a25d70fc931af881c8c365dfefdb554ce02331113271a2d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_object_motion.h",
+      "sha256": "095daf9b8c2dc317121f8e29faf19b70db8d0d789a5331c740c21fffa55f6c22"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_cache.cpp",
+      "sha256": "3d2476f35a98fe52043cc9c870fd04672e40f43144b7196cb7925d268e3d0b1a"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_cache.h",
+      "sha256": "ce47163227d95b981173b76150af9d4b6745e28e05598790b906e4317c9cdd85"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_common.cpp",
+      "sha256": "b6c688be3539a2a2f303fe5b766a8b3f65fd90297a6e07d2f5edaceca5f5391b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_common.h",
+      "sha256": "5d1df297f5d594a06d6b8e746362ed1f5fbbe6c732190a5d9bb13d975f7c9834"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp",
+      "sha256": "93248f26c0125727bceca14d8fa75b0422ddf20f0a13c0c6da22cdc0102bc79a"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.h",
+      "sha256": "31e8b20dd2d7871d395d0f3ed261eba41de34874296e481e95782feba80329a1"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_platform.cpp",
+      "sha256": "02dbb7a6c199f6f3954d389c05eb0e6721565cfc91623e77086d1d14a5426542"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_platform.h",
+      "sha256": "a1dcef1110ac8e9c9949cecca6a31f6dbd8eb7ad43b9704eb009fbe644806178"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_presenter.cpp",
+      "sha256": "5d78ceddcea89d228a841b6b7ebeaef49769f022f9c8b5b5f6f533b9707483d9"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_presenter.h",
+      "sha256": "e2b015db53e40f77c992c113bf3c13e8fdae0dd5f5cd8d75a6d7d917335114fe"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_rasterizer.cpp",
+      "sha256": "2acda6be54450bf432e422eeefaef53a52e8eebce2e41457cae6c254c5d9fd85"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_rasterizer.h",
+      "sha256": "180e19303030252c060ec05b8b222f92e3447c29259794d52e3cedda3572ee24"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_resource_pool.cpp",
+      "sha256": "85df4830818c1885a45291bf3e9124f854d7c7da15cf93a3efc6143cc79716c9"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_resource_pool.h",
+      "sha256": "2d3e8ab9f6560a2e79a70a24d9b06f4b8e025ee7012a3ff5daa2a35b53416ce2"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_runtime.cpp",
+      "sha256": "7f3be056d02c01b1be18073a1fd03f5afb33b4ac0e9bd3fb5eae78179df61e6f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_runtime.h",
+      "sha256": "f19341198a6d10f3466459c089312232f222f19b2cc12a649f8026ceb1371a40"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_scene_resolution.cpp",
+      "sha256": "79d784f909047e03f648b401f59e4079e1491559ac4b8c54e03366f6eafcdbbb"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_scene_resolution.h",
+      "sha256": "3d96440c90e70dc815db083fb5ef8c40b0e16289bda2fe3bf95fb388e962decd"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_scheduler.cpp",
+      "sha256": "3a034c773591d53efc9b9af0b3fb408ceabd84183d0dafe3b5d23fb1e4bb4950"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_scheduler.h",
+      "sha256": "8cd797c7368ac2d06efee262ae71faca1d812065d45de6627e1c658d9a9adb30"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_semaphore.cpp",
+      "sha256": "fd3fafc6f0faff26275c45aefa5fc05f6967ad8ba3d5a92a882c5fb88214a71e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_semaphore.h",
+      "sha256": "790f5f1607368fb6e47ed9eb9dc44bb2cc6f5eca19b596dda282c35fecdb9ec3"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_shader_hle.cpp",
+      "sha256": "3103cab09464705abf5130dcaa9a28758afa906437b7743c86f7d1922d6ee069"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_shader_hle.h",
+      "sha256": "b1f8b6d090193702790f1029729ec18da8ad1e64ae1709fda2feb23d547eb7e1"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_shader_util.cpp",
+      "sha256": "6351d460021c3a69cbe6da6ab4e1735975d978c61eccfffd4f4fa9ac796a8e8f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_shader_util.h",
+      "sha256": "25302047dada6e29eee6efa26f0609f7dc4bd4412a152cf6f2e9671d7392dd60"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_staging_buffer_pool.cpp",
+      "sha256": "5d49b1b459415daa0c50ee6adaeea83f534d64b941d4842165f6d6c3fb08941b"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_staging_buffer_pool.h",
+      "sha256": "96a67eeee05ad75a8d78e4fb4c594268677b0e9ef1634da8642a9a2d63cf2373"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_swapchain.cpp",
+      "sha256": "f53fd863cf83d4622b541cfd10a41d778a20f2114e0d263a40090054dcac05f1"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_swapchain.h",
+      "sha256": "f37233ca0197ccee45d284961688aa6d93e51c9325e6469cd08423666173a096"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_temporal_upscaler.cpp",
+      "sha256": "26a10b08650512f6b24fbe253ac3d38343751c4dbf70b932e6d09a0103b18603"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_temporal_upscaler.h",
+      "sha256": "0f4b2ff18f95eff8ff4c3f22028ecb3746f0880320560654313428b82ba6979c"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_wait_diagnostics.h",
+      "sha256": "791cf380defb87834fc7375b425842d0fa90725f7901ee06fdd5c0ebbf590290"
+    },
+    {
+      "path": "gpu/shadps4/video_core/renderer_vulkan/vk_warmup_inbox.h",
+      "sha256": "a3d83b5b25e5835e094973168335a2d8b1dc67b00a59829c5b762514b418a2dc"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/aliasing.cpp",
+      "sha256": "b3a1178c7913d6f66dfc01a10a87f8f258334d0400c5b8c0648057323d082999"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/aliasing.h",
+      "sha256": "53d1a8845f7d2ff06d4496de54376576adc365d6e65219df13637cb5221d2f1d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/blit_helper.cpp",
+      "sha256": "7759bfcf2f0a78944b0039704568f92aa079eff6578ee57d9a425c07fba676ab"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/blit_helper.h",
+      "sha256": "b18de309ab88f3292dbaf523cb77503f0a3188d7657c2c668d7c925499e9a9db"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/host_compatibility.cpp",
+      "sha256": "2dce23bed3bac0b3a2d5e188c448aedff1b71bd57e11aafe394c0c06a1675d91"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/host_compatibility.h",
+      "sha256": "d74bdeccf821bbde28aabfc63001b298ba24f3ad92e19bc036a11afacc89cf5d"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image.cpp",
+      "sha256": "55ff0331c97ba4443d3de38540b42061c6de48bf8a8bcb2995b5c4ec26ecce83"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image.h",
+      "sha256": "ff38310dc60c1b9d76435fa928fc7047d0920c73fa5d39d8cbb4beb469ecef63"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image_info.cpp",
+      "sha256": "279618bc69feb6e87160a05db5e02b504e97fbb82b31c95ff60048a3d6d12d34"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image_info.h",
+      "sha256": "dd1636613f151b35af7ef2b82ce6820a998259608f868884aff09e7fe6d66123"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image_view.cpp",
+      "sha256": "a49729b43f44ccfca67909aaed4488a976db6b74ca2acbf7106ce12552de8793"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/image_view.h",
+      "sha256": "beba4f9fb4cab53ed0f0a7b80261b3bc3fb72aca73c1e33fbe6b77d4ae8da040"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/readback_queue.h",
+      "sha256": "a89459823eb3962568928431f6ff4970d0353cacd99a8d1323048bb34f85a998"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/readback_sources.h",
+      "sha256": "c51909f0187461566621e2d756c71ed3130682c5a474a8737eee8be083676297"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/sampler.cpp",
+      "sha256": "818bc7e75372a0de5d635c8dd5ccc1ecad68a599261402120cd95819ce3f9b7e"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/sampler.h",
+      "sha256": "40603b5d76796dcae98bd39443fb2393d57a3785f6287c8636e8e1f18f074e47"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/texture_cache.cpp",
+      "sha256": "fff282ed4ec071baeb018b9baf6198925ceb1c6e737b3f6be7a5ce5a723798d6"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/texture_cache.h",
+      "sha256": "12d8796bf60fca39592f13e3f8ae3d5e9f795186c56fd34ac4325560c53f8508"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/tile.h",
+      "sha256": "418a31522322524c9ba9b01fafb768bc1c9bebd2f6ef76cf0db69023b5ec4b34"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/tile_manager.cpp",
+      "sha256": "96a6c101b44d66ec196d0c56759289b6fbb8b5a9a203fe26b2195fad0cafbbc8"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/tile_manager.h",
+      "sha256": "7aa013f8bd5b1e6eb79e9f923ddc8e265043bb69bcde03d483aef5a18588b11f"
+    },
+    {
+      "path": "gpu/shadps4/video_core/texture_cache/types.h",
+      "sha256": "cf3e55938cd8fc0882593441a46c056394ad159107c69c4599712999b4329336"
+    },
+    {
+      "path": "gpu/shim/common/assert.cpp",
+      "sha256": "0eeec602f624751e77b7aa2d17730dd6cbb12057880d6b473ebccf0d73c20a29"
+    },
+    {
+      "path": "gpu/shim/common/debug.h",
+      "sha256": "7652acafc960a941f03903c7d4d85ef4890636f9d08e84ab91bb5188e378796f"
+    },
+    {
+      "path": "gpu/shim/common/logging/log.cpp",
+      "sha256": "69de384ac9657f1c07c09dc210d7c1e839a86137529558d6befcfa1949ba64b7"
+    },
+    {
+      "path": "gpu/shim/common/logging/log.h",
+      "sha256": "f5c19cac2a8f8f12a7c2d2475c947f232abdbfc0bd12309a014081db8f2ff020"
+    },
+    {
+      "path": "gpu/shim/core/address_space.h",
+      "sha256": "40d1ca5200524bf953ef1bbe3eb7425eb66e344bf4c41f38465ae33d6a3a610c"
+    },
+    {
+      "path": "gpu/shim/core/debug_state.h",
+      "sha256": "6f4b70d6db08934583f24755e3ada6324dbaa2d30d0aaec879991c85f2b9fef7"
+    },
+    {
+      "path": "gpu/shim/core/devtools/widget/gpu_memory.h",
+      "sha256": "6a9c67b76e6251841a49f62e02960f3dba39f08c399b206108b57f2b7d4ca7c9"
+    },
+    {
+      "path": "gpu/shim/core/emulator_settings.h",
+      "sha256": "e02aa8b2335c1f58dee581de785fec5de7b74e65307589a7b7f307d62c2c2b7e"
+    },
+    {
+      "path": "gpu/shim/core/libraries/kernel/kernel.h",
+      "sha256": "21ebbbd1e9a8ca9e0b30dcc1ec3cac0dcf3c03f3885c1cb3908a6243fd0d7fb6"
+    },
+    {
+      "path": "gpu/shim/core/libraries/kernel/threads.h",
+      "sha256": "427acb9d3aaf2232333f952dc98fd50d73860985819902ca0a7a99c5d109391d"
+    },
+    {
+      "path": "gpu/shim/core/libraries/libs.h",
+      "sha256": "8e8d1be657c0842d67a18568d1791d6c0f7009fc1d16fccb5a26a4bd438d7d3a"
+    },
+    {
+      "path": "gpu/shim/core/memory.h",
+      "sha256": "b6608e18f541c26afc8c5a81cb0d0d03a48204c600bcaeb25346f8561516a108"
+    },
+    {
+      "path": "gpu/shim/core/signals.h",
+      "sha256": "575d25ed6d1d320c41b854de435e2b30e25bbbf140b99adab9514c8d6af0717e"
+    },
+    {
+      "path": "gpu/shim/gow3_actors.cpp",
+      "sha256": "6554e09ab199c41220b90d724ceaccf20dc2ad9190530bb2ba6affcc06e96ba8"
+    },
+    {
+      "path": "gpu/shim/gow3_actors.h",
+      "sha256": "a7bb31e11ec45cbf4379fc460306a32c95b418ff76a5cc5eb9ceb37babde758c"
+    },
+    {
+      "path": "gpu/shim/gow3_copy.cpp",
+      "sha256": "f86cacd6b82fca0f59f2ff921b2102bdd90a99c776b3a23b528a258f5a681890"
+    },
+    {
+      "path": "gpu/shim/gow3_copy.h",
+      "sha256": "78b7a6cc7ca40b568a75f181534d590e6cb5084b161c2e3943354c712d36859d"
+    },
+    {
+      "path": "gpu/shim/gow3_graphics.h",
+      "sha256": "a18c70dcf68463ae1c1d6c8ddd5f0088a8021e77051154247720df65e4f3d9eb"
+    },
+    {
+      "path": "gpu/shim/gow3_orbs.cpp",
+      "sha256": "b5acfde3f9f83e668339b6b9f18be6fd2009723359e3239a90a6b85a38a37fde"
+    },
+    {
+      "path": "gpu/shim/gow3_orbs.h",
+      "sha256": "c01c4aabbb71bc9280c23470edf264046107abcdc2dd96bd168ae22e46bf1cab"
+    },
+    {
+      "path": "gpu/shim/gow3_overlay.cpp",
+      "sha256": "e166a807771d3a6ce994ddbaa514d4efd39d8458d34504563102bd2cbe41c5b1"
+    },
+    {
+      "path": "gpu/shim/gow3_overlay.h",
+      "sha256": "bae8cad0747436a2df0217fe270f0ba8cb56baa164bb76dd09cc2b7bdda225a5"
+    },
+    {
+      "path": "gpu/shim/gow3_perf_stats.cpp",
+      "sha256": "2fa05a3c46e8ce80463e6e9340ec5beb72ac32946c90ef583653e85cc2a96b5b"
+    },
+    {
+      "path": "gpu/shim/gow3_perf_stats.h",
+      "sha256": "d6ee7fd0f2ad59d938d2be7fa0b16000ca31c62b5affc8fd2af8edda9988520e"
+    },
+    {
+      "path": "gpu/shim/gow3_png.cpp",
+      "sha256": "cb3892aaa61c20e2c2b043638f6388ec705bb98c42521dccb453891f53346bd0"
+    },
+    {
+      "path": "gpu/shim/gow3_png.h",
+      "sha256": "8d06b66d042179f05bc3566ea0a35dc84228f0ca3c954b756bc4c967b3f040f5"
+    },
+    {
+      "path": "gpu/shim/gow3_settings.cpp",
+      "sha256": "554fd3446d45e5ae2f31887a3296ba4f9bc47927548b11bdaed34759e08a01ea"
+    },
+    {
+      "path": "gpu/shim/gow3_settings.h",
+      "sha256": "468803efd138db68a4362c03c9ff64760557239668a2664ce228d094085363ed"
+    },
+    {
+      "path": "gpu/shim/gow3_threads.h",
+      "sha256": "d1bf076cad2769e74c2035001029d1d02d91138acfd379939ee7ed2ec487624f"
+    },
+    {
+      "path": "gpu/shim/gow3_toggles.h",
+      "sha256": "8bba1ce8081845b504c8fc0e6d2f7cd42118559293a13889bf698a74ef57136a"
+    },
+    {
+      "path": "gpu/shim/gow3_win_compat.h",
+      "sha256": "4d7b6a7b08dffef6a7d0b9ad219aa97f7ac8e6f49514610f13273b32334d75c8"
+    },
+    {
+      "path": "gpu/shim/gow3_write_log.cpp",
+      "sha256": "84a1b7af6c3413e4750dfaf0b9eb16ca6f244c030d72fd5084dcf0e6d7f6568f"
+    },
+    {
+      "path": "gpu/shim/gow3_write_log.h",
+      "sha256": "18dbc42dfb68a9de96a0617a2655bb03a44ec9ed9919eabc718e66d294809637"
+    },
+    {
+      "path": "gpu/shim/gow3gpu.cpp",
+      "sha256": "7c9f16e54e071e470c0f17bd837dc2be92eae85893c0362a1f65b98cf00b924f"
+    },
+    {
+      "path": "gpu/shim/imgui/renderer/imgui_core.h",
+      "sha256": "0b43dcd7806274a486f56c36a88b791c96253ca67636af7b8e837611a47d88fb"
+    },
+    {
+      "path": "gpu/shim/imgui/renderer/texture_manager.h",
+      "sha256": "0b43dcd7806274a486f56c36a88b791c96253ca67636af7b8e837611a47d88fb"
+    },
+    {
+      "path": "gpu/shim/sdl_window.h",
+      "sha256": "2cb15d1406d6962a96b2f1bdae81386895706f43e9b375533455de9db9ce4fec"
+    },
+    {
+      "path": "gpu/shim/tracy/Tracy.hpp",
+      "sha256": "29f5f2d5884275d3617ddcfb68e91ba0feda444c4cc8ab84ce403fd1165a6a77"
+    },
+    {
+      "path": "gpu/shim/tracy/TracyVulkan.hpp",
+      "sha256": "1a7636236f6930add7a61f67627657db8aa00bb3a9637b9184d701ab474c41a8"
+    },
+    {
+      "path": "gpu/shim/window.cpp",
+      "sha256": "87fdd800a265d7b3fe3f699aaf2ea40dddead3febf7c4d69ceea3e470c0bc94e"
+    },
+    {
+      "path": "gpu/third_party/fonts/DejaVuSans.ttf",
+      "sha256": "58568c88a01b80dfc056daca3eeafd434a0380df1a48dda53f0de0d716109bbd"
+    },
+    {
+      "path": "gpu/third_party/fonts/LICENSE-DejaVu.txt",
+      "sha256": "3f1a11bc99a21ddb62d0eb9f3ed2e1b530ed13230fc79e5aa68be2a0a1a8082f"
+    },
+    {
+      "path": "gpu/third_party/gcn/include/gcn/si_ci_vi_merged_offset.h",
+      "sha256": "0b5b085db96e912e3893dbc748406410428b27798f37b664b36bbbbf9f988884"
+    },
+    {
+      "path": "gpu/third_party/gcn/include/gcn/si_ci_vi_merged_pm4_it_opcodes.h",
+      "sha256": "269f49eed4fefdd873ff75548246a43863cc29399c815fa93319a4d64ceb0870"
+    },
+    {
+      "path": "gpu/third_party/half/.azuredevops/rocm-ci.yml",
+      "sha256": "d2080ff350952956f1d9dee86c40c5475fb2d34d5930157e400f3b84762f1c4b"
+    },
+    {
+      "path": "gpu/third_party/half/.github/CODEOWNERS",
+      "sha256": "f322dab69a7030f3868b1d54fcbf960cf16eed2afa1364ed0d991d27067ccdca"
+    },
+    {
+      "path": "gpu/third_party/half/.github/dependabot.yml",
+      "sha256": "f6afd94e9af3018250a378c98d68a661681534489b5bda3982f5da17e0dc593d"
+    },
+    {
+      "path": "gpu/third_party/half/.readthedocs.yaml",
+      "sha256": "8b0ee5f78fb448a4331a6579f09d75305ed5087e711777daaf92b962099862f5"
+    },
+    {
+      "path": "gpu/third_party/half/ChangeLog.txt",
+      "sha256": "dd522ad19a37256e62022b70036fdf34ac0cbd0daa3084d015b4f8f0cffe0326"
+    },
+    {
+      "path": "gpu/third_party/half/CMakeLists.txt",
+      "sha256": "01964fea4e6a40fa93f6bcdb59c15a92995a3bba49ddb34176b051df75114c19"
+    },
+    {
+      "path": "gpu/third_party/half/docs/.gitignore",
+      "sha256": "d02bbe3107653335880802a0b1ef49fa703a15955bb8215a00e5daf8e1562c6f"
+    },
+    {
+      "path": "gpu/third_party/half/docs/conf.py",
+      "sha256": "8aa15b342f32aade74961b68a617f1d0eb86fd528eb2db452dfde0a4c24981c0"
+    },
+    {
+      "path": "gpu/third_party/half/docs/doxygen/Doxyfile",
+      "sha256": "e1089713bd8f353ea21c4dc7d2ba4249399dcdb0cc04ec43ae1e482cc9994691"
+    },
+    {
+      "path": "gpu/third_party/half/docs/index.rst",
+      "sha256": "08c4564e127b7079da257a74a8bdfa6ea4969b034f7cbeda19186694529ad3ab"
+    },
+    {
+      "path": "gpu/third_party/half/docs/license.rst",
+      "sha256": "ff89dd5360e87b93c4499260ed9d0cff949ea51c9f569e6669969669dbae745e"
+    },
+    {
+      "path": "gpu/third_party/half/docs/sphinx/_toc.yml.in",
+      "sha256": "2d8f524dcadc034cb305dca1a0809ea94fe1b188e7da916c0bed21ca10ff8d57"
+    },
+    {
+      "path": "gpu/third_party/half/docs/sphinx/requirements.in",
+      "sha256": "2bf4afe9770a0d804298c60999d89ebcc41c3768b9704e8bb283e88ac7183891"
+    },
+    {
+      "path": "gpu/third_party/half/docs/sphinx/requirements.txt",
+      "sha256": "4a09da6ed42bee8af0e84fe60dbd36e01e5b80956db0394b0fec02a3254acae4"
+    },
+    {
+      "path": "gpu/third_party/half/half.sln",
+      "sha256": "2fa8104c9965b559c24b6583b4113e40b5d57e26838a43f864a5a0b0da8d25e8"
+    },
+    {
+      "path": "gpu/third_party/half/half.vcxproj",
+      "sha256": "33347dbff2b8fdf324c4132030d49232d7e25f62fe00de2cf7680d76aee10a55"
+    },
+    {
+      "path": "gpu/third_party/half/half.vcxproj.filters",
+      "sha256": "864b7121b04055cf5806d1ef901571cf04c62fe650d7d0048fedb091f4df0859"
+    },
+    {
+      "path": "gpu/third_party/half/include/half.hpp",
+      "sha256": "d659163a391183c877d8ea91e8bb683cd9b7286429f2fb31fd24ce4e4cace730"
+    },
+    {
+      "path": "gpu/third_party/half/LICENSE.txt",
+      "sha256": "1269110471a5506d5cc9c115c57b855206f69a90cc57bbbf27860907067ed946"
+    },
+    {
+      "path": "gpu/third_party/half/README.txt",
+      "sha256": "d786a23333c136ecf92c07525b4dfc8a60b78cb990c793a561fcfa3ab4bab027"
+    },
+    {
+      "path": "gpu/third_party/half/test/Makefile",
+      "sha256": "d9ece14da8e395f5cd2cad704d5c6cfdcb4e81524c2adc7c79e167df2af775d1"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2005/test.sln",
+      "sha256": "d02167a94ddf60714aae47e1616830f622fc170a8bb8ee19d0086a9b9894b996"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2005/test.vcproj",
+      "sha256": "66506c59a41ef8cfd870fa1c0e62870d0dbe622bd68c1254787351b86244a442"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2008/test.sln",
+      "sha256": "8d75324066481e39b95f98d0f697537ee74c57e738e88090fa3665a574b5c494"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2008/test.vcproj",
+      "sha256": "c21d733ae65e33cdeef37f093102a3bd02b0414e401e504d0671c076fd4282ae"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2010/test.sln",
+      "sha256": "652dc05123bb7d956deb983c34c6e4f591cb82100329e5824fad67deef8043ca"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2010/test.vcxproj",
+      "sha256": "0a9e60e9a1e22f226241d22448b8af389f4cbff982f6edc931d7271e41bdb299"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2010/test.vcxproj.filters",
+      "sha256": "6d9ee28a552979a91d0eb295f070a580ab099a53d96759283907dd8d74deeb7f"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2012/test.sln",
+      "sha256": "307c27ed047f19cc5529b20e790c0e19f9f0ce5b9977d266855aaff802ff4864"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2012/test.vcxproj",
+      "sha256": "406e63d2ffbf3ec40a70d9f5c3c99e7e4dc3bd0edbcd5d8d3d5c4f365e8a415e"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2012/test.vcxproj.filters",
+      "sha256": "6d9ee28a552979a91d0eb295f070a580ab099a53d96759283907dd8d74deeb7f"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2013/test.sln",
+      "sha256": "98eb1b1ed15edbafd5a3536e59bbca25a880378588a2f610317fa04f9ef7a978"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2013/test.vcxproj",
+      "sha256": "927b61280a8dff1fa6f63040821c4d70a324618a8fd24fc1ae0a17ed53304faa"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2013/test.vcxproj.filters",
+      "sha256": "6d9ee28a552979a91d0eb295f070a580ab099a53d96759283907dd8d74deeb7f"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2015/test.sln",
+      "sha256": "032b97afd0c360490afb91d51185a0977b5e3dc1b00deee5fc5265b186ae83a5"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2015/test.vcxproj",
+      "sha256": "a12a0df5a70f8d4d7cd20608920c433d8b5ff11c46866b8672aa401446b6843a"
+    },
+    {
+      "path": "gpu/third_party/half/test/projects/vs2015/test.vcxproj.filters",
+      "sha256": "6d9ee28a552979a91d0eb295f070a580ab099a53d96759283907dd8d74deeb7f"
+    },
+    {
+      "path": "gpu/third_party/half/test/src/test03.cpp",
+      "sha256": "7f02ee0dd3a5b87b463e44109a0f490d0b6f233ee3815ca9596e0ce76818e537"
+    },
+    {
+      "path": "gpu/third_party/half/test/src/test11.cpp",
+      "sha256": "68a8c1dede37ab46a5746078b5be1f2e51686a806b7454f49d0b6162abf19eb2"
+    },
+    {
+      "path": "gpu/third_party/half/web/Doxyfile",
+      "sha256": "438defecada2a7db46c0d9ff4047c15233c54905d26c027e08160448ceef41b5"
+    },
+    {
+      "path": "gpu/third_party/half/web/half.hpp",
+      "sha256": "c54f890e677a646e852dda42b369e8f41c6cfe6bb0b8f38379c93c58d964a2b5"
+    },
+    {
+      "path": "gpu/third_party/half/web/layout.xml",
+      "sha256": "6c3f9e592b913bf421ac439ccc8101314ff00fb30553efbd8df076aaa529c32e"
+    },
+    {
+      "path": "gpu/third_party/half/web/Mainpage.md",
+      "sha256": "cedbbdea89b59927b61e5d573b18cad0a2b18e4b0ff01424ec37d32463f83f93"
+    },
+    {
+      "path": "gpu/third_party/half/web/News.md",
+      "sha256": "014fdb243ff89f8d41dd402098500e0df44daede3a422cf391e8fed64486e110"
+    },
+    {
+      "path": "gpu/third_party/half/web/web.vcxproj",
+      "sha256": "2359b143f2c69b30de0fd4f007ea162d616378582878d2391066e026137e507d"
+    },
+    {
+      "path": "gpu/third_party/half/web/web.vcxproj.filters",
+      "sha256": "97913e2d2ab05ce6f26d1b1f0423c662fcb0d6ae3649f7b072a67f9584dee46b"
+    },
+    {
+      "path": "gpu/third_party/sirit/.clang-format",
+      "sha256": "26544483fc31111768c253317073ebc7c6024779ea70fc32c1d6f20b21fea08c"
+    },
+    {
+      "path": "gpu/third_party/sirit/.gitignore",
+      "sha256": "194672ee154b235c67a60a32ee7d4cdeb8afd9255deb8d2543c1b4fa2559b23b"
+    },
+    {
+      "path": "gpu/third_party/sirit/.gitmodules",
+      "sha256": "a1e5ca2c2b1fbd9025a3e614f8527f271f73e7392249064c3a939722edfb6de4"
+    },
+    {
+      "path": "gpu/third_party/sirit/CMakeLists.txt",
+      "sha256": "7978ee5d70db62bbda131265e9482fd7ff524f846ef4553214e66fb0f8ce6c55"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/.gitattributes",
+      "sha256": "920c45a68fa3a2691a9dab30f7d195cd154b00a8ad31c676f61a284966fbdd32"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/.github/dependabot.yml",
+      "sha256": "5f3a39bd5e9330e46c1e1d67af9ca4daad46f02de8e13206c6cec20ff13a81e6"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/.github/workflows/presubmit.yml",
+      "sha256": "92a4a6bfacf99e9056070252f70f9b5c9fc45630854b2c123ef5736e12575fa0"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/.gitignore",
+      "sha256": "925931b047fe9c2fdfa46c1501fcc4d9388534dc1910d3a2b920924602f8c9cf"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/BUILD.bazel",
+      "sha256": "0cd1396412e6f6df5411c3fdfeab6cfa75e5f62155ad10314f1c194f18cfe74e"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/BUILD.gn",
+      "sha256": "d7433e5b9406e293b3cf215e834dda3f794c45fec1197d3d522ff15edb1f5916"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/cmake/SPIRV-Headers.pc.in",
+      "sha256": "290763d966a986461d649c3a44c871494c7bec6563f8a57bbaa280a3494a5769"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/CMakeLists.txt",
+      "sha256": "7a7762eb7ae1a80638dad5bf0d550a58715bc7e129a43babba0b4bedf6bb3bbd"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/CODE_OF_CONDUCT.md",
+      "sha256": "92ef01b61215680f6abfb5779a69d910fab87cc79009f05375d0468dbe237bbe"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/extinst.glsl.std.450.grammar.json",
+      "sha256": "d6c833162006cd988f65cdec236a83cfcdc14a099ffc281ff3ce6eefff825d32"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/extinst.opencl.std.100.grammar.json",
+      "sha256": "f53e0446cd4f9519438db018601e01e820f370234232de96d0ea82f9ff4b390c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/GLSL.std.450.h",
+      "sha256": "5ad2a15c40c8edbd9749d56bffa532fe5c64d984b8b21d4b845715514c28db7f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/OpenCL.std.h",
+      "sha256": "f52a15f865b38499482cfa1264a4e90ac2801ea31f5ed2f2f87510c2ade9be85"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.core.grammar.json",
+      "sha256": "f3b8849a7fd435431a4d5a55be86b14846587bb4f15d1870330696b6c22772f2"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.cs",
+      "sha256": "4e092f633ea26ce8d065987b17d20315a099d4d58ee9b94b0dbbc9fafcd529b9"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.h",
+      "sha256": "27eff9ef6dd8b68fe73620aea321ae17ec54da746e3dfe71ddbd1620112a8a15"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.hpp",
+      "sha256": "f0b3afe7d803a9a8a8597a605d18841a36adea54582ab65f742dd29491e7c0a9"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.hpp11",
+      "sha256": "e6f71088d77471e306e8d17e61614dee0c30f37cf5d5f99f232b5793c7094da8"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.json",
+      "sha256": "e591562e26fc930e7037c44d442312d80fbad8915809ca3d64b371606f8b6ca4"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.lua",
+      "sha256": "5e1dd6bd59c9ded85eeee393eca6823a7cf6da058f6ab6190ac957d1e454ddc9"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.0/spirv.py",
+      "sha256": "2548e0f0b05ba6fb86364941af3c67f8d408d14061deb5e664154800e173bd3c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/extinst.glsl.std.450.grammar.json",
+      "sha256": "d6c833162006cd988f65cdec236a83cfcdc14a099ffc281ff3ce6eefff825d32"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/extinst.opencl.std.100.grammar.json",
+      "sha256": "f53e0446cd4f9519438db018601e01e820f370234232de96d0ea82f9ff4b390c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/GLSL.std.450.h",
+      "sha256": "5ad2a15c40c8edbd9749d56bffa532fe5c64d984b8b21d4b845715514c28db7f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/OpenCL.std.h",
+      "sha256": "f52a15f865b38499482cfa1264a4e90ac2801ea31f5ed2f2f87510c2ade9be85"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.core.grammar.json",
+      "sha256": "38db3bd804a129c0e7948383f306bbeb71332ca613616d9e6037d6434c0d24ae"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.cs",
+      "sha256": "a84c31ffed400899c6e6ec36a20fe7647be66e22e8f6eda136592b78552cbbec"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.h",
+      "sha256": "fa4ca6b1300c2138855b8e1f4c35f12638825882c25ea8db0f1951bda334426f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.hpp",
+      "sha256": "6d1cb6c761e48f913be04c8036577ed54ba22adcd8b4e744c1de91158e44b4d1"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.hpp11",
+      "sha256": "ec31f3f5643d3a1afaca95f1690c4c71a409614086df746bb2cec273bc3ff359"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.json",
+      "sha256": "c21109158e7f770011cae6ca43e20c33fa98b0299146b2811f8a484b6a11d706"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.lua",
+      "sha256": "b502a2edf470436ae07bf150b9ff0858656bdb768c3d74c638ec02e182b8f19f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.1/spirv.py",
+      "sha256": "f4e323f6e22d44657e70e3b7f2c03f87eb1717f12b7f64f87e7bd9b22fe76aaf"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/extinst.glsl.std.450.grammar.json",
+      "sha256": "d6c833162006cd988f65cdec236a83cfcdc14a099ffc281ff3ce6eefff825d32"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/extinst.opencl.std.100.grammar.json",
+      "sha256": "f53e0446cd4f9519438db018601e01e820f370234232de96d0ea82f9ff4b390c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/GLSL.std.450.h",
+      "sha256": "5ad2a15c40c8edbd9749d56bffa532fe5c64d984b8b21d4b845715514c28db7f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/OpenCL.std.h",
+      "sha256": "f52a15f865b38499482cfa1264a4e90ac2801ea31f5ed2f2f87510c2ade9be85"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.core.grammar.json",
+      "sha256": "09f8c7e2160a395a20ddb676a82acf1d47e25a9ce504a5b485d70e6bc9110d19"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.cs",
+      "sha256": "3babe983e2ae25c4d65593cdd6a5dab9153f158326af4d74d0414dbc1c9c05ae"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.h",
+      "sha256": "a6172b183479f471953f577984600c93fa320536220328a031314109dd17a5bb"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.hpp",
+      "sha256": "d409823759e55b878f15a7ab49ae41ed5cbe4305b81a5995cd41f3a490c5b9ac"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.hpp11",
+      "sha256": "d701790433aeca54a952747830e84f98dc5f74d05c8194d7fe1169a165505e6a"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.json",
+      "sha256": "d7cd9073e437a0a3217d97755e244bacc96a6cdab2c9fcaff291be0b2b166e8f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.lua",
+      "sha256": "4a9fe7af13483f481fa005109e6228a9dda21abdeffd2f84f1b2aa0edf1b01e8"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/1.2/spirv.py",
+      "sha256": "c10a91abe8754f0c3b4e8b6e5a7099b08742c9a78edba041a34a3961ee83ca38"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/spir-v.xml",
+      "sha256": "0f5a0a1c0ded3915a724fab4201502ec258aed9a1eb1aeef63aa814c432b14aa"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/AMD_gcn_shader.h",
+      "sha256": "6517d08478fa819a26139d80bae716126b9048af6a784f79cba56f07920a6e04"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/AMD_shader_ballot.h",
+      "sha256": "4784def52d4b71f7fa8612daf6569f9015db8cbebf0c0d664e36194d0c75622b"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/AMD_shader_explicit_vertex_parameter.h",
+      "sha256": "41bbac1b0b98f03fa98997451a79c49c1f9da23b863ce7be6d4e6928f49e4064"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/AMD_shader_trinary_minmax.h",
+      "sha256": "6476852d9b87c1b1ac8fb7e2c869e30d88d697a6c32f44ac30bd22416fd00a5b"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/DebugInfo.h",
+      "sha256": "48c447a2d7a3fd2b0de61348a23fac5902a3cb2b3b4e5c5487b400a51f5abbe2"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.debuginfo.grammar.json",
+      "sha256": "03c3056f6a408b587f1c745b98333211fbadd1f09f3a516ef3f94811ebfbc6ac"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.glsl.std.450.grammar.json",
+      "sha256": "e265b33fce525c4e96d50b23da4d0baeb0f6b09ff8a0096c804de87f5e9cae4c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.nonsemantic.clspvreflection.grammar.json",
+      "sha256": "817c150eaf222927770e6c3bcd51f4135268b5ac9c1e089f343f0acfdf4c000c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.nonsemantic.debugbreak.grammar.json",
+      "sha256": "486129d2a02666332009319ded75c557392e0cc068f29e7a8ab29c4196ecbad0"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.nonsemantic.debugprintf.grammar.json",
+      "sha256": "7e989ad6ae73a2c0368d2fd7de0351dccfab7e17e9a38e6e80664da76b23c785"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.nonsemantic.shader.debuginfo.100.grammar.json",
+      "sha256": "b8220e86968d6f69a9fcc7f154b9175a9b538fa4fecd7c79dfafec21230aa2bf"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.nonsemantic.vkspreflection.grammar.json",
+      "sha256": "7a21a75504206a9d3bac95400c76e3568f02bd274c9299a583134a42183c4cd4"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.opencl.debuginfo.100.grammar.json",
+      "sha256": "69ef377cca8b88cecf6fef9e4bec8867b04d8f50486abd6dc878567badc3f1bc"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.opencl.std.100.grammar.json",
+      "sha256": "058dc235d0388d2b439a25358b375fc51d7eff635c32cd60b0fb97585994fe2c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.spv-amd-gcn-shader.grammar.json",
+      "sha256": "5860fa1a65c9188859550f75698dc5eb9b1354e543006ee908bf9e0800e212fd"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.spv-amd-shader-ballot.grammar.json",
+      "sha256": "4c2aeac5674d20430b55175d78ea7ad50fe108920524daf583d66711e556be7d"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.spv-amd-shader-explicit-vertex-parameter.grammar.json",
+      "sha256": "c67bbdcf69f087488f12abb16e6f2b49b6eb765ad6c97d65672c6249b7355e3c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/extinst.spv-amd-shader-trinary-minmax.grammar.json",
+      "sha256": "c2131074284e9abc565cb3653d797b0713d4f587dbf786c8f969b65e5e16b223"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/GLSL.std.450.h",
+      "sha256": "9d52d5f0f9374ef2970562bc216ca997a4343b1fbc74d2795a2328d19a38a04e"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/NonSemanticClspvReflection.h",
+      "sha256": "093c7b1d482deaab7d8cb9f05bf5529df0dc7a8ebdd7c9eeb337337d159f84f1"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/NonSemanticDebugBreak.h",
+      "sha256": "57a7c1c00d006d25926141b68d9005e858b91fa73bca750c749b05f6d23e21f2"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/NonSemanticDebugPrintf.h",
+      "sha256": "9b5b67a46ee23868c21421287428387b4f8c945ab8d71a0e3259f9cc587d4387"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/NonSemanticShaderDebugInfo100.h",
+      "sha256": "ee51576fb14a8b5771fe022498c51a5b22345a31480366d08db2a56ababae5a3"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/NonSemanticVkspReflection.h",
+      "sha256": "2245e7e927097670c79d25ceb5e3cb889f95c025937de8bc5c87fec6d6a919d7"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/OpenCL.std.h",
+      "sha256": "d79a4e1deb10f66ca6c51593e9acc04bf229e48841afc28ba11fa1aba206c5bf"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/OpenCLDebugInfo100.h",
+      "sha256": "f072ce98270a66a9efe3713f4029d9c5a4d6268c207869d4eba14ff13ffc5534"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.bf",
+      "sha256": "f01f8f309ca2be1644b5346bb5eedef05710ef30e5c19250463ea584389a25bf"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.core.grammar.json",
+      "sha256": "aff5bfa56cdf5d2a711e19e220c452e579b870602e0844adf5394633ea5f3151"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.cs",
+      "sha256": "571a5a41eb5c4e17402a790d95ff11bffbcfdfcb88be32e3a360d86f6796a4b2"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.h",
+      "sha256": "c4a3705da84986b45e19deadb2f6f04405642f7dc409a90cc325c767c827f8e3"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.hpp",
+      "sha256": "643bb982b386e8a1ef3f5e857b0688c851cccc2aaf8e72508b7188c3a8d8048c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.hpp11",
+      "sha256": "8363476edfb2eee34d53602f24f19283107775d83b270586410e22b91d0e95fa"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.json",
+      "sha256": "12ccd214682d6d185b04d1ef64407f364c77238475902644592ce1a2c5dfec89"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.lua",
+      "sha256": "c43ce1a0ea636524ea118dd73823fe53a381b66ec7698dff078e93addf149b3e"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/include/spirv/unified1/spirv.py",
+      "sha256": "db2899b2e4003a9be86b1fc0e1e3305a1f12d3d561d8b313fc2947ecc0b6183a"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/LICENSE",
+      "sha256": "016e30d9b990f6c8cbfc26366b9ac0e1c7c3ed39caeedf873d6f9b34004bcf7e"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/README.md",
+      "sha256": "5d391b58ee1a899d372258441eb082beca0d462974c70bb6b6f2be66476e2289"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/SECURITY.md",
+      "sha256": "70a94c8c2e11aa125a1d6803574c843e5c6d1b4a1adf1c1b50bab7a59fa9316b"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tests/CMakeLists.txt",
+      "sha256": "80d0fd37890065d7ce3ed41f36c4e2742cdff5400fb52befac51f5a5d58c19d1"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tests/example.cpp",
+      "sha256": "b526ec2131b23751afca1e9fb9b0576a68156f9e081dc38c264cd47f892a464b"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tests/find_package/CMakeLists.txt",
+      "sha256": "ddaaba5980b7f33c9be01e95d1380e5bd9bf0349a1fc2350f7f5dbfb98b9ef19"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tests/pkg_config/CMakeLists.txt",
+      "sha256": "7a52411f511c9d2b1d670b5a727d71b56301da513bc76336ec68e92f25ad4a4f"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/bin/generate_language_headers.py",
+      "sha256": "56d9c9de330890c58fc320af1c84e97e8f334655e94fc490641861d85340ef6d"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/bin/makeExtinstHeaders.py",
+      "sha256": "5114bf64716a95f20b2c475ccd8e052640bdf0ba27115aa512b973f37513886e"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/bin/makeHeaders",
+      "sha256": "b353f6dd58cd1cb8b0dfa9581af12a86f4c5bfdcb04cf1d76bb0b68565aeb09a"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/CMakeLists.txt",
+      "sha256": "73911e5517b998288d0388fac889ec7bdbc8984c3db708767371e4a844b07f15"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/header.cpp",
+      "sha256": "86e9826d7802e1e834e879cca52bb754fdc55bc1e8b119085f5b5cbb2710ec05"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/header.h",
+      "sha256": "0b6e7f2425933fd1155e8f855a173e1c274bc987e7f50534a8474555b051968c"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/jsoncpp/dist/json/json-forwards.h",
+      "sha256": "e48c5bd39dfc3bea5c90f68c16b0824bfa1413fd4ced02b637e373dae922b0b0"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/jsoncpp/dist/json/json.h",
+      "sha256": "139ab2d73d448bd0f8a62d8019eb841056293c93e80f26b54434819d876351e2"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/jsoncpp/dist/jsoncpp.cpp",
+      "sha256": "f06985197d140d518052f40712917cbceba6b953e155e90b0e3a267436947035"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/jsonToSpirv.cpp",
+      "sha256": "2c8aadfa82312690817d6f688abc246c05f1a7cef4569100640c31133fc9b5f3"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/jsonToSpirv.h",
+      "sha256": "2f7fb99b10ebff8fe40c7b553c299febd85707dbedef1b715db5ca77d7fcb406"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/tools/buildHeaders/main.cpp",
+      "sha256": "7440289091244e7b89247209b906b7f0133a1cf3b8bacb9aed29d80a0fa0dcf4"
+    },
+    {
+      "path": "gpu/third_party/sirit/externals/SPIRV-Headers/WORKSPACE",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "gpu/third_party/sirit/include/sirit/sirit.h",
+      "sha256": "5b0dffeac62ecfc653e27f32c75e253714fa6dff5e5229455e8030e82841f6de"
+    },
+    {
+      "path": "gpu/third_party/sirit/LICENSE.txt",
+      "sha256": "29a8f5acbf5feb3a18bf70d704e9609131d5f505ae5fc0ebed8157a20a12e7f3"
+    },
+    {
+      "path": "gpu/third_party/sirit/README.md",
+      "sha256": "6b25f878ae2e073ef47abf612ce9b098d570cd0ca5a42c4eac3aab9727158dac"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/.gitignore",
+      "sha256": "f36aa985b785910e4551f22b07c92cacbfba0ce28fdd6d959e2444e410da3b5a"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/CMakeLists.txt",
+      "sha256": "f00576d1c23019a8f0870b70abb82942e0d76bf819d023da8275f01459926b65"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/common_types.h",
+      "sha256": "9dafa0fed5af3685ca5e89a40e5e8bd5d68669553538bcdc43c6fab386112a66"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/annotation.cpp",
+      "sha256": "c0255d7e6bbe15d650f6b4df42a5f9c95a8e04629cbec5cb17217c48de765182"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/arithmetic.cpp",
+      "sha256": "27532c98eacd2390418fc3d91e6ad8e68a4d8608975c53aa86bf7d224a9d03ca"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/atomic.cpp",
+      "sha256": "1ff4b1ee5de7149154991e0b44f8931e4d6e40311a613c3a752d406b4886c846"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/barrier.cpp",
+      "sha256": "94154b013fffcb5a5b54274f8f71f03717e3b01755008203da412eeebe9962ff"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/bit.cpp",
+      "sha256": "4eec9b4ff0d2dbe7bca80769103d24fcbf0259b973e52e0eed7453782fcf3082"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/constant.cpp",
+      "sha256": "340d23477c253374f32f64a20dd53c4953264cf2a91b370666822135e5d18669"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/conversion.cpp",
+      "sha256": "4ff4bbf26ad46e8f23f1fc9057a2e446c96014fd31afd3053ae4cca462f7284a"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/debug.cpp",
+      "sha256": "c93cc35411358af44a0d4f69d61f84d77d79c48e9a62013b8d69f235143872a4"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/derivatives.cpp",
+      "sha256": "f6c52ecebc2a44bfeb1e4698e16fa7dae7aa9b4e1ef000e8a99823cdacb0aa1f"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/extension.cpp",
+      "sha256": "89d5d90d2c2f5cfd4328b38eec28947b205c0f96fb460667461202611625c1fc"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/flow.cpp",
+      "sha256": "68f91cdb5ecec429752685bb8c12ce1c5e7096e90e2ebe83e41198c964755b80"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/function.cpp",
+      "sha256": "98b527f0bd8fbc9006868a8550be83304429b36218eccbf18a61825c96f3b035"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/group.cpp",
+      "sha256": "f5c74f8435f5ca365aa52afcc5c82bc81c653744cb563e6e7e223d8cefc9525c"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/image.cpp",
+      "sha256": "7cc67b80cdb4fe86087cbf934e7184376728fb48ea0f375cd30f46bba4ba7365"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/logical.cpp",
+      "sha256": "f7863227851f8cc1c5009d3deabdf32936f07dd4b97a3fca41e4b819153e769e"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/memory.cpp",
+      "sha256": "9705992f35f42ad55a8628ea3dba284bc6060153617ad93235e7122f012d1c47"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/misc.cpp",
+      "sha256": "3089c001ac5344f58cd93460a1adac83842c26b0c233e21b134e65e16ff2995b"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/instructions/type.cpp",
+      "sha256": "26e1a582e30561e365d50c63e5cf91e13331913914264cb66d688d31f207ea36"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/sirit.cpp",
+      "sha256": "158cf050cf1dfedbf9859cd9521d28f9c8c49a47823d4b616bbe2deb7031b146"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/stream.cpp",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "gpu/third_party/sirit/src/stream.h",
+      "sha256": "f7df1cc945c724d5c29679b811cf97f2f196427d89ec4dc71e5272ea4ab954e1"
+    },
+    {
+      "path": "gpu/third_party/sirit/tests/CMakeLists.txt",
+      "sha256": "037f2bba930b6af3ca6e5fb0fd30f8406c01581ebac7f6b65b206a5f651dfffd"
+    },
+    {
+      "path": "gpu/third_party/sirit/tests/main.cpp",
+      "sha256": "b248f8f104903c5dc0666bf19633b2be1583efe66a4b395c90bc10aba0b5d382"
+    },
+    {
+      "path": "gpu/tools/fsr4_bench.cpp",
+      "sha256": "bebd076251f858638edd8211aecf3a68bec09eacd152b1799e8e57a0aee813f4"
+    },
+    {
+      "path": "gpu/VENDOR.txt",
+      "sha256": "aff9a9d23e1eb99dbda3ffad7226462bc018ed658817f9221ecd8363ba59fe7e"
+    }
+  ],
+  "submodules": {
+    "fsr-vulkan": {
+      "url": "https://github.com/FireBurn/FSR-Vulkan.git",
+      "commit": "c64f093404125e960813f95f1996c14780f0dd69"
+    },
+    "imgui": {
+      "url": "https://github.com/ocornut/imgui.git",
+      "commit": "f1cc2ae15e53a861a874c3034aae6798fde194ab"
+    },
+    "magic_enum": {
+      "url": "https://github.com/Neargye/magic_enum.git",
+      "commit": "e046b69a3736d314fad813e159b1c192eaef92cd"
+    },
+    "miniz": {
+      "url": "https://github.com/richgel999/miniz.git",
+      "commit": "2948eebafc5b9f1c69bebed80333e403a09bd62d"
+    },
+    "xbyak": {
+      "url": "https://github.com/herumi/xbyak.git",
+      "commit": "cd6bad3cad2e07a3e277c23d2b1f065320024717"
+    }
+  }
+}

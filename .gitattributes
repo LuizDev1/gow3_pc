@@ -1,0 +1,3 @@
+
+# RST heading adornments in upstream docs are not merge conflict markers.
+platform/windows/gow3-base/gpu/third_party/half/docs/*.rst conflict-marker-size=1000

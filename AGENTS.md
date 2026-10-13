@@ -42,6 +42,18 @@ These instructions apply to the entire repository.
 - Preserve third-party licenses and treat vendored code and submodules carefully.
 - Do not add game executables, game assets, dumps, credentials, or generated binaries.
 
+## Windows renderer direction
+
+- The selected Windows renderer build base is `platform/windows/gow3-base/gpu`,
+  imported from the user's GoW3 Windows source with provenance and licenses.
+- Preserve the root TLG CPU loader, validation, metadata preparation and tests.
+- The root `gpu/` tree is retained for history/reference; do not continue its
+  Windows port in parallel with the selected base without a specific reason.
+- No GoW3 loader, launcher or patch installer is imported. Overlay hook interfaces
+  are disabled. Remaining GoW3 graphics assumptions need audit before execution.
+- A static renderer build does not establish runtime callbacks, TLG compatibility
+  or a first frame. Report selected-backend build results separately from CPU tests.
+
 ## Repository map
 
 - `src/`: executable loader and PS4 system runtime.

@@ -409,3 +409,27 @@ Source verification confirmed the constructor text is preserved exactly once and
 follows both complete definitions. git diff --check passes. The next full renderer
 CI run validates the compiler fix; no successful renderer link or graphics output
 is claimed yet.
+
+
+### Switch to the existing GoW3 Windows renderer base (October 13, 2026)
+
+At the user's request, Windows renderer CI now builds the user-provided GoW3
+Windows renderer under `platform/windows/gow3-base/gpu` rather than continuing to
+port the root Linux `gpu` tree. The original trees and root TLG diagnostic are
+preserved. The imported renderer is compiled as its existing static `gow3gpu`
+target; internal upstream names are retained. Original licenses, VENDOR.txt,
+pre-integration file hashes and submodule commit pins are recorded with it.
+The source checkout had local Windows CMake changes; provenance says so rather
+than claiming an exact clean upstream commit.
+
+GoW3 executable loaders, launchers, patch installers and game binaries are not
+imported. Two external headers required by the overlay contain only inert data
+layouts/UI enum values. Actor/cheat/orb interfaces are disabled and no game-specific
+hook signatures or patch bytes are carried in those headers. The FSR CRT header
+fix from the TLG integration is retained for the selected Windows compiler.
+
+This completes source selection/build migration, not runtime integration. The
+renderer still contains GoW3 graphics heuristics and settings. Next: obtain a
+successful build of this selected base, audit game-specific renderer decisions,
+then implement the runtime callback/ABI bridge to the preserved TLG loader.
+No TLG frame or menu is claimed by this migration.

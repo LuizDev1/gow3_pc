@@ -6,7 +6,8 @@ on:
     branches: [the-last-guardian]
     paths:
       - '.github/workflows/windows-gpu-build.yml'
-      - 'gpu/**'
+      - 'platform/windows/gow3-base/**'
+      - 'gpu/shim/fsr_windows_headers.h'
       - '.gitmodules'
       - 'tests/test_fsr_windows_headers.cpp'
       - 'tests/test_gpu_windows_host.cpp'
@@ -74,15 +75,15 @@ jobs:
         shell: msys2 {0}
         run: |
           set -o pipefail
-          cmake -S gpu -B out/gpu-windows -G Ninja \
+          cmake -S platform/windows/gow3-base/gpu -B out/gpu-windows -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBB_LTO=OFF -DBB_NET=OFF \
+            -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DGOW3_LTO=OFF \
             2>&1 | tee out/gpu-build-logs/configure.log
       - name: Compile renderer library only
         shell: msys2 {0}
         run: |
           set -o pipefail
-          cmake --build out/gpu-windows --target bbgpu --parallel 2 \
+          cmake --build out/gpu-windows --target gow3gpu --parallel 2 \
             2>&1 | tee out/gpu-build-logs/build.log
       - name: Preserve diagnostic logs
         if: always()

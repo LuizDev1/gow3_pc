@@ -23,6 +23,7 @@ on:
       - 'tools/audit_runtime.py'
       - 'tools/package_entry_probe.py'
       - 'tests/**'
+      - 'platform/windows/gow3-base/README.md'
       - 'docs/WINDOWS_ENTRY_PROBE.md'
   pull_request:
     paths:
@@ -45,6 +46,7 @@ on:
       - 'tools/audit_runtime.py'
       - 'tools/package_entry_probe.py'
       - 'tests/**'
+      - 'platform/windows/gow3-base/README.md'
       - 'docs/WINDOWS_ENTRY_PROBE.md'
   workflow_dispatch:
 
@@ -96,6 +98,8 @@ jobs:
           python -m unittest discover -s tests -p test_windows_entry_probe.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_audit_runtime.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_windows_renderer_base.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_import_manifest.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
