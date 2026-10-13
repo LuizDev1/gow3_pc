@@ -632,7 +632,7 @@ int main(int argc, char **argv) {
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
     bmi1_fallback_enabled=!gow3_bmi1_available();
     if (bmi1_fallback_enabled)
-        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR); diagnostics v3 (bounded pointer trace)");
+        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR); diagnostics v4 (pointer transitions)");
     AddVectoredExceptionHandler(1, vectored_fault);
     SetUnhandledExceptionFilter(unhandled_fault);
     if (getenv("GOW3_STRICT_HANDLES")) {
