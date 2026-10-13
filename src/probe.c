@@ -17,6 +17,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include "bmi1_compat_win.h"
+#include "legacy_pointer_trace.h"
 #else
 #include <sys/mman.h>
 #include <malloc.h>
@@ -141,7 +142,7 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
         for(SIZE_T i=0;i<instruction_size;i++) fprintf(stderr," %02x",instruction[i]);
         fputc('\n',stderr);
     }
-    if(bmi1_fallback_enabled) gow3_bmi1_dump((uintptr_t)image);
+    if(bmi1_fallback_enabled) { gow3_bmi1_dump((uintptr_t)image); gow3_pointer_dump((uintptr_t)image); }
     if (gpu_enabled) gow3gpu_dump_guest_writes(info);
     /* rbp chain (guest and host code keep frame pointers). */
     uintptr_t rbp=(uintptr_t)c->Rbp;
@@ -164,9 +165,13 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
      * Only emulate verified BMI1 encodings in the guest image. Other faults
      * retain the existing reporting path; no host/DLL AVX2 code is bypassed. */
     uintptr_t bmi_rip=(uintptr_t)info->ContextRecord->Rip;
+    if (image && gow3_pointer_step(info,(uintptr_t)image)) return EXCEPTION_CONTINUE_EXECUTION;
     if (code==EXCEPTION_ILLEGAL_INSTRUCTION && image &&
         bmi_rip-(uintptr_t)image<0x20000000 && bmi1_fallback_enabled &&
-        gow3_bmi1_fault(info)) return EXCEPTION_CONTINUE_EXECUTION;
+        gow3_bmi1_fault(info)) {
+        gow3_pointer_begin(info->ContextRecord,(uintptr_t)image);
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
         if (gpu_enabled && gow3gpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
@@ -627,7 +632,7 @@ int main(int argc, char **argv) {
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
     bmi1_fallback_enabled=!gow3_bmi1_available();
     if (bmi1_fallback_enabled)
-        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR); diagnostics v2");
+        puts("CPU: experimental BMI1 guest fallback enabled (ANDN/BEXTR/BLSI/BLSMSK/BLSR); diagnostics v3 (bounded pointer trace)");
     AddVectoredExceptionHandler(1, vectored_fault);
     SetUnhandledExceptionFilter(unhandled_fault);
     if (getenv("GOW3_STRICT_HANDLES")) {
