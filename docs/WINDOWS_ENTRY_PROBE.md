@@ -114,3 +114,21 @@ stale/incorrect releases. The actual USA 1.03 libc initialization successfully m
 293601280 bytes (280 MiB) at its requested fixed address. The next unsupported call
 is `scePthreadAttrInit` (`nsYoNRywwNg`, caller offset `0x5b42958`). Native module
 initialization is still incomplete; original game entry and the menu have not run.
+
+
+### Thread attributes (October 13, 2026)
+
+A synchronized Windows attribute registry now implements initialization,
+destruction, stack/guard sizes, detach state, scheduling policy/inheritance,
+priority and affinity fields. Defaults and ABI identities follow the existing
+Windows reference runtime. Settings are stored for future thread creation;
+scheduling and affinity are not applied to host threads. Unsupported thread
+creation and thread-attribute snapshots remain unresolved. Monotonically assigned
+opaque handles prevent destroyed handles from becoming valid after slot reuse.
+
+All 18 Windows entry tests pass. Attribute coverage includes defaults, field
+round trips, invalid inputs, independent objects and stale-handle rejection.
+The validated USA 1.03 native initialization now stops at `scePthreadSelf`
+(`aI+OeCz8xrQ`, caller offset `0x5b42963`), after mapping its 280 MiB flexible
+allocation. A guest thread identity must be integrated with the Windows TLS
+record before proceeding. Original game entry and the menu have not run.

@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_thread_attribute_lifecycle_and_validation(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-thread'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('defaults, validation, isolation, round trips and stale handles passed', result.stdout)
+
     def test_direct_memory_shared_storage_and_lifecycle(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-memory'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
