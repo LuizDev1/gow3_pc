@@ -381,3 +381,17 @@ The host regression checks zero-size rejection, zero-fill across multiple pages,
 writable endpoints and host release. Local Windows C++ object compilation passed;
 CI runs the test before the full renderer. No renderer link or GPU execution is
 claimed until subsequent validation succeeds.
+
+
+### Shared DLSS path helpers (October 13, 2026)
+
+Run 38470438867 reached vk_dlss.cpp and failed because BridgeDirectory,
+NgxDirectory and UserDlssDirectory were defined only inside the Linux branch,
+while both Windows and Linux call them. The common path-selection helpers now
+sit after the platform branch; native library names, executable discovery,
+loading and symbol lookup remain platform-specific. No DLSS library is bundled,
+activated or claimed available by this correction.
+
+Conditional source blocks and git diff --check pass. The complete compile is
+validated by the next renderer CI run; the previous CPU diagnostic succeeded.
+GPU commands, rendered frames and gameplay remain unavailable.
