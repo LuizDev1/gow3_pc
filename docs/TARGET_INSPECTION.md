@@ -65,3 +65,16 @@ relocations, 209 native module bindings and 391 host-runtime import entries.
 `tlg-link.json` records their full library/module identities and counts by library.
 Those 391 entries are not necessarily missing implementations: runtime resolution
 must still be audited with a compatible host build. No game code was executed.
+
+## Windows entry diagnostic
+
+A separate Windows-only diagnostic (`src/windows_entry_probe.c`) now accepts the
+unlinked `boot.bin`, applies relocations, and traps every imported function/data
+access. It never initializes linked modules or applies Linux TLS rewrites.
+
+The locally compiled diagnostic executed this target's original entry at `0xa0`
+and stopped at `bzQExy189ZI#V#V` (`_init_env`), caller offset `0xb9`, exit 20.
+This validates only this attempt at mapping, relocation and entry execution.
+No game initialization, graphics or gameplay is demonstrated. Four synthetic
+Windows tests cover import traps, data traps, guest faults and invalid inputs.
+The GitHub workflow packages the diagnostic and source without game data.
