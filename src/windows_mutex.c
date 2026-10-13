@@ -115,6 +115,20 @@ static ABI int32_t attr_type(Attr **handle, int type) {
     ReleaseSRWLockExclusive(&attr_lock);
     return attr ? 0 : INVALID;
 }
+/* Protocol NONE needs no scheduler. INHERIT/PROTECT cannot be silently
+ * accepted: this backend does not implement priority inheritance or ceilings. */
+static ABI int32_t attr_protocol(Attr **handle,int protocol) {
+    if (!handle || protocol<0 || protocol>2) return INVALID;
+    AcquireSRWLockExclusive(&attr_lock);
+    int valid=*find_attr(*handle)!=NULL;
+    ReleaseSRWLockExclusive(&attr_lock);
+    if (!valid) return INVALID;
+    if (protocol) {
+        fprintf(stderr,"Unsupported mutex priority protocol: %d\n",protocol);
+        return (int32_t)UINT32_C(0x8002002d);
+    }
+    return 0;
+}
 static ABI int32_t attr_destroy(Attr **handle) {
     if (!handle) return INVALID;
     AcquireSRWLockExclusive(&attr_lock);
@@ -196,6 +210,7 @@ static ABI int32_t mutex_destroy(Mutex **handle) {
     return result;
 }
 uintptr_t windows_mutex_resolve(const char *name) {
+    if (!strcmp(name, "1FGvU0i9saQ#U#H")) return (uintptr_t)attr_protocol;
     if (!strcmp(name, "m5-2bsNfv7s#U#H")) return (uintptr_t)condattr_init;
     if (!strcmp(name, "waPcxYiR3WA#U#H")) return (uintptr_t)condattr_destroy;
     if (!strcmp(name, "2Tb92quprl0#U#H")) return (uintptr_t)cond_init;
@@ -228,6 +243,13 @@ int windows_mutex_selftest(void) {
         attr_destroy(&stale) != INVALID || attr_type(&unknown, 1) != INVALID ||
         attr_destroy(NULL) != INVALID || attr_destroy(&b) || attributes) return 1;
     if (windows_mutex_resolve("F8bUHwAG284#p#J")) return 1;
+    Attr *protocol_attr=NULL,*invalid_attr=(Attr *)(uintptr_t)1;
+    if (attr_init(&protocol_attr) || attr_protocol(&protocol_attr,0) ||
+        attr_protocol(&protocol_attr,-1)!=INVALID || attr_protocol(&protocol_attr,3)!=INVALID ||
+        attr_protocol(&invalid_attr,0)!=INVALID || attr_protocol(NULL,0)!=INVALID ||
+        attr_protocol(&protocol_attr,1)!=(int32_t)UINT32_C(0x8002002d) ||
+        attr_protocol(&protocol_attr,2)!=(int32_t)UINT32_C(0x8002002d) || attr_destroy(&protocol_attr)) return 1;
+    puts("mutex protocol: NONE supported, priority protocols explicitly rejected and handles validated");
     puts("mutex attributes: defaults, type validation, isolation and stale handles passed");
     Mutex *m = NULL;
     if (mutex_init(&m, NULL, "test") || mutex_lock(&m) || mutex_lock(&m) != DEADLOCK ||

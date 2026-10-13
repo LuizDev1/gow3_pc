@@ -243,3 +243,18 @@ truncation, monotonic advancement, aliases and invalid requests. USA 1.03 startu
 passes the clock query and next stops at `scePthreadMutexattrSetprotocol`
 (`1FGvU0i9saQ`, caller offset `0xd16d5e`). Mutex scheduling protocol semantics
 are the next blocker. No graphics, menu or gameplay are available.
+
+
+### Mutex protocol and first file-open blocker (October 13, 2026)
+
+`scePthreadMutexattrSetprotocol` now validates registered attribute handles and
+supports protocol NONE (0), matching the existing locks' behavior. Protocols
+INHERIT/PROTECT (1/2) return ENOTSUP, rather than claiming priority inheritance or
+priority ceilings. Invalid values and handles return EINVAL. No scheduling
+behavior has been added.
+
+All 21 Windows entry tests pass, including NONE, unsupported priority protocols
+and invalid handles. The validated USA 1.03 target proceeds without requesting an
+unsupported priority protocol, then stops at `sceKernelOpen` (`1G3lF1Gg1k8`, caller
+offset `0x5c48f6a` in Fios2). Guest file-path translation, descriptor ownership and
+file access are the next integration step. Graphics and menu remain unavailable.
