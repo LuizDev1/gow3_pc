@@ -100,9 +100,13 @@ add_subdirectory(third_party/fsr-vulkan EXCLUDE_FROM_ALL)
 # FidelityFX's Windows debug-message source calls swprintf_s without including
 # its declaring header. Supply the CRT header to this dependency target only;
 # preserve the pinned upstream source and function behavior.
-if(WIN32 AND MINGW AND TARGET ffx_vulkan_fsr3_host_1_1_4)
-    target_compile_options(ffx_vulkan_fsr3_host_1_1_4 PRIVATE
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/fsr_windows_headers.h)
+if(WIN32 AND MINGW)
+    foreach(BB_FSR_TARGET IN ITEMS ffx_vulkan_fsr3_host_1_1_4 ffx_vulkan_fsr3_vk_backend_1_1_4)
+        if(TARGET ${BB_FSR_TARGET})
+            target_compile_options(${BB_FSR_TARGET} PRIVATE
+                -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/fsr_windows_headers.h)
+        endif()
+    endforeach()
 endif()
 
 

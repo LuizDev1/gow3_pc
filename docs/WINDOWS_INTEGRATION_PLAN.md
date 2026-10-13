@@ -267,3 +267,15 @@ array count and formatted output under the actual MSYS2 compiler.
 Local Windows C++ object compilation confirmed both declarations. Full renderer
 validation remains with the next GitHub run; this fixes a confirmed dependency
 compile failure without claiming a renderer link or GPU execution.
+
+
+### FidelityFX Vulkan backend headers (October 13, 2026)
+
+Run 38462747056 passed the CRT regression and earlier FSR host compilation.
+The Vulkan backend then failed on missing declarations for std::lock_guard,
+placement new and log2. The scoped FSR header now includes mutex/new/math headers
+and is applied to both the host and Vulkan-backend dependency targets. The
+regression exercises lock_guard, placement construction/destruction and log2 in
+addition to CRT formatting. The CPU diagnostic run for the same commit succeeded.
+The next full-renderer CI run remains responsible for confirming this fix and
+identifying further portability blockers; no renderer success is claimed yet.

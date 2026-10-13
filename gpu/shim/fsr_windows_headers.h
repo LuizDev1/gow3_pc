@@ -5,3 +5,8 @@
 #pragma once
 #include <stdlib.h>
 #include <wchar.h>
+#include <math.h>
+#ifdef __cplusplus
+#include <mutex>
+#include <new>
+#endif
