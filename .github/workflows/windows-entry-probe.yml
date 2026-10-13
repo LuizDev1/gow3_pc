@@ -67,6 +67,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_audit_runtime.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_import_manifest.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package diagnostic and corresponding source
         shell: pwsh
         run: python tools/package_entry_probe.py

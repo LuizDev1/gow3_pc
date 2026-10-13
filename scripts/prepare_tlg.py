@@ -12,6 +12,7 @@ from pathlib import Path
 
 from prepare import prepare, sfo, span
 from link_modules import link, module
+from import_manifest import build_manifest
 
 TITLE = 'CUSA03627'
 VERSION = '01.03'
@@ -54,6 +55,10 @@ def build(game, out):
     link(game, out)
     # Resolve dump-local spellings to full identities for further runtime work.
     main = module(game / 'eboot.bin')
+    manifest = build_manifest({'eboot.bin': main,
+        **{'sce_module/' + name: item for name, item in parsed.items()}},
+        {'title_id': TITLE, 'app_ver': VERSION, 'image_sha256': IMAGE})
+    (out / 'imports-canonical.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     identities = {}
     by_identity = {}
     for item in [main, *parsed.values()]:

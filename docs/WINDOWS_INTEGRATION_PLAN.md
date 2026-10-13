@@ -83,3 +83,23 @@ separated from assumptions about GoW addresses, shaders, paths and asset layout.
 Priority now is stages 1 and 2, rather than adding another isolated libc wrapper.
 No reliable calendar estimate follows from static import counts. Audio3d/Ngs2 and
 TLG-specific GPU behavior remain material unknowns even after platform reuse.
+
+## Canonical identity metadata implemented
+
+`prepare_tlg.py` now writes ignored `out/tlg/imports-canonical.json` alongside
+its existing outputs. It contains referenced imports from the executable and
+both bundled libraries, grouped by NID, library name/version, module name/version
+and function/data kind. Local spellings retain their source module context.
+Equal local names cannot silently merge unrelated imports; different local
+aliases merge only when every canonical identity field matches.
+
+The observed files produce 600 canonical identities (592 functions, 8 data
+symbols). This includes imports eligible for native bindings, not just the
+391 residual host entries. Required unscoped imports and unsupported symbol
+kinds fail rather than being guessed. Four synthetic tests cover these rules.
+
+This is preparation metadata only. The current Windows entry probe still uses
+its exact scoped tables and stops at `strlen`; it does not consume this manifest.
+Next: carry full identities into the Windows linked-image format/resolver, then
+adapt native module initialization and Windows TLS. Linux linked output remains
+unsuitable for the Windows probe.
