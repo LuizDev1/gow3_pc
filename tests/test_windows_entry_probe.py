@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_guest_clock_layout_translation_and_errors(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-timespec'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Unix epoch, SECOND truncation, monotonic advance, aliases and invalid inputs passed', result.stdout)
+
     def test_timing_uses_advancing_counter_and_consistent_frequency(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-clock'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -200,6 +200,49 @@ static int selftest_clock(void) {
 }
 /* POSIX console writes only. File descriptors are not host Win32 handles. */
 static _Thread_local int32_t console_errno;
+typedef struct { int64_t seconds,nanoseconds; } GuestTimespec;
+_Static_assert(sizeof(GuestTimespec)==16,"guest timespec layout");
+static ABI int guest_clock_gettime(uint32_t id,GuestTimespec *out) {
+    if(!out) {console_errno=14;return -1;}
+    GuestTimespec result;
+    switch(id) {
+    case 0: case 9: case 10: case 13: {
+        FILETIME filetime;GetSystemTimePreciseAsFileTime(&filetime);
+        uint64_t ticks=((uint64_t)filetime.dwHighDateTime<<32)|filetime.dwLowDateTime;
+        const uint64_t epoch=UINT64_C(116444736000000000);
+        if(ticks<epoch) {console_errno=5;return -1;}
+        ticks-=epoch;result.seconds=(int64_t)(ticks/10000000);
+        result.nanoseconds=id==13?0:(int64_t)(ticks%10000000)*100;
+        break;
+    }
+    case 4: case 5: case 7: case 8: case 11: case 12: {
+        require_clock();LARGE_INTEGER now;
+        if(!QueryPerformanceCounter(&now) || now.QuadPart<0) {console_errno=5;return -1;}
+        uint64_t ticks=(uint64_t)now.QuadPart;
+        result.seconds=(int64_t)(ticks/qpc_hz);
+        result.nanoseconds=(int64_t)(((__uint128_t)(ticks%qpc_hz)*1000000000)/qpc_hz);
+        break;
+    }
+    default:console_errno=22;return -1; /* CPU/network clocks require their own semantics. */
+    }
+    *out=result;return 0;
+}
+static int selftest_timespec(void) {
+    GuestTimespec wall={0},seconds={0},a={0},b={0},unchanged={123,456};
+    if(guest_clock_gettime(0,&wall) || wall.seconds<0 || wall.nanoseconds<0 || wall.nanoseconds>=1000000000 ||
+       guest_clock_gettime(13,&seconds) || seconds.nanoseconds!=0 ||
+       seconds.seconds<wall.seconds || seconds.seconds>wall.seconds+1) return 1;
+    if(guest_clock_gettime(4,&a)) return 1;
+    Sleep(10);if(guest_clock_gettime(4,&b) || b.seconds<a.seconds ||
+        (b.seconds==a.seconds && b.nanoseconds<=a.nanoseconds)) return 1;
+    if(guest_clock_gettime(UINT32_MAX,&unchanged)!=-1 || console_errno!=22 ||
+        unchanged.seconds!=123 || unchanged.nanoseconds!=456 ||
+        guest_clock_gettime(0,NULL)!=-1 || console_errno!=14) return 1;
+    static const uint32_t aliases[]={5,7,8,9,10,11,12};
+    for(unsigned i=0;i<sizeof(aliases)/sizeof(aliases[0]);i++)
+        if(guest_clock_gettime(aliases[i],&a) || a.nanoseconds<0 || a.nanoseconds>=1000000000) return 1;
+    puts("Guest clocks: Unix epoch, SECOND truncation, monotonic advance, aliases and invalid inputs passed");return 0;
+}
 static ABI int32_t *guest_console_error(void) { return &console_errno; }
 static ABI int64_t guest_console_write(int fd,const void *buffer,uint64_t size) {
     if(fd!=1 && fd!=2) {console_errno=9;return -1;}
@@ -246,6 +289,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"lLMT9vJAck0#U#H")) return (uintptr_t)guest_clock_gettime;
         if (!strcmp(name,"-2IRUCO--PM#U#H")) return (uintptr_t)guest_read_tsc;
         if (!strcmp(name,"1j3S3n-tTW4#U#H")) return (uintptr_t)guest_tsc_frequency;
         if (!strcmp(name,"4J2sUJmuHZQ#U#H")) return (uintptr_t)guest_process_time;
@@ -358,6 +402,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
     if (argc == 2 && !strcmp(argv[1], "--selftest-clock")) return selftest_clock();
     if (argc == 2 && !strcmp(argv[1], "--selftest-console")) return selftest_console();
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();

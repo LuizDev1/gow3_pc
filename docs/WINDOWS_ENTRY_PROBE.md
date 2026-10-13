@@ -226,3 +226,20 @@ passes the previous timing import and stops at POSIX `clock_gettime`
 (`lLMT9vJAck0`, caller offset `0x5b7bdda`), requesting guest clock ID 13 (SECOND).
 Clock-ID translation and explicit guest timespec layout are the next step.
 Graphics and menu remain unavailable.
+
+
+### Guest clock translation (October 13, 2026)
+
+POSIX `clock_gettime` now writes an explicit 16-byte guest timespec containing
+signed 64-bit seconds and nanoseconds. Realtime IDs 0/9/10 use Windows precise
+UTC time converted from the FILETIME epoch to Unix time; ID 13 (SECOND) truncates
+nanoseconds to zero. Monotonic/uptime IDs 4/5/7/8/11/12 use QPC with its actual
+frequency. FAST/PRECISE aliases currently share the same source. CPU and network
+clocks are rejected rather than substituted. Errors set thread-local POSIX errno,
+and rejected clock IDs leave the output unchanged.
+
+All 21 Windows entry tests pass, covering layout, epoch conversion, SECOND
+truncation, monotonic advancement, aliases and invalid requests. USA 1.03 startup
+passes the clock query and next stops at `scePthreadMutexattrSetprotocol`
+(`1FGvU0i9saQ`, caller offset `0xd16d5e`). Mutex scheduling protocol semantics
+are the next blocker. No graphics, menu or gameplay are available.
