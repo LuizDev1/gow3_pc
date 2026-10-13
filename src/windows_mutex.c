@@ -16,7 +16,7 @@
 #define DEADLOCK ((int32_t)UINT32_C(0x8002000b))
 #define NOT_OWNER ((int32_t)UINT32_C(0x80020001))
 #define AGAIN ((int32_t)UINT32_C(0x80020023))
-typedef struct Attr { int type; struct Attr *next; } Attr;
+typedef struct Attr { int type,protocol; struct Attr *next; } Attr;
 static Attr *attributes;
 static SRWLOCK attr_lock = SRWLOCK_INIT;
 typedef struct CondAttr { struct CondAttr *next; } CondAttr;
@@ -78,7 +78,7 @@ static ABI int32_t cond_destroy(Cond **handle) {
     return 0;
 }
 typedef struct Mutex {
-    int type;
+    int type,protocol;
     DWORD owner;
     uint32_t depth, waiters;
     CONDITION_VARIABLE changed;
@@ -99,7 +99,7 @@ static ABI int32_t attr_init(Attr **out) {
     if (!out) return INVALID;
     Attr *attr = malloc(sizeof(*attr));
     if (!attr) return NO_MEMORY;
-    attr->type = 1;
+    attr->type = 1; attr->protocol=0;
     AcquireSRWLockExclusive(&attr_lock);
     attr->next = attributes;
     attributes = attr;
@@ -115,19 +115,24 @@ static ABI int32_t attr_type(Attr **handle, int type) {
     ReleaseSRWLockExclusive(&attr_lock);
     return attr ? 0 : INVALID;
 }
-/* Protocol NONE needs no scheduler. INHERIT/PROTECT cannot be silently
- * accepted: this backend does not implement priority inheritance or ceilings. */
+/* Experimental fallback preserves exclusion but does not implement priority
+ * donation. Explicitly opt in; priority ceilings are never accepted. */
+static int priority_fallback(void) {
+    const char *value=getenv("TLG_MUTEX_PRIORITY_FALLBACK");
+    return value && !strcmp(value,"1");
+}
 static ABI int32_t attr_protocol(Attr **handle,int protocol) {
     if (!handle || protocol<0 || protocol>2) return INVALID;
     AcquireSRWLockExclusive(&attr_lock);
-    int valid=*find_attr(*handle)!=NULL;
-    ReleaseSRWLockExclusive(&attr_lock);
-    if (!valid) return INVALID;
-    if (protocol) {
+    Attr *attr=*find_attr(*handle);
+    if (!attr) {ReleaseSRWLockExclusive(&attr_lock);return INVALID;}
+    if (protocol==2 || (protocol==1 && !priority_fallback())) {
+        ReleaseSRWLockExclusive(&attr_lock);
         fprintf(stderr,"Unsupported mutex priority protocol: %d\n",protocol);
         return (int32_t)UINT32_C(0x8002002d);
     }
-    return 0;
+    attr->protocol=protocol;
+    ReleaseSRWLockExclusive(&attr_lock);return 0;
 }
 static ABI int32_t attr_destroy(Attr **handle) {
     if (!handle) return INVALID;
@@ -149,6 +154,8 @@ static ABI int32_t mutex_init(Mutex **out, Attr **attr, const char *name) {
     Mutex *m = calloc(1, sizeof(*m));
     if (!m) { ReleaseSRWLockExclusive(&attr_lock); return NO_MEMORY; }
     m->type = a ? a->type : 1;
+    m->protocol=a?a->protocol:0;
+    if(m->protocol==1) puts("Runtime: EXPERIMENTAL mutex fallback: exclusion enabled, priority inheritance unavailable");
     InitializeConditionVariable(&m->changed);
     m->next = mutexes;
     mutexes = m;
@@ -342,9 +349,12 @@ int windows_mutex_selftest(void) {
     if (attr_init(&protocol_attr) || attr_protocol(&protocol_attr,0) ||
         attr_protocol(&protocol_attr,-1)!=INVALID || attr_protocol(&protocol_attr,3)!=INVALID ||
         attr_protocol(&invalid_attr,0)!=INVALID || attr_protocol(NULL,0)!=INVALID ||
-        attr_protocol(&protocol_attr,1)!=(int32_t)UINT32_C(0x8002002d) ||
-        attr_protocol(&protocol_attr,2)!=(int32_t)UINT32_C(0x8002002d) || attr_destroy(&protocol_attr)) return 1;
-    puts("mutex protocol: NONE supported, priority protocols explicitly rejected and handles validated");
+        attr_protocol(&protocol_attr,1)!=(priority_fallback()?0:(int32_t)UINT32_C(0x8002002d)) ||
+        attr_protocol(&protocol_attr,2)!=(int32_t)UINT32_C(0x8002002d)) return 1;
+    Mutex *profile_mutex=NULL;
+    if(mutex_init(&profile_mutex,&protocol_attr,"profile") || profile_mutex->protocol!=(priority_fallback()?1:0) ||
+        mutex_lock(&profile_mutex) || mutex_unlock(&profile_mutex) || mutex_destroy(&profile_mutex) || attr_destroy(&protocol_attr)) return 1;
+    puts(priority_fallback()?"mutex protocol: explicit fallback selected, stored on lock and priority ceilings rejected":"mutex protocol: NONE supported, priority protocols explicitly rejected and handles validated");
     puts("mutex attributes: defaults, type validation, isolation and stale handles passed");
     Mutex *m = NULL;
     if (mutex_init(&m, NULL, "test") || mutex_lock(&m) || mutex_lock(&m) != DEADLOCK ||

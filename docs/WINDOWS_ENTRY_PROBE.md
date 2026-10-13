@@ -436,3 +436,22 @@ instruction at guest offset `0x5c4a2f5`; the diagnostic reports exception
 `0xc000001d`. This failure is attributable to a required synchronization contract,
 not a missing rwlock export. Priority inheritance needs a coherent implementation
 or a separately documented approximation before proceeding. No graphics/menu.
+
+
+### Opt-in mutex priority fallback (October 13, 2026)
+
+`TLG_MUTEX_PRIORITY_FALLBACK=1` explicitly permits protocol INHERIT attributes to
+create ordinary owned mutexes for startup investigation. The requested protocol
+is retained on the attribute and copied into the lock. Each affected lock logs
+that priority inheritance is unavailable. Exclusion/ownership/recursion behavior
+remains active; priority donation and PS4 scheduling are not implemented. Protocol
+PROTECT remains rejected. The default still rejects unsupported priority protocols.
+This approximation can cause priority inversion or scheduling differences and
+must not be described as working priority inheritance.
+
+All 27 Windows entry tests pass, including strict/fallback profiles, protocol
+retention, basic locking and priority-ceiling rejection. With both the offline
+PlayGo assumption and mutex fallback enabled, USA 1.03 Fios2 creates five affected
+mutexes and reaches `scePthreadCreate` (`6UgtwV+0zb4`, caller offset `0x5c4a892`).
+Guest thread creation with correct TLS, stack and lifetime is the next blocker.
+This remains conditional startup progress; graphics and menu are unavailable.
