@@ -649,11 +649,24 @@ static ABI int32_t guest_video_resolution(int32_t handle,VideoResolution *out) {
     result.refresh=3; /* Guest enum for 59.94 Hz, a profile rather than measured presentation. */
     *out=result;ReleaseSRWLockShared(&video_lock);return 0;
 }
+/* One 64-bit capability word, per the bundled shadPS4 VideoOut ABI.
+ * No HDR capability is advertised without an attached presenter. */
+static ABI int32_t guest_video_capabilities(int32_t handle,uint64_t *out) {
+    if(!out) return VIDEO_INVALID;
+    AcquireSRWLockShared(&video_lock);
+    if(handle<=0 || handle!=video_handle) {ReleaseSRWLockShared(&video_lock);return VIDEO_BAD_HANDLE;}
+    *out=0;ReleaseSRWLockShared(&video_lock);return 0;
+}
 static int selftest_video(void) {
     VideoResolution value;memset(&value,0x55,sizeof(value));VideoResolution original=value;
     if(guest_video_open(255,1,0,NULL)!=VIDEO_INVALID || guest_video_resolution(0,&value)!=VIDEO_BAD_HANDLE ||
         memcmp(&value,&original,sizeof(value))) return 1;
+    uint64_t capabilities[3]={123,456,789};
+    if(guest_video_capabilities(0,capabilities+1)!=VIDEO_BAD_HANDLE || capabilities[1]!=456) return 1;
     int32_t handle=guest_video_open(255,0,0,NULL);
+    if(guest_video_capabilities(handle,NULL)!=VIDEO_INVALID || guest_video_capabilities(handle,capabilities+1) ||
+        capabilities[0]!=123 || capabilities[1]!=0 || capabilities[2]!=789) return 1;
+    puts("Video capabilities: no HDR advertised, eight-byte output and invalid-handle preservation passed");
     if(handle<=0 || guest_video_open(255,0,0,NULL)!=VIDEO_BUSY || guest_video_resolution(handle,NULL)!=VIDEO_INVALID ||
         guest_video_resolution(handle,&value) || value.width!=1280 || value.height!=720 || value.refresh!=3 ||
         guest_video_close(handle) || guest_video_close(handle)!=VIDEO_BAD_HANDLE) return 1;
@@ -693,6 +706,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"lDqxaY1UbEo#msgdialog")) return (uintptr_t)guest_message_dialog_init;
         if (!strcmp(name,"6fIC3XKt2k0#msgdialog")) return (uintptr_t)guest_message_dialog_status;
         if (!strcmp(name,"ePw-kqZmelo#msgdialog")) return (uintptr_t)guest_message_dialog_term;
+        if (!strcmp(name,"kGVLc3htQE8#videoout")) return (uintptr_t)guest_video_capabilities;
         if (!strcmp(name,"Up36PTk687E#videoout")) return (uintptr_t)guest_video_open;
         if (!strcmp(name,"uquVH4-Du78#videoout")) return (uintptr_t)guest_video_close;
         if (!strcmp(name,"6kPnj51T62Y#videoout")) return (uintptr_t)guest_video_resolution;

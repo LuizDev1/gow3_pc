@@ -635,3 +635,21 @@ There is still no Windows window, Vulkan surface, renderer connection, buffer
 registration or frame presentation. No flip/vblank completion is simulated.
 Device capability responses must reflect the eventual backend rather than claim
 unimplemented features. This is API groundwork, not a rendered image/menu.
+
+
+### Video capabilities and first observed GNM registration (October 13, 2026)
+
+`sceVideoOutGetDeviceCapabilityInfo` now validates the logical port and writes
+exactly one 64-bit capability word, matching the bundled shadPS4 VideoOut ABI.
+It advertises no optional HDR capability because no presenter is attached.
+Invalid requests preserve output. This describes the limited diagnostic profile,
+not detected monitor capabilities or successful presentation.
+
+All 30 Windows entry tests pass, with new capability-word bounds, null output and
+invalid-handle checks. With both experimental profiles enabled, USA 1.03 passes
+VideoOut capability initialization and reaches `sceGnmRegisterOwner`
+(`ZFqKFl23aMc`, libSceGnmDriver@1 / libSceGnmDriver@257, caller offset `0xc50106`).
+The symbol is confirmed by the bundled GNM driver's registration table and added
+to diagnostic names. GNM resource registration and renderer integration are the
+next work area. GPU command processing, a window, rendered frames and the menu
+remain unavailable.

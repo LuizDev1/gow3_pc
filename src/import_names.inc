@@ -752,3 +752,5 @@
 {"aNz11fnnzi4#U#H","sceKernelAvailableFlexibleMemorySize"},
 
 {"kGVLc3htQE8#D#E","sceVideoOutGetDeviceCapabilityInfo"},
+
+{"ZFqKFl23aMc#E#F","sceGnmRegisterOwner"},

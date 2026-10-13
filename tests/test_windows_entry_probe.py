@@ -31,6 +31,7 @@ class WindowsEntryTests(unittest.TestCase):
         result = subprocess.run([str(EXE.resolve()), '--selftest-video'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('logical lifecycle, resolution ABI, duplicate open and stale handles passed', result.stdout)
+        self.assertIn('no HDR advertised, eight-byte output and invalid-handle preservation passed', result.stdout)
 
     def test_dialog_provider_lifecycle_has_no_fake_completion(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-dialog'], capture_output=True, text=True, timeout=15)
