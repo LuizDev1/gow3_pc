@@ -277,3 +277,22 @@ relative optional file `memory.cfg`, then advances to `sceSysmoduleLoadModule`
 (`g8cM39EUZ6o`, libSceSysmodule, caller offset `0xd4c9ae`, module ID `0xb4`).
 2348 exit callbacks are registered at that point. No game archive loading or
 rendering has been demonstrated. Module-loading semantics are the next blocker.
+
+
+### Limited AppContent lifecycle (October 13, 2026)
+
+Module ID `0xb4` is AppContent. The Windows diagnostic now provides a narrow host
+implementation with synchronized load/reference counting, loaded queries, unload,
+and reserved-zero initialization using the existing runtime's 32-byte input and
+40-byte output ABI. Unknown modules are rejected. Initialization requires a load,
+rejects nonzero reserved input, and resets after the final unload. Canonical
+resolution requires the exact Sysmodule or AppContent library/module identities.
+This does not load an absent PRX or implement all system modules. Application
+parameter queries, add-ons and entitlement handling remain unresolved.
+
+All 23 Windows entry tests pass, including reference lifetime, initialization
+output boundaries, invalid reserved fields and reset after unload. The validated
+USA 1.03 target completes AppContent initialization and stops at
+`sceAppContentAppParamGetInt` (`99b82IKXpH4`, caller offset `0xd4c9e5`), requesting
+parameter ID 1. The next step is validating that parameter against the supplied
+content metadata rather than guessing a response. No graphics or menu are enabled.

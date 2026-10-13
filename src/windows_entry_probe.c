@@ -340,6 +340,56 @@ static int selftest_files(void) {
        guest_file_close((int)fd)!=FILE_ERROR(9) || guest_file_read((int)fd,bytes,1)!=FILE_ERROR(9)) return 1;
     puts("Files: read-only mount, exact bytes, seek, EOF and stale descriptors passed");return 0;
 }
+/* ABI layouts and lifecycle adapted from src/runtime_content.c (GPL-2.0-or-later).
+ * Narrow AppContent provider: lifecycle and reserved-zero initialization only.
+ * No DLC entitlement, package mounting or guessed application parameters. */
+static SRWLOCK content_lock=SRWLOCK_INIT;
+static unsigned content_refs,content_initialized;
+#define MODULE_INVALID ((int32_t)0x805a1000)
+#define MODULE_UNLOADED ((int32_t)0x805a1001)
+#define CONTENT_PARAMETER ((int32_t)0x80d90002)
+#define CONTENT_BUSY ((int32_t)0x80d90003)
+static ABI int32_t guest_module_load(uint16_t id) {
+    if(id!=0xb4) return MODULE_INVALID;
+    AcquireSRWLockExclusive(&content_lock);
+    if(content_refs==UINT_MAX) {ReleaseSRWLockExclusive(&content_lock);return CONTENT_BUSY;}
+    ++content_refs;ReleaseSRWLockExclusive(&content_lock);
+    puts("Runtime: limited AppContent host provider loaded");return 0;
+}
+static ABI int32_t guest_module_loaded(uint16_t id) {
+    if(id!=0xb4) return MODULE_INVALID;
+    AcquireSRWLockShared(&content_lock);int32_t result=content_refs?0:MODULE_UNLOADED;
+    ReleaseSRWLockShared(&content_lock);return result;
+}
+static ABI int32_t guest_module_unload(uint16_t id) {
+    if(id!=0xb4) return MODULE_INVALID;
+    AcquireSRWLockExclusive(&content_lock);
+    if(!content_refs) {ReleaseSRWLockExclusive(&content_lock);return MODULE_UNLOADED;}
+    if(!--content_refs) content_initialized=0;
+    ReleaseSRWLockExclusive(&content_lock);return 0;
+}
+static ABI int32_t guest_content_init(const unsigned char *init,unsigned char *boot) {
+    if(!init || !boot) return CONTENT_PARAMETER;
+    AcquireSRWLockExclusive(&content_lock);
+    if(!content_refs) {ReleaseSRWLockExclusive(&content_lock);return MODULE_UNLOADED;}
+    if(content_initialized) {ReleaseSRWLockExclusive(&content_lock);return CONTENT_BUSY;}
+    for(unsigned i=0;i<32;i++) if(init[i]) {ReleaseSRWLockExclusive(&content_lock);return CONTENT_PARAMETER;}
+    memset(boot,0,40);content_initialized=1;
+    ReleaseSRWLockExclusive(&content_lock);return 0;
+}
+static int selftest_content(void) {
+    unsigned char init[32]={0},boot[42];memset(boot,0x55,sizeof(boot));
+    if(guest_module_loaded(0xb4)!=MODULE_UNLOADED || guest_module_load(0xb5)!=MODULE_INVALID ||
+       guest_content_init(init,boot+1)!=MODULE_UNLOADED || guest_module_load(0xb4) || guest_module_load(0xb4)) return 1;
+    init[31]=1;if(guest_content_init(init,boot+1)!=CONTENT_PARAMETER || boot[1]!=0x55) return 1;
+    init[31]=0;if(guest_content_init(init,boot+1) || boot[0]!=0x55 || boot[41]!=0x55) return 1;
+    for(unsigned i=1;i<=40;i++) if(boot[i]) return 1;
+    if(guest_content_init(init,boot+1)!=CONTENT_BUSY || guest_module_unload(0xb4) ||
+       guest_module_loaded(0xb4) || guest_module_unload(0xb4) || guest_module_loaded(0xb4)!=MODULE_UNLOADED ||
+       guest_module_unload(0xb4)!=MODULE_UNLOADED || guest_module_load(0xb4) ||
+       guest_content_init(init,boot+1) || guest_module_unload(0xb4)) return 1;
+    puts("AppContent: references, initialization bounds, invalid profile and unload reset passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -364,6 +414,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
+        if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
+        if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
+        if (!strcmp(name,"R9lA82OraNs#appcontent")) return (uintptr_t)guest_content_init;
         if (!strcmp(name,"1G3lF1Gg1k8#U#H")) return (uintptr_t)guest_file_open;
         if (!strcmp(name,"Cg4srZ6TKbU#U#H")) return (uintptr_t)guest_file_read;
         if (!strcmp(name,"oib76F-12fk#U#H")) return (uintptr_t)guest_file_seek;
@@ -391,6 +445,8 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
     if (id->library_version == 1 && id->module_version == 257) {
         if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
+        else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
+        else if (!strcmp(id->library, "libSceAppContent") && !strcmp(id->module, "libSceAppContentUtil")) scope = "appcontent";
         else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
         else if (!strcmp(id->library, "libSceLibcInternalExt") && !strcmp(id->module, "libSceLibcInternal")) scope = "heap-trace";
     }
@@ -481,6 +537,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
     if (argc == 2 && !strcmp(argv[1], "--selftest-clock")) return selftest_clock();

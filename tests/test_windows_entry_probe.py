@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_appcontent_lifecycle_and_output_bounds(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-content'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('references, initialization bounds, invalid profile and unload reset passed', result.stdout)
+
     def test_readonly_files_preserve_data_and_descriptor_lifecycle(self):
         with tempfile.TemporaryDirectory() as root:
             fixture = Path(root)/'fixture.bin'
