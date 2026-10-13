@@ -314,3 +314,19 @@ queries return SFO values 1, 1612131828 and 0 for IDs 1, 2 and 3 respectively.
 Startup next stops at `sceSystemServiceParamGetInt` (`fZo48un7LK4`, caller offset
 `0xd4ca5c`), requesting system parameter 1. That system setting must be handled
 separately from application metadata. Graphics and menu remain unavailable.
+
+
+### Explicit diagnostic language profile (October 13, 2026)
+
+SystemService parameter ID 1 is the system language. The Windows diagnostic now
+returns an explicit English US profile (value 1), following the existing runtime's
+language convention and shadPS4's SystemService parameter IDs. This is a diagnostic
+setting, not a value inferred from SFO or Windows locale. Other system settings
+remain unsupported and return the parameter error without changing output.
+Canonical dispatch requires libSceSystemService@1 / libSceSystemService@257.
+
+All 24 Windows entry tests pass, including the language profile, null output and
+unknown parameter rejection. USA 1.03 startup passes the language query and stops
+at `sceKernelCreateSema` (`188x57JYp0g`, caller offset `0xdd53a1`). Semaphore
+creation, wait, signal and lifecycle support are the next integration task.
+Graphics and menu remain unavailable.

@@ -421,6 +421,20 @@ static int selftest_content(void) {
        guest_content_init(init,boot+1) || guest_module_unload(0xb4)) return 1;
     puts("AppContent: references, initialization bounds, invalid profile and unload reset passed");return 0;
 }
+/* System parameter IDs follow shadPS4 systemservice.h. The diagnostic
+ * explicitly selects English US (1); this is not inferred from Windows locale. */
+#define SYSTEM_PARAMETER ((int32_t)0x80a10003)
+static ABI int32_t guest_system_parameter(int32_t id,int32_t *out) {
+    if(!out || id!=1) return SYSTEM_PARAMETER;
+    *out=1;puts("Runtime: system language profile = English US");return 0;
+}
+static int selftest_system_parameter(void) {
+    int32_t value=123;
+    if(guest_system_parameter(2,&value)!=SYSTEM_PARAMETER || value!=123 ||
+       guest_system_parameter(-1,&value)!=SYSTEM_PARAMETER ||
+       guest_system_parameter(1,NULL)!=SYSTEM_PARAMETER || guest_system_parameter(1,&value) || value!=1) return 1;
+    puts("System parameters: explicit language profile and invalid-output preservation passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -445,6 +459,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
         if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
         if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
@@ -477,6 +492,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
     if (id->library_version == 1 && id->module_version == 257) {
         if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
+        else if (!strcmp(id->library, "libSceSystemService") && !strcmp(id->module, "libSceSystemService")) scope = "systemservice";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
         else if (!strcmp(id->library, "libSceAppContent") && !strcmp(id->module, "libSceAppContentUtil")) scope = "appcontent";
         else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
@@ -569,6 +585,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
