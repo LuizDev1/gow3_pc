@@ -395,3 +395,17 @@ activated or claimed available by this correction.
 Conditional source blocks and git diff --check pass. The complete compile is
 validated by the next renderer CI run; the previous CPU diagnostic succeeded.
 GPU commands, rendered frames and gameplay remain unavailable.
+
+
+### Pipeline constructor completeness (October 13, 2026)
+
+Run 38471717789 reached the pipeline-cache compilation stage and failed because
+PipelineCache's constructor was defined before PipelineCompiler, while a member
+unique_ptr requires the complete type for constructor exception cleanup. The
+constructor definition now follows PipelineCompiler and PendingPipeline. Its
+body and member initialization are unchanged; destruction order remains unchanged.
+
+Source verification confirmed the constructor text is preserved exactly once and
+follows both complete definitions. git diff --check passes. The next full renderer
+CI run validates the compiler fix; no successful renderer link or graphics output
+is claimed yet.
