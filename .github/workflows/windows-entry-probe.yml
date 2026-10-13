@@ -1,0 +1,70 @@
+name: Windows entry diagnostic
+
+on:
+  push:
+    branches: [the-last-guardian]
+    paths:
+      - '.github/workflows/windows-entry-probe.yml'
+      - 'src/windows_entry_probe.c'
+      - 'scripts/**'
+      - 'tools/inspect_target.py'
+      - 'tools/package_entry_probe.py'
+      - 'tests/**'
+      - 'docs/WINDOWS_ENTRY_PROBE.md'
+  pull_request:
+    paths:
+      - '.github/workflows/windows-entry-probe.yml'
+      - 'src/windows_entry_probe.c'
+      - 'scripts/**'
+      - 'tools/inspect_target.py'
+      - 'tools/package_entry_probe.py'
+      - 'tests/**'
+      - 'docs/WINDOWS_ENTRY_PROBE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: mingw-w64-clang-x86_64-toolchain
+      - name: Build Windows entry diagnostic
+        shell: msys2 {0}
+        run: |
+          mkdir -p out
+          clang -std=c11 -O2 -Wall -Wextra -Werror -static \
+            -Wl,--disable-high-entropy-va -Wl,--stack,16777216,16777216 \
+            src/windows_entry_probe.c -o out/tlg-entry-probe.exe
+      - name: Test preparation and native entry diagnostics (synthetic inputs)
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p 'test_prepare*.py'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_link_libc.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_game_check.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_windows_entry_probe.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package diagnostic and corresponding source
+        shell: pwsh
+        run: python tools/package_entry_probe.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tlg-windows-entry-diagnostic
+          path: out/entry-package/
+          if-no-files-found: error
+          retention-days: 14

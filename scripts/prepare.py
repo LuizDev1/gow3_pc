@@ -145,7 +145,7 @@ class GameCheckError(Exception):
     """Game files bbport does not run (game_check.py)."""
 
 
-def prepare(game, out):
+def prepare(game, out, *, validator=None):
     source = (game / 'eboot.bin').read_bytes()
     elf, header, ph, segments, missing = parse_self(source)
     loads = [p for p in ph if p['type'] in (1, 0x61000010)]
@@ -160,7 +160,7 @@ def prepare(game, out):
             raise ValueError('segment file size exceeds memory size')
         image[p['vaddr']:p['vaddr'] + p['filesz']] = span(elf, p['offset'], p['filesz'])
     # bbport: only the supported executable runs (game_check.py); others fail in the game's code.
-    if found := game_check.problem(game, hashlib.sha256(image).hexdigest()):
+    if found := (validator or game_check.problem)(game, hashlib.sha256(image).hexdigest()):
         raise GameCheckError(game_check.explain(*found))
     dp = next(p for p in ph if p['type'] == 2)
     dyn = []

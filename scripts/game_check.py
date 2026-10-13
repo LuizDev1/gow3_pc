@@ -60,7 +60,7 @@ def dcx_broken(path):
 def broken_files(game, folder=CHECKED_FOLDER):
     """The .dcx files under the game's folder that do not unpack (paths relative to the game)."""
     root = Path(game)
-    return [str(f.relative_to(root)) for f in sorted((root / folder).rglob('*.dcx')) if dcx_broken(f)]
+    return [f.relative_to(root).as_posix() for f in sorted((root / folder).rglob('*.dcx')) if dcx_broken(f)]
 
 
 def problem(game, image_hash=None):
