@@ -509,3 +509,12 @@ stored-but-unused invalidation callback; it is no longer stored. CPU write
 invalidation is dispatched through the renderer's access-violation handlers.
 Recovery tests additionally verify thread isolation and reject execute faults
 and unrelated exception types. These fixes require the next CI validation.
+
+Validation of commit 844a82a completed: CPU run 38481626988 and renderer run
+38481627074 both passed. The latter linked the whole renderer archive with the
+TLG Windows runtime and successfully executed the linked-symbol, memory and
+Win64 fault-recovery tests. Local checks also passed all 32 entry tests and four
+renderer integration tests. A local USA 1.03 run preserved the existing startup
+milestone and stopped at sceGnmMapComputeQueueWithPriority, caller 0x1472d4d.
+This proves the service/link checkpoint, not enabled GPU execution: the executable
+still does not initialize Vulkan or route guest GPU imports. No frame/menu is claimed.
