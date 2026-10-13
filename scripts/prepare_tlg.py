@@ -97,6 +97,10 @@ def build(game, out):
     report['host_imports_by_library'] = dict(collections.Counter(
         item['identity'][1][0] for item in host_imports))
     (out / 'tlg-link.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    windows_native = out / 'windows-native'
+    windows_native.mkdir(parents=True, exist_ok=True)
+    (windows_native / 'boot.bin').write_bytes((out / 'boot.bin').read_bytes())
+    link(game, windows_native, tls_mode='windows-prepare')
     print('Experimental TLG image ready for host-runtime development; not ready to play.')
 
 

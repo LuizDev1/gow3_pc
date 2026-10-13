@@ -120,3 +120,28 @@ scope/version mismatches and a data/function mismatch. The observed USA 1.03
 image reaches `strlen` with identity `libc@1 / libc@257 / function`, matching the
 previous startup boundary. This is resolver integration, not additional gameplay
 progress. Next: Windows linked modules and their TCB/TLS initialization.
+
+## Windows module preparation and static TLS foundation
+
+The module linker now has a separate `windows-prepare` mode. It keeps original
+FS-load bytes and records candidate pattern offsets in executable segments,
+alongside full import identities and kinds. It never applies Linux GS:[0]
+rewrites. Real target preparation still finds 209 native bindings and 391 host
+entries; the output is under ignored `out/tlg/windows-native/`.
+
+Its binary magic is deliberately `TLGPRP01`, rejected by both current loaders:
+this intermediate artifact must not be mistaken for an executable Windows
+linked image. Pattern offsets still need instruction-boundary and expected-byte
+validation before a future loader rewrites them with its allocated TLS slot.
+
+`src/windows_tls.c` provides a Windows slot below 64, TEB slot displacement,
+per-host-thread static TLS template/zero-fill allocation and TCB self pointer.
+A synthetic machine-code test reads the real GS slot, checks template data,
+zero-fill, thread isolation and detach. It preserves the Windows GS base.
+This foundation is not attached to the target's main thread yet. Guest thread
+records, dynamic-module TLS/DTV contracts and module initialization remain pending.
+
+Fourteen native probe tests and two module-preparation tests cover this work.
+Next: complete dynamic TLS and the linked Windows image reader, then run module
+initializers with controlled diagnostics. The game still stops at `strlen` in
+the existing entry diagnostic; no additional execution milestone is claimed.

@@ -27,6 +27,12 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_windows_tls_uses_real_slot_and_isolates_host_threads(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-tls'],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('actual GS slot read, template, zero-fill, thread isolation and detach passed', result.stdout)
+
     def test_canonical_imports_resolve_independent_of_local_suffix(self):
         code = (b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
                 b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')

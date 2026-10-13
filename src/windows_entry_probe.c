@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include "windows_equeue.h"
 #include "windows_mutex.h"
+#include "windows_tls.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -235,6 +236,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-tls")) return windows_tls_selftest();
     if (argc != 2) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;

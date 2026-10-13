@@ -89,7 +89,9 @@ def patch_fs_loads(image, ph, base):
     return patched
 
 
-def link(game, out, module_names=DEFAULT_MODULES):
+def link(game, out, module_names=DEFAULT_MODULES, *, tls_mode='linux'):
+    if tls_mode not in ('linux', 'windows-prepare'):
+        raise ValueError('unsupported TLS preparation mode')
     main = module(game / 'eboot.bin')
     raw = (out / 'boot.bin').read_bytes()
     magic, size, entry, ns, nr, ni, flags = unpack('<8s6Q', raw, 0)
@@ -125,7 +127,22 @@ def link(game, out, module_names=DEFAULT_MODULES):
     exports, by_nid = {}, collections.defaultdict(list)
     table = []
     base = (size + 65535) & ~65535
-    fs_patched = patch_fs_loads(image, main['ph'], 0)
+    tls_sites = []
+    def prepare_tls(ph, base):
+        if tls_mode == 'linux':
+            return patch_fs_loads(image, ph, base)
+        # Windows needs the actual TEB slot displacement allocated by the host
+        # loader. Record exact pattern sites; do not install Linux GS:[0].
+        for p in ph:
+            if p['type'] != 1 or not p['flags'] & 1:
+                continue
+            start, end = base + p['vaddr'], base + p['vaddr'] + p['filesz']
+            at = image.find(FS_LOAD, start, end)
+            while at >= 0:
+                tls_sites.append(at)
+                at = image.find(FS_LOAD, at + len(FS_LOAD), end)
+        return 0
+    fs_patched = prepare_tls(main['ph'], 0)
     tls_module = 2
     for filename in module_names:
         m = module(game / 'sce_module' / filename)
@@ -189,7 +206,7 @@ def link(game, out, module_names=DEFAULT_MODULES):
                 exports[s['identity']] = entry_value
                 by_nid[(s['identity'][0], s['identity'][1][0])].append(entry_value)
                 count += 1
-        fs_patched += patch_fs_loads(image, m['ph'], base)
+        fs_patched += prepare_tls(m['ph'], base)
         table.append(dict(file=filename, base=base, size=modsize, init=base + m['tags'].get(12, 0),
                           tls_address=base + tls['vaddr'] if tls else 0, tls_memsz=tls['memsz'] if tls else 0,
                           tls_filesz=tls['filesz'] if tls else 0, tls_module=module_id,
@@ -214,7 +231,8 @@ def link(game, out, module_names=DEFAULT_MODULES):
         raise ValueError('unsupported eboot TLS layout')
     procparam = next(p for p in main['ph'] if p['type'] == 0x61000001)
     with (out / 'boot-linked.bin').open('wb') as f:
-        f.write(struct.pack('<8s6Q', b'BBPROBE5', len(image), entry, len(segments), len(relocs), len(names), flags))
+        magic = b'BBPROBE5' if tls_mode == 'linux' else b'TLGPRP01'
+        f.write(struct.pack('<8s6Q', magic, len(image), entry, len(segments), len(relocs), len(names), flags))
         f.write(struct.pack('<Q', procparam['vaddr']))
         f.write(struct.pack('<4Q', *main_tls_values))
         f.write(struct.pack('<Q', len(table)))
@@ -237,6 +255,18 @@ def link(game, out, module_names=DEFAULT_MODULES):
                   bindings=len(bindings), imports=len(names), fs_loads_patched=fs_patched,
                   main_tls=dict(zip(('vaddr', 'filesz', 'memsz', 'align'), main_tls_values)),
                   unresolved_imports=unresolved)
+    report['tls_mode'] = tls_mode
+    if tls_mode == 'windows-prepare':
+        kinds = {}
+        for _, kind, index, _ in relocs:
+            if kind:
+                if index in kinds and kinds[index] != kind:
+                    raise ValueError('conflicting import function/data kinds')
+                kinds[index] = kind
+        report['canonical_imports'] = [dict(index=index, symbol=names[index], identity=identity,
+            kind='data' if kinds[index] == 2 else 'function') for identity, index in identities.items()]
+        report['windows_tls_sites'] = tls_sites
+        report['status'] = 'Preparation artifact only; not accepted by either executable loader.'
     (out / 'link.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     summary = ', '.join(f"{t['file']}@{t['base']:#x}" for t in table)
     print(f'Linked modules: {summary}; {len(bindings)} native bindings, {len(unresolved)} imports left to the host runtime, '
