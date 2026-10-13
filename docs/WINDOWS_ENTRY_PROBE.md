@@ -480,3 +480,22 @@ concurrently reach `scePthreadCondWait` (`WKAXJ4XBPQ4`, caller offset `0x5c49ef4
 and `scePthreadCondBroadcast` (`JGgj7Uvrl+A`). Stop messages may interleave across
 threads. Condition waiting/broadcast with atomic mutex release/reacquisition is
 the next blocker. Graphics and menu remain unavailable.
+
+
+### Condition waits and notifications (October 13, 2026)
+
+The Windows mutex backend now implements condition wait, signal and broadcast.
+A common SRW state lock makes guest mutex release and wait registration atomic.
+Wait returns only after reacquiring the guest mutex. Condition/mutex waiter
+references prevent destruction while sleeping or reacquiring. Foreign-owner waits,
+recursive depth greater than one and inconsistent mutex binding are rejected.
+Timed waits, cancellation and recursive-depth restoration remain unsupported.
+
+All 28 Windows entry tests pass, with added checks for two broadcast waiters, a
+single signaled waiter, mutex reacquisition, busy destruction and stale conditions.
+With both experimental profiles enabled, USA 1.03 passes the previous missing
+condition imports, then Fios2 executes UD2 at guest offset `0x5c4a339` (exception
+`0xc000001d`). Inspection shows that this assertion follows a thread-identity
+comparison and a synchronization call; which condition failed is not yet known.
+Do not treat this as completed Fios2 startup. Thread ownership/identity integration
+is the next investigation. Graphics and menu remain unavailable.

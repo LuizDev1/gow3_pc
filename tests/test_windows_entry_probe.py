@@ -165,6 +165,7 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertIn('NONE supported, priority protocols explicitly rejected and handles validated', result.stdout)
         self.assertIn('ownership, recursion, contention, busy destruction and stale handles passed', result.stdout)
         self.assertIn('condition lifecycle: attributes, defaults, isolation and stale handles passed', result.stdout)
+        self.assertIn('atomic mutex release, signal, broadcast, reacquisition and busy lifetime passed', result.stdout)
 
     def test_mutex_priority_fallback_is_explicit_and_preserves_locking(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-mutex'], env=dict(os.environ, TLG_MUTEX_PRIORITY_FALLBACK='1'), capture_output=True, text=True, timeout=15)

@@ -21,6 +21,8 @@ static Attr *attributes;
 static SRWLOCK attr_lock = SRWLOCK_INIT;
 typedef struct CondAttr { struct CondAttr *next; } CondAttr;
 typedef struct Cond {
+    unsigned waiters;
+    void *bound_mutex;
     CONDITION_VARIABLE native;
     struct Cond *next;
 } Cond;
@@ -70,10 +72,10 @@ static ABI int32_t cond_destroy(Cond **handle) {
     Cond **at = &conditions;
     while (*at && *at != *handle) at = &(*at)->next;
     Cond *c = *at;
+    if (c && c->waiters) { ReleaseSRWLockExclusive(&attr_lock); return BUSY; }
     if (c) { *at = c->next; *handle = NULL; }
     ReleaseSRWLockExclusive(&attr_lock);
     if (!c) return INVALID;
-    /* Wait APIs are not exposed yet, so no guest can be waiting on this object. */
     free(c);
     return 0;
 }
@@ -216,6 +218,68 @@ static ABI int32_t mutex_destroy(Mutex **handle) {
     if (!result) free(m);
     return result;
 }
+static Cond *find_condition(Cond **handle) {
+    if(handle) for(Cond *c=conditions;c;c=c->next) if(c==*handle) return c;return NULL;
+}
+static ABI int32_t cond_wait(Cond **condition,Mutex **mutex) {
+    AcquireSRWLockExclusive(&attr_lock);
+    Cond *c=find_condition(condition);Mutex *m=mutex?*find_mutex(*mutex):NULL;
+    if(!c || !m) {ReleaseSRWLockExclusive(&attr_lock);return INVALID;}
+    DWORD caller=GetCurrentThreadId();
+    if(m->owner!=caller) {ReleaseSRWLockExclusive(&attr_lock);return NOT_OWNER;}
+    if(m->depth!=1 || (c->waiters && c->bound_mutex!=m)) {ReleaseSRWLockExclusive(&attr_lock);return INVALID;}
+    ++c->waiters;c->bound_mutex=m;++m->waiters;
+    m->owner=0;m->depth=0;WakeConditionVariable(&m->changed);
+    /* Same state lock protects release and sleep registration: a signaler
+     * cannot observe the released mutex before the waiter has registered. */
+    BOOL ok=SleepConditionVariableSRW(&c->native,&attr_lock,INFINITE,0);
+    while(m->owner) if(!SleepConditionVariableSRW(&m->changed,&attr_lock,INFINITE,0)) ExitProcess(21);
+    m->owner=caller;m->depth=1;--m->waiters;
+    if(!--c->waiters) c->bound_mutex=NULL;
+    ReleaseSRWLockExclusive(&attr_lock);return ok?0:INVALID;
+}
+static int32_t cond_wake(Cond **handle,int all) {
+    AcquireSRWLockExclusive(&attr_lock);Cond *c=find_condition(handle);
+    if(!c) {ReleaseSRWLockExclusive(&attr_lock);return INVALID;}
+    if(all) WakeAllConditionVariable(&c->native);else WakeConditionVariable(&c->native);
+    ReleaseSRWLockExclusive(&attr_lock);return 0;
+}
+static ABI int32_t cond_signal(Cond **c) {return cond_wake(c,0);}
+static ABI int32_t cond_broadcast(Cond **c) {return cond_wake(c,1);}
+typedef struct {Mutex *mutex;Cond *condition;int ready,result,completed;} CondTest;
+static DWORD WINAPI condition_worker(void *argument) {
+    CondTest *t=argument;
+    if(mutex_lock(&t->mutex)) {t->result=1;return 0;}
+    while(!t->ready) if(cond_wait(&t->condition,&t->mutex)) {t->result=1;break;}
+    ++t->completed;if(mutex_unlock(&t->mutex)) t->result=1;return 0;
+}
+static int selftest_condition_wait(void) {
+    CondTest t={0};
+    if(mutex_init(&t.mutex,NULL,NULL) || cond_init(&t.condition,NULL,NULL) ||
+        cond_wait(&t.condition,&t.mutex)!=NOT_OWNER || cond_signal(NULL)!=INVALID) return 1;
+    HANDLE threads[2];
+    for(unsigned i=0;i<2;i++) {threads[i]=CreateThread(NULL,0,condition_worker,&t,0,NULL);if(!threads[i]) return 1;}
+    int registered=0;
+    for(unsigned i=0;i<5000;i++) {
+        AcquireSRWLockShared(&attr_lock);registered=t.condition->waiters==2;ReleaseSRWLockShared(&attr_lock);
+        if(registered) break;Sleep(1);
+    }
+    if(!registered || cond_destroy(&t.condition)!=BUSY || mutex_destroy(&t.mutex)!=BUSY || mutex_lock(&t.mutex)) return 1;
+    t.ready=1;
+    if(cond_broadcast(&t.condition) || WaitForSingleObject(threads[0],0)!=WAIT_TIMEOUT || mutex_unlock(&t.mutex)) return 1;
+    if(WaitForMultipleObjects(2,threads,TRUE,5000)!=WAIT_OBJECT_0 || t.result || t.completed!=2) return 1;
+    CloseHandle(threads[0]);CloseHandle(threads[1]);
+    t.ready=0;t.completed=0;
+    HANDLE thread=CreateThread(NULL,0,condition_worker,&t,0,NULL);if(!thread) return 1;
+    registered=0;
+    for(unsigned i=0;i<5000;i++) {AcquireSRWLockShared(&attr_lock);registered=t.condition->waiters==1;ReleaseSRWLockShared(&attr_lock);if(registered) break;Sleep(1);}
+    if(!registered || mutex_lock(&t.mutex)) return 1;t.ready=1;
+    if(cond_signal(&t.condition) || mutex_unlock(&t.mutex) || WaitForSingleObject(thread,5000)!=WAIT_OBJECT_0 || t.result || t.completed!=1) return 1;
+    CloseHandle(thread);
+    Cond *stale=t.condition;
+    if(cond_destroy(&t.condition) || cond_broadcast(&stale)!=INVALID || mutex_destroy(&t.mutex)) return 1;
+    puts("conditions: atomic mutex release, signal, broadcast, reacquisition and busy lifetime passed");return 0;
+}
 /* Counted readers and exclusive writers; handles never reuse an ID. Timed
  * operations and custom attributes remain unresolved. Writer preference is
  * used except that an existing reader may recursively acquire a read lock. */
@@ -304,6 +368,9 @@ static int selftest_rwlocks(void) {
     puts("rwlocks: concurrent readers, exclusive writer, ownership, recursion and stale handles passed");return 0;
 }
 uintptr_t windows_mutex_resolve(const char *name) {
+    if (!strcmp(name,"WKAXJ4XBPQ4#U#H")) return (uintptr_t)cond_wait;
+    if (!strcmp(name,"kDh-NfxgMtE#U#H")) return (uintptr_t)cond_signal;
+    if (!strcmp(name,"JGgj7Uvrl+A#U#H")) return (uintptr_t)cond_broadcast;
     if (!strcmp(name,"6ULAa0fq4jA#U#H")) return (uintptr_t)rw_init;
     if (!strcmp(name,"BB+kb08Tl9A#U#H")) return (uintptr_t)rw_destroy;
     if (!strcmp(name,"Ox9i0c7L5w0#U#H")) return (uintptr_t)rw_read;
@@ -335,7 +402,7 @@ static DWORD WINAPI contention_worker(void *arg) {
     return 0;
 }
 int windows_mutex_selftest(void) {
-    if (selftest_rwlocks()) return 1;
+    if (selftest_rwlocks() || selftest_condition_wait()) return 1;
     Attr *a = NULL, *b = NULL;
     if (attr_init(NULL) != INVALID || attr_init(&a) || attr_init(&b) || a == b || a->type != 1) return 1;
     if (attr_type(&a, 2) || a->type != 2 || b->type != 1 ||
@@ -383,7 +450,7 @@ int windows_mutex_selftest(void) {
     Cond *stale_cond = c;
     if (cond_destroy(&c) || c || cond_destroy(&stale_cond) != INVALID ||
         cond_destroy(&d) || conditions || cond_attributes) return 1;
-    if (windows_mutex_resolve("WKAXJ4XBPQ4#U#H")) return 1;
+    if (!windows_mutex_resolve("WKAXJ4XBPQ4#U#H")) return 1;
     puts("condition lifecycle: attributes, defaults, isolation and stale handles passed");
     return 0;
 }
