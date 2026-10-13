@@ -474,6 +474,31 @@ static ABI int32_t guest_playgo_open(uint32_t *out,const void *params) {
     if(playgo_opened) {ReleaseSRWLockExclusive(&playgo_lock);return PLAYGO_ERROR(7);}
     playgo_opened=1;*out=1;ReleaseSRWLockExclusive(&playgo_lock);return 0;
 }
+/* Explicit experimental offline profile, never inferred from required_locus.
+ * This setting assumes a complete extracted copy; it does not verify package
+ * regions, file integrity, or installation completeness. Default is unsupported. */
+static int playgo_assume_local(void) {
+    const char *value=getenv("TLG_PLAYGO_ASSUME_LOCAL");
+    return value && !strcmp(value,"1");
+}
+static ABI int32_t guest_playgo_locus(uint32_t handle,const uint16_t *ids,uint32_t count,int8_t *out) {
+    if(!ids || !out) return PLAYGO_ERROR(10);
+    if(!count) return PLAYGO_ERROR(11);
+    AcquireSRWLockShared(&playgo_lock);
+    if(!playgo_initialized) {ReleaseSRWLockShared(&playgo_lock);return PLAYGO_ERROR(5);}
+    if(!playgo_opened || handle!=1) {ReleaseSRWLockShared(&playgo_lock);return PLAYGO_ERROR(9);}
+    for(uint32_t i=0;i<count;i++) if(ids[i]>=playgo_chunks) {
+        ReleaseSRWLockShared(&playgo_lock);return PLAYGO_ERROR(12);
+    }
+    if(!playgo_assume_local()) {
+        ReleaseSRWLockShared(&playgo_lock);
+        fputs("PlayGo availability is unverified; offline assumption profile is disabled\n",stderr);
+        return PLAYGO_ERROR(14);
+    }
+    memset(out,3,count);ReleaseSRWLockShared(&playgo_lock);
+    printf("Runtime: PlayGo OFFLINE ASSUMPTION: %u requested chunks reported LocalFast (first=%u)\n",count,ids[0]);
+    return 0;
+}
 static int selftest_playgo(void) {
     uint32_t handle=123;PlayGoInit params={0};
     if(guest_playgo_open(&handle,NULL)!=PLAYGO_ERROR(5) || handle!=123 ||
@@ -485,6 +510,16 @@ static int selftest_playgo(void) {
     if(guest_playgo_init(&params) || guest_playgo_init(&params)!=PLAYGO_ERROR(6) ||
         guest_playgo_open(NULL,NULL)!=PLAYGO_ERROR(10) || guest_playgo_open(&handle,buffer)!=PLAYGO_ERROR(4) ||
         guest_playgo_open(&handle,NULL) || handle!=1 || guest_playgo_open(&handle,NULL)!=PLAYGO_ERROR(7)) return 1;
+    uint16_t ids[2]={0,(uint16_t)(playgo_chunks-1)};int8_t loci[2]={77,88};
+    if(guest_playgo_locus(999,ids,2,loci)!=PLAYGO_ERROR(9) ||
+        guest_playgo_locus(handle,NULL,2,loci)!=PLAYGO_ERROR(10) ||
+        guest_playgo_locus(handle,ids,0,loci)!=PLAYGO_ERROR(11)) return 1;
+    uint16_t invalid[2]={0,(uint16_t)playgo_chunks};
+    if(guest_playgo_locus(handle,invalid,2,loci)!=PLAYGO_ERROR(12) || loci[0]!=77 || loci[1]!=88) return 1;
+    int32_t result=guest_playgo_locus(handle,ids,2,loci);
+    if(playgo_assume_local()) {if(result || loci[0]!=3 || loci[1]!=3) return 1;}
+    else if(result!=PLAYGO_ERROR(14) || loci[0]!=77 || loci[1]!=88) return 1;
+    puts("PlayGo locus: explicit profile, invalid IDs and unchanged error outputs passed");
     free(buffer);puts("PlayGo: metadata initialization, ABI validation and open lifecycle passed");return 0;
 }
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
@@ -512,6 +547,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
         if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
+        if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;

@@ -394,3 +394,23 @@ Runtime behavior is unchanged and remains blocked at `scePlayGoGetLocus`. The ne
 step is identifying a reliable correspondence between package regions and the
 extracted file set, or defining an explicit offline installation profile with
 clearly stated validation limits. No graphics/menu progress is claimed.
+
+
+### Explicit offline PlayGo assumption (October 13, 2026)
+
+The disc maps contain binary package layout records; no reliable mapping to
+extracted paths has been established. To investigate subsequent startup stages,
+the diagnostic now offers an opt-in assumption profile:
+`$env:TLG_PLAYGO_ASSUME_LOCAL='1'`. It reports requested valid chunk IDs as
+LocalFast, explicitly assuming the user's extracted copy is complete. This does
+not verify completeness, file integrity, package ranges or download state, and
+must not be described as validated installation availability. The default profile
+returns NOT_SUPPORT_PLAYGO and leaves output unchanged.
+
+`scePlayGoGetLocus` validates lifecycle, handle, pointers, count and every chunk ID
+before writing any output. Errors preserve output. All 26 Windows entry tests
+pass, including disabled/enabled profiles, invalid IDs and unchanged error output.
+With the explicit assumption enabled, USA 1.03 requests all 27 chunks, proceeds
+to the Fios2 SDK banner, then stops at `scePthreadRwlockInit` (`6ULAa0fq4jA`, caller
+offset `0x5c4a4c1`). This is conditional startup progress; validated PlayGo
+availability remains unfinished. Graphics and menu remain unavailable.

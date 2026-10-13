@@ -36,11 +36,15 @@ class WindowsEntryTests(unittest.TestCase):
             struct.pack_into('<H', data, 10, 27)
             struct.pack_into('<I', data, 16, 20)
             (directory/'playgo-chunk.dat').write_bytes(data)
-            result = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root), capture_output=True, text=True, timeout=15)
+            result = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root, TLG_PLAYGO_ASSUME_LOCAL='0'), capture_output=True, text=True, timeout=15)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('metadata initialization, ABI validation and open lifecycle passed', result.stdout)
+            enabled = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root, TLG_PLAYGO_ASSUME_LOCAL='1'), capture_output=True, text=True, timeout=15)
+            self.assertEqual(enabled.returncode, 0, enabled.stdout + enabled.stderr)
+            self.assertIn('OFFLINE ASSUMPTION', enabled.stdout)
+            self.assertIn('explicit profile, invalid IDs and unchanged error outputs passed', enabled.stdout)
             (directory/'playgo-chunk.dat').write_bytes(b'bad metadata')
-            rejected = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root), capture_output=True, text=True, timeout=15)
+            rejected = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root, TLG_PLAYGO_ASSUME_LOCAL='0'), capture_output=True, text=True, timeout=15)
             self.assertNotEqual(rejected.returncode, 0)
 
     def test_semaphore_counted_wait_and_concurrent_deletion(self):
