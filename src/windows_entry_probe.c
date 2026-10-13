@@ -38,36 +38,51 @@ static const char *diagnostic_name(const char *name) {
     return "unknown";
 }
 typedef void (ABI *ExitCallback)(void);
-static ExitCallback *exit_callbacks;
+typedef struct {
+    union { ExitCallback plain; void (ABI *with_arg)(void *); } callback;
+    void *argument, *dso;
+    int with_arg;
+} ExitHandler;
+static ExitHandler *exit_callbacks;
 static size_t exit_count, exit_capacity;
 static SRWLOCK exit_lock = SRWLOCK_INIT;
-static ABI int guest_atexit(ExitCallback callback) {
-    if (!callback) return -1;
+static int register_exit(ExitHandler handler) {
     AcquireSRWLockExclusive(&exit_lock);
     if (exit_count == exit_capacity) {
         size_t capacity = exit_capacity ? exit_capacity * 2 : 32;
-        ExitCallback *next = capacity <= 1024 * 1024
+        ExitHandler *next = capacity <= 1024 * 1024
                            ? realloc(exit_callbacks, capacity * sizeof(*next)) : NULL;
         if (!next) { ReleaseSRWLockExclusive(&exit_lock); return -1; }
         exit_callbacks = next;
         exit_capacity = capacity;
     }
-    exit_callbacks[exit_count++] = callback;
+    exit_callbacks[exit_count++] = handler;
     ReleaseSRWLockExclusive(&exit_lock);
     return 0;
+}
+static ABI int guest_atexit(ExitCallback callback) {
+    if (!callback) return -1;
+    return register_exit((ExitHandler){.callback.plain=callback});
+}
+static ABI int guest_cxa_atexit(void (ABI *callback)(void *), void *argument, void *dso) {
+    if (!callback) return -1;
+    return register_exit((ExitHandler){.callback.with_arg=callback, .argument=argument,
+                                      .dso=dso, .with_arg=1});
 }
 static void finalize_callbacks(void) {
     for (;;) {
         AcquireSRWLockExclusive(&exit_lock);
         if (!exit_count) { ReleaseSRWLockExclusive(&exit_lock); return; }
-        ExitCallback callback = exit_callbacks[--exit_count];
+        ExitHandler handler = exit_callbacks[--exit_count];
         ReleaseSRWLockExclusive(&exit_lock);
         /* Pop before calling, and release the lock: callbacks can register more. */
-        callback();
+        if (handler.with_arg) handler.callback.with_arg(handler.argument);
+        else handler.callback.plain();
     }
 }
 static unsigned selftest_order;
 static ABI void test_first(void) { selftest_order = selftest_order * 10 + 1; }
+static ABI void test_cxa(void *argument) { *(unsigned *)argument += 7; }
 static ABI void test_last(void) {
     selftest_order = selftest_order * 10 + 2;
     if (guest_atexit(test_first)) ExitProcess(1);
@@ -78,7 +93,12 @@ static int selftest_atexit(void) {
     if (selftest_order != 211 || exit_count) return 1;
     finalize_callbacks();
     if (selftest_order != 211) return 1;
+    unsigned argument = 0;
+    if (guest_cxa_atexit(NULL, NULL, NULL) == 0 || guest_cxa_atexit(test_cxa, &argument, (void *)1)) return 1;
+    finalize_callbacks(); finalize_callbacks();
+    if (argument != 7) return 1;
     puts("atexit: reverse order, registration during finalization and exactly-once checks passed");
+    puts("C++ destructors: argument forwarding and exactly-once checks passed");
     free(exit_callbacks);
     return 0;
 }
@@ -96,6 +116,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)init_env_ret;
     if (!is_data && (capabilities & 1) && !strcmp(name, "8G2LB+A3rzg#V#V"))
         return (uintptr_t)guest_atexit;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "tsvEmnenz48#V#V"))
+        return (uintptr_t)guest_cxa_atexit;
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {

@@ -26,6 +26,7 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('type validation, isolation and stale handles passed', result.stdout)
         self.assertIn('ownership, recursion, contention, busy destruction and stale handles passed', result.stdout)
+        self.assertIn('condition lifecycle: attributes, defaults, isolation and stale handles passed', result.stdout)
 
     def test_event_queue_lifecycle_and_invalid_handles(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-equeue'],
@@ -39,6 +40,7 @@ class WindowsEntryTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('exactly-once checks passed', result.stdout)
+        self.assertIn('C++ destructors: argument forwarding and exactly-once checks passed', result.stdout)
 
     def run_image(self, data):
         with tempfile.TemporaryDirectory() as folder:

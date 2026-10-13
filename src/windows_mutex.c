@@ -19,6 +19,64 @@
 typedef struct Attr { int type; struct Attr *next; } Attr;
 static Attr *attributes;
 static SRWLOCK attr_lock = SRWLOCK_INIT;
+typedef struct CondAttr { struct CondAttr *next; } CondAttr;
+typedef struct Cond {
+    CONDITION_VARIABLE native;
+    struct Cond *next;
+} Cond;
+static CondAttr *cond_attributes;
+static Cond *conditions;
+static CondAttr **find_cond_attr(CondAttr *handle) {
+    CondAttr **at = &cond_attributes;
+    while (*at && *at != handle) at = &(*at)->next;
+    return at;
+}
+static ABI int32_t condattr_init(CondAttr **out) {
+    if (!out) return INVALID;
+    CondAttr *a = calloc(1, sizeof(*a));
+    if (!a) return NO_MEMORY;
+    AcquireSRWLockExclusive(&attr_lock);
+    a->next = cond_attributes; cond_attributes = a;
+    *out = a;
+    ReleaseSRWLockExclusive(&attr_lock);
+    return 0;
+}
+static ABI int32_t condattr_destroy(CondAttr **handle) {
+    if (!handle) return INVALID;
+    AcquireSRWLockExclusive(&attr_lock);
+    CondAttr **at = find_cond_attr(*handle), *a = *at;
+    if (a) { *at = a->next; *handle = NULL; }
+    ReleaseSRWLockExclusive(&attr_lock);
+    if (!a) return INVALID;
+    free(a);
+    return 0;
+}
+static ABI int32_t cond_init(Cond **out, CondAttr **attr, const char *name) {
+    (void)name;
+    if (!out) return INVALID;
+    AcquireSRWLockExclusive(&attr_lock);
+    if (attr && !*find_cond_attr(*attr)) { ReleaseSRWLockExclusive(&attr_lock); return INVALID; }
+    Cond *c = calloc(1, sizeof(*c));
+    if (!c) { ReleaseSRWLockExclusive(&attr_lock); return NO_MEMORY; }
+    InitializeConditionVariable(&c->native);
+    c->next = conditions; conditions = c;
+    *out = c;
+    ReleaseSRWLockExclusive(&attr_lock);
+    return 0;
+}
+static ABI int32_t cond_destroy(Cond **handle) {
+    if (!handle) return INVALID;
+    AcquireSRWLockExclusive(&attr_lock);
+    Cond **at = &conditions;
+    while (*at && *at != *handle) at = &(*at)->next;
+    Cond *c = *at;
+    if (c) { *at = c->next; *handle = NULL; }
+    ReleaseSRWLockExclusive(&attr_lock);
+    if (!c) return INVALID;
+    /* Wait APIs are not exposed yet, so no guest can be waiting on this object. */
+    free(c);
+    return 0;
+}
 typedef struct Mutex {
     int type;
     DWORD owner;
@@ -138,6 +196,10 @@ static ABI int32_t mutex_destroy(Mutex **handle) {
     return result;
 }
 uintptr_t windows_mutex_resolve(const char *name) {
+    if (!strcmp(name, "m5-2bsNfv7s#U#H")) return (uintptr_t)condattr_init;
+    if (!strcmp(name, "waPcxYiR3WA#U#H")) return (uintptr_t)condattr_destroy;
+    if (!strcmp(name, "2Tb92quprl0#U#H")) return (uintptr_t)cond_init;
+    if (!strcmp(name, "g+PZd2hiacg#U#H")) return (uintptr_t)cond_destroy;
     if (!strcmp(name, "F8bUHwAG284#U#H")) return (uintptr_t)attr_init;
     if (!strcmp(name, "iMp8QpE+XO4#U#H")) return (uintptr_t)attr_type;
     if (!strcmp(name, "smWEktiyyG0#U#H")) return (uintptr_t)attr_destroy;
@@ -182,5 +244,19 @@ int windows_mutex_selftest(void) {
         mutex_lock(&m) || mutex_lock(&m) || mutex_unlock(&m) || mutex_destroy(&m) != BUSY ||
         mutex_unlock(&m) || mutex_destroy(&m)) return 1;
     puts("mutex locks: ownership, recursion, contention, busy destruction and stale handles passed");
+    CondAttr *ca = NULL;
+    Cond *c = NULL, *d = NULL;
+    if (condattr_init(NULL) != INVALID || cond_init(NULL, NULL, NULL) != INVALID ||
+        condattr_init(&ca) || cond_init(&c, &ca, "condition") ||
+        cond_init(&d, NULL, "default") || c == d || condattr_destroy(&ca) || ca) return 1;
+    CondAttr *bad = (CondAttr *)(uintptr_t)1;
+    Cond *unchanged = NULL;
+    if (cond_init(&unchanged, &bad, NULL) != INVALID || unchanged ||
+        condattr_destroy(&bad) != INVALID || condattr_destroy(&ca) != INVALID) return 1;
+    Cond *stale_cond = c;
+    if (cond_destroy(&c) || c || cond_destroy(&stale_cond) != INVALID ||
+        cond_destroy(&d) || conditions || cond_attributes) return 1;
+    if (windows_mutex_resolve("WKAXJ4XBPQ4#U#H")) return 1;
+    puts("condition lifecycle: attributes, defaults, isolation and stale handles passed");
     return 0;
 }

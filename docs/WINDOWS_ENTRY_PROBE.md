@@ -10,10 +10,14 @@ connected to that hook, and waiting remains unresolved. This is not functioning
 GPU synchronization. Resolution
 also covers mutex attributes, creation, locking, try-lock, ownership checks,
 recursive locking, unlocking and destruction. Static lazy initialization, timed
-locks, condition variables and priority scheduling remain unresolved. Resolution
+locks, condition-variable waiting/signaling and priority scheduling remain unresolved.
+Condition attributes and explicit condition creation/destruction are implemented.
+Resolution
 requires preparation evidence and the observed exact import scopes. The libc
 `_init_env` implementation was verified as exactly RET. Registered callbacks run
-in reverse order on normal guest termination; diagnostic failures skip them.
+in reverse order on normal guest termination; C++ destructor registrations preserve
+their arguments and DSO identities. Scoped `__cxa_finalize` is not implemented;
+diagnostic failures skip all callbacks.
 Other function and data imports remain unresolved. There is no complete
 PS4 runtime, native library initialization, graphics, audio or TLS adaptation.
 A failure or an early unsupported import is an expected diagnostic result.

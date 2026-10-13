@@ -6,7 +6,8 @@ LuizDev1 maintains this individual Windows project, based on
 **Current stage:** offline target preparation and early Windows entry diagnostics.
 The USA 1.03 executable passes `_init_env`, registers `atexit` callbacks and reads
 its stack canary, creates `EOP QUEUE`, subscribes GPU event `0x40`, then stops at
-`scePthreadCondattrInit` after creating its mutex. No graphics or gameplay
+`strlen` after creating mutex/condition objects and registering C++ destructors.
+No graphics or gameplay
 has been validated. See [target inspection](TARGET_INSPECTION.md) for evidence.
 
 ## Initial priorities

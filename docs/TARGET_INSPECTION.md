@@ -160,3 +160,19 @@ The native mutex test covers two-thread contention, wrong-owner unlock, recursio
 busy destruction and stale handles. The local USA 1.03 run now stops at
 `m5-2bsNfv7s#U#H` (`scePthreadCondattrInit`), caller offset `0x14946b4`, exit 20.
 No graphics or gameplay has been validated.
+
+## Condition lifecycle and C++ destructor registration
+
+Condition attributes and condition objects now have validated, locked handle
+registries with explicit creation/destruction and default-attribute support.
+Native Windows condition objects are initialized, but guest waits/signals are
+not yet exposed. Tests cover default attributes, isolation and stale handles.
+
+`__cxa_atexit` now records a SysV destructor, its argument and DSO identity in the
+shared exit registry. Normal termination calls destructors in reverse order,
+once, forwarding their arguments. Scoped `__cxa_finalize` remains unresolved.
+
+The local USA 1.03 run passes these stages, registers three exit callbacks and
+stops at `j4ViWNHEgww#V#V` (`strlen`), caller offset `0xe4508f`, exit 20.
+Ten native test methods pass, including the new lifecycle/destructor checks.
+No graphics or gameplay has been validated.
