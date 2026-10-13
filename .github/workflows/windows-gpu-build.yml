@@ -8,6 +8,7 @@ on:
       - '.github/workflows/windows-gpu-build.yml'
       - 'gpu/**'
       - '.gitmodules'
+      - 'tests/test_fsr_windows_headers.cpp'
 
 permissions:
   contents: read
@@ -53,6 +54,13 @@ jobs:
           mkdir -p out/gpu-build-logs
           pacman -Q | tee out/gpu-build-logs/packages.log
           clang++ --version | tee out/gpu-build-logs/compiler.log
+      - name: Test FidelityFX Windows CRT declarations
+        shell: msys2 {0}
+        run: |
+          set -o pipefail
+          clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_fsr_windows_headers.cpp \
+            -o out/fsr-windows-headers-test.exe 2>&1 | tee out/gpu-build-logs/fsr-headers.log
+          ./out/fsr-windows-headers-test.exe
       - name: Configure experimental renderer
         shell: msys2 {0}
         run: |

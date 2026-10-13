@@ -253,3 +253,17 @@ A local Windows compile/run of a small wide-formatting program confirmed that
 including `wchar.h` declares and links `swprintf_s`. This checks the proposed header
 fix, not the full renderer. The next GPU CI run must verify it with MSYS2 CLANG64
 and reveal any subsequent portability failures. No GPU execution is claimed.
+
+
+### FidelityFX array-count declaration (October 13, 2026)
+
+Run 38461930543 passed the earlier wide-formatting failure and stopped in FSR
+upscaler/optical-flow sources because `_countof` was undeclared. The dependency
+now receives a scoped compatibility header including both `stdlib.h` (array count)
+and `wchar.h` (wide formatting). No substitute formatting or array-size macros are
+introduced. The GPU workflow first compiles/runs a small C++ regression checking
+array count and formatted output under the actual MSYS2 compiler.
+
+Local Windows C++ object compilation confirmed both declarations. Full renderer
+validation remains with the next GitHub run; this fixes a confirmed dependency
+compile failure without claiming a renderer link or GPU execution.
