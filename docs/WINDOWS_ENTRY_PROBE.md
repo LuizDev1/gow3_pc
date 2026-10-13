@@ -95,3 +95,22 @@ through one alias and reads the same bytes through another. With the validated
 USA 1.03 native image, execution passes the direct-memory-size query and stops at
 `sceKernelMapFlexibleMemory` (`IWIBBdTHit4`, caller offset `0x207dbc`) during libc
 initialization. Original game entry, graphics and the menu remain untested.
+
+
+### Flexible memory (October 13, 2026)
+
+Flexible memory now has a separate 448 MiB budget backed by zero-initialized
+private Windows allocations. Supported CPU protections are translated to Windows
+page protections. Mapping without a placement flag chooses a low address; fixed
+mapping (`0x10`) supports free ranges aligned to Windows' 64 KiB reservation
+granularity. Existing mappings are never replaced. GPU protection bits, occupied
+fixed ranges and partial release remain unsupported. Both the flexible-specific
+release and generic unmap update the budget only after a successful host release.
+Named mappings share the same implementation; names are diagnostic metadata only.
+
+The 17 Windows entry tests pass, with additional checks for zero-fill, allocation
+isolation, budget rejection, fixed address placement, collision rejection and
+stale/incorrect releases. The actual USA 1.03 libc initialization successfully maps
+293601280 bytes (280 MiB) at its requested fixed address. The next unsupported call
+is `scePthreadAttrInit` (`nsYoNRywwNg`, caller offset `0x5b42958`). Native module
+initialization is still incomplete; original game entry and the menu have not run.
