@@ -750,3 +750,5 @@
 {"ioKMruft1ek#libSceDiscMap","sceDiscMap_8A828CAEE7EDD5E9"},
 
 {"aNz11fnnzi4#U#H","sceKernelAvailableFlexibleMemorySize"},
+
+{"kGVLc3htQE8#D#E","sceVideoOutGetDeviceCapabilityInfo"},

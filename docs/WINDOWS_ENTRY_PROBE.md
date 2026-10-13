@@ -614,3 +614,24 @@ previous engine-exit path in this run. Startup now reaches `sceVideoOutOpen`
 This is the first observed video-output initialization call, not a rendered frame.
 A Windows VideoOut implementation, window/surface and graphics integration are
 still needed. No image, menu or gameplay is available.
+
+
+### Logical VideoOut port (October 13, 2026)
+
+VideoOut now has a synchronized logical main-port lifecycle with non-reused
+handles, duplicate-open rejection, close and a 48-byte resolution-status ABI.
+The explicit diagnostic profile is 1280x720 with the guest 59.94 Hz enum; it is
+not measured monitor/presentation state. Nonzero bus/index and custom open
+parameters are rejected. Canonical dispatch uses the observed module version 0.
+ABI and error conventions follow the bundled shadPS4 videoout sources.
+
+All 30 Windows entry tests pass, including logical lifecycle, resolution layout,
+invalid requests and stale handles. With both experimental profiles enabled,
+USA 1.03 opens this logical port and next requests
+`sceVideoOutGetDeviceCapabilityInfo` (`kGVLc3htQE8`, caller offset `0xc4fc8f`),
+identified from the existing reference renderer's registrations.
+
+There is still no Windows window, Vulkan surface, renderer connection, buffer
+registration or frame presentation. No flip/vblank completion is simulated.
+Device capability responses must reflect the eventual backend rather than claim
+unimplemented features. This is API groundwork, not a rendered image/menu.

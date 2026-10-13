@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_logical_video_port_lifecycle_and_resolution(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-video'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('logical lifecycle, resolution ABI, duplicate open and stale handles passed', result.stdout)
+
     def test_dialog_provider_lifecycle_has_no_fake_completion(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-dialog'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

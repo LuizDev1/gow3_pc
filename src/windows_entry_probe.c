@@ -617,6 +617,50 @@ static int selftest_playgo(void) {
     puts("PlayGo locus: explicit profile, invalid IDs and unchanged error outputs passed");
     free(buffer);puts("PlayGo: metadata initialization, ABI validation and open lifecycle passed");return 0;
 }
+/* Logical diagnostic VideoOut port. ABI/status profile follows the bundled
+ * shadPS4 video_out.h/videoout_error.h, GPL-2.0-or-later. No host window or
+ * renderer is attached: no flip, presentation or vblank success is simulated. */
+static SRWLOCK video_lock=SRWLOCK_INIT;
+static int32_t video_handle,next_video_handle=1;
+#define VIDEO_INVALID ((int32_t)0x80290001)
+#define VIDEO_BUSY ((int32_t)0x80290009)
+#define VIDEO_BAD_HANDLE ((int32_t)0x8029000b)
+typedef struct {int32_t width,height,pane_width,pane_height;uint64_t refresh;
+    float inches;uint16_t flags,reserved;uint32_t padding[3];} VideoResolution;
+_Static_assert(sizeof(VideoResolution)==48,"VideoOut resolution ABI");
+static ABI int32_t guest_video_open(int32_t user,int32_t bus,int32_t index,const void *params) {
+    (void)user;
+    if(bus || index || params) return VIDEO_INVALID;
+    AcquireSRWLockExclusive(&video_lock);
+    if(video_handle || next_video_handle==INT_MAX) {ReleaseSRWLockExclusive(&video_lock);return VIDEO_BUSY;}
+    video_handle=next_video_handle++;int32_t result=video_handle;ReleaseSRWLockExclusive(&video_lock);
+    puts("Runtime: diagnostic VideoOut port opened (1280x720 profile; no window or renderer)");return result;
+}
+static ABI int32_t guest_video_close(int32_t handle) {
+    AcquireSRWLockExclusive(&video_lock);
+    if(handle<=0 || handle!=video_handle) {ReleaseSRWLockExclusive(&video_lock);return VIDEO_BAD_HANDLE;}
+    video_handle=0;ReleaseSRWLockExclusive(&video_lock);return 0;
+}
+static ABI int32_t guest_video_resolution(int32_t handle,VideoResolution *out) {
+    if(!out) return VIDEO_INVALID;
+    AcquireSRWLockShared(&video_lock);
+    if(handle<=0 || handle!=video_handle) {ReleaseSRWLockShared(&video_lock);return VIDEO_BAD_HANDLE;}
+    VideoResolution result={0};result.width=result.pane_width=1280;result.height=result.pane_height=720;
+    result.refresh=3; /* Guest enum for 59.94 Hz, a profile rather than measured presentation. */
+    *out=result;ReleaseSRWLockShared(&video_lock);return 0;
+}
+static int selftest_video(void) {
+    VideoResolution value;memset(&value,0x55,sizeof(value));VideoResolution original=value;
+    if(guest_video_open(255,1,0,NULL)!=VIDEO_INVALID || guest_video_resolution(0,&value)!=VIDEO_BAD_HANDLE ||
+        memcmp(&value,&original,sizeof(value))) return 1;
+    int32_t handle=guest_video_open(255,0,0,NULL);
+    if(handle<=0 || guest_video_open(255,0,0,NULL)!=VIDEO_BUSY || guest_video_resolution(handle,NULL)!=VIDEO_INVALID ||
+        guest_video_resolution(handle,&value) || value.width!=1280 || value.height!=720 || value.refresh!=3 ||
+        guest_video_close(handle) || guest_video_close(handle)!=VIDEO_BAD_HANDLE) return 1;
+    int32_t reopened=guest_video_open(255,0,0,NULL);
+    if(reopened<=handle || guest_video_resolution(handle,&value)!=VIDEO_BAD_HANDLE || guest_video_close(reopened)) return 1;
+    puts("VideoOut: logical lifecycle, resolution ABI, duplicate open and stale handles passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -649,6 +693,9 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"lDqxaY1UbEo#msgdialog")) return (uintptr_t)guest_message_dialog_init;
         if (!strcmp(name,"6fIC3XKt2k0#msgdialog")) return (uintptr_t)guest_message_dialog_status;
         if (!strcmp(name,"ePw-kqZmelo#msgdialog")) return (uintptr_t)guest_message_dialog_term;
+        if (!strcmp(name,"Up36PTk687E#videoout")) return (uintptr_t)guest_video_open;
+        if (!strcmp(name,"uquVH4-Du78#videoout")) return (uintptr_t)guest_video_close;
+        if (!strcmp(name,"6kPnj51T62Y#videoout")) return (uintptr_t)guest_video_resolution;
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
         if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
         if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
@@ -694,6 +741,8 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
     }
     if (id->library_version==1 && id->module_version==256 &&
         !strcmp(id->library,"libScePlayGo") && !strcmp(id->module,"libScePlayGo")) scope="playgo";
+    if(id->library_version==1 && id->module_version==0 &&
+        !strcmp(id->library,"libSceVideoOut") && !strcmp(id->module,"libSceVideoOut")) scope="videoout";
     if (!scope) return 0;
     char dispatch[128];
     snprintf(dispatch, sizeof(dispatch), "%s#%s", id->nid, scope);
@@ -781,6 +830,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-video")) return selftest_video();
     if (argc == 2 && !strcmp(argv[1], "--selftest-dialog")) return selftest_dialog();
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
