@@ -10,6 +10,7 @@ on:
       - 'gpu/shim/fsr_windows_headers.h'
       - '.gitmodules'
       - 'tools/check_windows_renderer_dependencies.py'
+      - 'src/windows*'
       - 'tests/test_fsr_windows_headers.cpp'
       - 'tests/test_gpu_windows_host.cpp'
 
@@ -85,12 +86,19 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DGOW3_LTO=OFF \
             2>&1 | tee out/gpu-build-logs/configure.log
-      - name: Compile renderer library only
+      - name: Link renderer with TLG Windows runtime
         shell: msys2 {0}
         run: |
           set -o pipefail
-          cmake --build out/gpu-windows --target gow3gpu --parallel 2 \
+          cmake --build out/gpu-windows --target tlg-renderer-probe --parallel 2 \
             2>&1 | tee out/gpu-build-logs/build.log
+      - name: Test linked runtime services without starting a GPU
+        shell: msys2 {0}
+        run: |
+          set -o pipefail
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-link 2>&1 | tee out/gpu-build-logs/link-test.log
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-memory 2>&1 | tee out/gpu-build-logs/memory-test.log
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-recovery 2>&1 | tee out/gpu-build-logs/recovery-test.log
       - name: Preserve diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4

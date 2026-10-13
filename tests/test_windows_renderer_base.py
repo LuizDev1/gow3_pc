@@ -23,7 +23,7 @@ class WindowsRendererBaseTests(unittest.TestCase):
     def test_ci_selects_windows_base_and_no_gow_loader_targets(self):
         workflow=(ROOT/'.github/workflows/windows-gpu-build.yml').read_text()
         self.assertIn('-S platform/windows/gow3-base/gpu',workflow)
-        self.assertIn('--target gow3gpu',workflow)
+        self.assertIn('--target tlg-renderer-probe',workflow)
         cmake=(BASE/'gpu/CMakeLists.txt').read_text()
         self.assertNotIn('add_executable(gow3-probe',cmake)
         self.assertNotIn('../src/probe.c',cmake)

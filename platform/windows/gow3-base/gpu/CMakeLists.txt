@@ -209,3 +209,22 @@ endif()
 # The TLG CPU loader stays in the project root and will be linked separately.
 
 target_compile_definitions(gow3gpu PRIVATE TLG_WINDOWS_BASE=1)
+
+if(WIN32)
+    set(TLG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
+    add_executable(tlg-renderer-probe
+        ${TLG_ROOT}/src/windows_entry_probe.c
+        ${TLG_ROOT}/src/windows_memory.c
+        ${TLG_ROOT}/src/windows_renderer_runtime.c
+        ${TLG_ROOT}/src/windows_equeue.c
+        ${TLG_ROOT}/src/windows_mutex.c
+        ${TLG_ROOT}/src/windows_tls.c
+        ${TLG_ROOT}/src/windows_thread.c
+        ${TLG_ROOT}/src/windows_semaphore.c)
+    set_property(TARGET tlg-renderer-probe PROPERTY C_STANDARD 11)
+    target_compile_definitions(tlg-renderer-probe PRIVATE TLG_WITH_RENDERER=1)
+    # Resolve the complete renderer archive, including dormant GPU paths. This
+    # prevents a small diagnostic entry point hiding missing loader callbacks.
+    target_link_libraries(tlg-renderer-probe PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,gow3gpu>")
+    target_link_options(tlg-renderer-probe PRIVATE -Wl,--stack,33554432)
+endif()

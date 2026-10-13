@@ -21,7 +21,9 @@
 #include "../../src/actor_hook.h"
 
 extern Gow3ActorSlot gow3_actor_slots[2];
+#ifndef TLG_WINDOWS_BASE
 extern "C" void runtime_restart(void); // src/probe.c: starts run.py again, ends this process
+#endif
 #include "common/elf_info.h"
 #include "imgui.h"
 #include "imgui_internal.h" // RegisterUserTexture (save pictures)
@@ -590,13 +592,19 @@ void Menu() {
         ImGui::TextColored(ImVec4(0.85f, 0.72f, 0.45f, 1.0f), "%d change%s need%s a restart (unsaved progress is lost).",
                            changes, changes == 1 ? "" : "s", changes == 1 ? "s" : "");
         ImGui::SameLine();
+#ifdef TLG_WINDOWS_BASE
+        ImGui::BeginDisabled(true);
+#else
         ImGui::BeginDisabled(!std::getenv("GOW3_RESTART_COMMAND"));
+#endif
         if (ImGui::Button("Apply and restart")) {
             // The new launch confirms the options once the game shows; run.py restores the
             // previous ones if it never does (restart_unconfirmed).
             s.restart_unconfirmed = true;
             Gow3Settings::Save();
+#ifndef TLG_WINDOWS_BASE
             runtime_restart();
+#endif
         }
         ImGui::EndDisabled();
     } else {

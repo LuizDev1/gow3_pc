@@ -96,6 +96,19 @@ typedef struct Thread { void *tcb; HANDLE host; GuestEntry entry; void *argument
     Attr attr; int finished,joining,joined; struct Thread *next; } Thread;
 static Thread *threads;
 static unsigned thread_count;
+/* Decoder/HLE workers may enter guest callbacks. They need the configured guest
+ * TLS and a stable thread record; these bounded host records live to process exit. */
+void runtime_thread_attach_host(const char *name) {
+    (void)name;
+    if(windows_tls_current_thread()) return;
+    AcquireSRWLockExclusive(&lock);
+    Thread *t=thread_count<LIMIT?calloc(1,sizeof(*t)):NULL;
+    if(!t) {ReleaseSRWLockExclusive(&lock);ExitProcess(21);}
+    t->attr=(Attr){.stack=1024*1024,.guard=4096,.affinity=0x7f,.policy=1,.priority=700,.inherit=4};
+    t->joined=1;t->next=threads;threads=t;thread_count++;
+    ReleaseSRWLockExclusive(&lock);
+    if(windows_tls_attach_main() || windows_tls_bind_thread(t)) ExitProcess(21);
+}
 static Thread *find_thread(void *handle) {
     for(Thread *t=threads;t;t=t->next) if(t==handle) return t;return NULL;
 }
@@ -147,6 +160,15 @@ static ABI void *synthetic_worker(void *argument) {
     if(!self || self==(Thread *)test_main_identity || !self->tcb || !value || *value!=42) return NULL;
     *value=99;return argument;
 }
+static DWORD WINAPI test_host_worker(void *argument) {
+    runtime_thread_attach_host("tlg:test");
+    void *identity=thread_self();
+    runtime_thread_attach_host("tlg:test-again");
+    void *result=synthetic_worker(argument);
+    if(identity!=thread_self()) result=NULL;
+    windows_tls_detach();
+    return result==argument?0:1;
+}
 int windows_thread_create_selftest(void) {
     static const uint64_t data=42;
     if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
@@ -157,7 +179,12 @@ int windows_thread_create_selftest(void) {
         thread_join(worker,&result) || result!=(void *)(uintptr_t)123 || thread_join(worker,NULL)!=NO_THREAD) return 1;
     uint64_t index[2]={1,0};uint64_t *value=windows_tls_get_addr(index);
     if(!value || *value!=42 || thread_self()!=test_main_identity) return 1;
-    windows_tls_detach();puts("Guest threads: SysV entry, private TLS, stable identity, join result and stale join passed");return 0;
+    HANDLE host=CreateThread(NULL,0,test_host_worker,(void *)(uintptr_t)0x1234,0,NULL);
+    DWORD status=1;
+    if(!host || WaitForSingleObject(host,10000)!=WAIT_OBJECT_0 || !GetExitCodeThread(host,&status) || status) return 1;
+    CloseHandle(host);
+    windows_tls_detach();puts("Host renderer workers: private guest TLS and idempotent attachment passed");
+    puts("Guest threads: SysV entry, private TLS, stable identity, join result and stale join passed");return 0;
 }
 uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f

@@ -16,8 +16,13 @@
 #define FLEXIBLE (UINT64_C(448)*1024*1024)
 static uint64_t flexible_bytes;
 static SRWLOCK lock=SRWLOCK_INIT;
+/* Serialize mapping mutations and notifications, without holding the table lock
+ * during renderer callbacks (which may query/protect the same mappings). */
+static SRWLOCK mutation_lock=SRWLOCK_INIT;
+static WindowsGpuRange gpu_map,gpu_unmap,gpu_invalidate;
 typedef struct { uint64_t start,size; HANDLE section; } Block;
-typedef struct { void *address; uint64_t size; HANDLE section; int protection; } View;
+typedef struct { void *address; uint64_t size; HANDLE section; int protection,kind; } View;
+/* kind: 0 direct allocation; 1 owned flexible section; 2 external image/stack. */
 static Block blocks[LIMIT];
 static View views[LIMIT];
 /* The caller holds the shared mapping lock. A gap ends at the next tracked
@@ -83,7 +88,7 @@ static ABI int32_t allocate(int64_t low,int64_t high,uint64_t size,uint64_t alig
 }
 /* Complete allocations, CPU RW storage with optional GPU permission metadata.
  * GPU permissions do not implement GPU access. Fixed replacement is unresolved. */
-static ABI int32_t map(void **out,uint64_t size,int prot,int flags,int64_t physical,uint64_t alignment) {
+static int32_t map_storage(void **out,uint64_t size,int prot,int flags,int64_t physical,uint64_t alignment) {
     if(!out || physical<0 || !size || size%PAGE || (alignment && !aligned(alignment)) || alignment>POOL || (flags&~0x80) || (prot&~0x33) || (prot&3)!=3) {
         fprintf(stderr,"Unsupported direct mapping: size=%llu protection=0x%x flags=0x%x\n",(unsigned long long)size,prot,flags);return INVALID;
     }
@@ -104,22 +109,22 @@ static ABI int32_t map(void **out,uint64_t size,int prot,int flags,int64_t physi
         if(address) break;
     }
     if(!address) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
-    views[slot]=(View){address,size,section,prot};*out=address;
+    views[slot]=(View){address,size,section,prot,0};*out=address;
     ReleaseSRWLockExclusive(&lock);
     printf("Runtime: direct memory mapped (%llu bytes, protection 0x%x; GPU not connected)\n",(unsigned long long)size,prot);return 0;
 }
-static ABI int32_t unmap(void *address,uint64_t size) {
+static int32_t unmap_storage(void *address,uint64_t size) {
     AcquireSRWLockExclusive(&lock);
-    for(int i=0;i<LIMIT;i++) if(views[i].address==address && address && views[i].size==size) {
-        if(!(views[i].section ? UnmapViewOfFile(address) : VirtualFree(address,0,MEM_RELEASE))) {ReleaseSRWLockExclusive(&lock);return INVALID;}
-        if (!views[i].section) flexible_bytes-=views[i].size;
+    for(int i=0;i<LIMIT;i++) if(views[i].address==address && address && views[i].size==size && views[i].kind!=2) {
+        if(!UnmapViewOfFile(address)) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+        if (views[i].kind==1) {flexible_bytes-=views[i].size;CloseHandle(views[i].section);}
         views[i]=(View){0};ReleaseSRWLockExclusive(&lock);return 0;
     }
     ReleaseSRWLockExclusive(&lock);return INVALID;
 }
 /* Flexible allocations own private zero-initialized Windows pages. CPU protection
  * bits are translated exactly; GPU mappings and replacement of occupied ranges are deferred. */
-static ABI int32_t map_flexible(void **out,uint64_t size,int prot,int flags) {
+static int32_t map_flexible_storage(void **out,uint64_t size,int prot,int flags) {
     static const DWORD protection[8]={PAGE_NOACCESS,PAGE_READONLY,0,PAGE_READWRITE,
         PAGE_EXECUTE,PAGE_EXECUTE_READ,0,PAGE_EXECUTE_READWRITE};
     if(!out || !size || size%PAGE || (prot&~7) || !protection[prot] || (flags&~0x10)) {
@@ -135,28 +140,146 @@ static ABI int32_t map_flexible(void **out,uint64_t size,int prot,int flags) {
     if((flags&0x10) && (requested<UINT64_C(0x1000000000) || requested%65536 || requested>UINT64_C(0xfc00000000)-size)) {
         ReleaseSRWLockExclusive(&lock);return INVALID;
     }
+    HANDLE section=CreateFileMappingW(INVALID_HANDLE_VALUE,NULL,
+        (prot&4)?PAGE_EXECUTE_READWRITE:PAGE_READWRITE,(DWORD)(size>>32),(DWORD)size,NULL);
+    if(!section) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
     void *address=NULL;
     for(uint64_t candidate=(flags&0x10)?requested:UINT64_C(0x1000000000),attempts=0;attempts<((flags&0x10)?1u:4096u);candidate+=65536,attempts++) {
-        address=VirtualAlloc((void *)(uintptr_t)candidate,(SIZE_T)size,MEM_RESERVE|MEM_COMMIT,protection[prot]);
+        address=MapViewOfFileEx(section,FILE_MAP_READ|FILE_MAP_WRITE|((prot&4)?FILE_MAP_EXECUTE:0),
+            0,0,(SIZE_T)size,(void *)(uintptr_t)candidate);
         if(address) break;
     }
-    if(!address) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
-    views[slot]=(View){address,size,NULL,prot};flexible_bytes+=size;*out=address;
+    DWORD old;
+    if(!address || !VirtualProtect(address,(SIZE_T)size,protection[prot],&old)) {
+        if(address) UnmapViewOfFile(address);
+        CloseHandle(section);ReleaseSRWLockExclusive(&lock);return NOMEM;
+    }
+    views[slot]=(View){address,size,section,prot,1};flexible_bytes+=size;*out=address;
     ReleaseSRWLockExclusive(&lock);
     printf("Runtime: flexible memory mapped (%llu bytes, protection 0x%x)\n",(unsigned long long)size,prot);
     return 0;
 }
-static ABI int32_t map_named_flexible(void **out,uint64_t size,int prot,int flags,const char *name) {
-    (void)name;return map_flexible(out,size,prot,flags);
-}
-static ABI int32_t release_flexible(void *address,uint64_t size) {
+static int32_t release_flexible_storage(void *address,uint64_t size) {
     /* Keep lookup and release atomic; never release a direct-memory view here. */
     AcquireSRWLockExclusive(&lock);
-    for(int i=0;i<LIMIT;i++) if(address && views[i].address==address && views[i].size==size && !views[i].section) {
-        if(!VirtualFree(address,0,MEM_RELEASE)) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+    for(int i=0;i<LIMIT;i++) if(address && views[i].address==address && views[i].size==size && views[i].kind==1) {
+        if(!UnmapViewOfFile(address)) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+        CloseHandle(views[i].section);
         flexible_bytes-=size;views[i]=(View){0};ReleaseSRWLockExclusive(&lock);return 0;
     }
     ReleaseSRWLockExclusive(&lock);return INVALID;
+}
+static ABI int32_t map(void **out,uint64_t size,int prot,int flags,int64_t physical,uint64_t alignment) {
+    AcquireSRWLockExclusive(&mutation_lock);
+    int32_t result=map_storage(out,size,prot,flags,physical,alignment);
+    if(!result && gpu_map) gpu_map((uintptr_t)*out,size);
+    ReleaseSRWLockExclusive(&mutation_lock);return result;
+}
+static ABI int32_t map_flexible(void **out,uint64_t size,int prot,int flags) {
+    AcquireSRWLockExclusive(&mutation_lock);
+    int32_t result=map_flexible_storage(out,size,prot,flags);
+    if(!result && gpu_map) gpu_map((uintptr_t)*out,size);
+    ReleaseSRWLockExclusive(&mutation_lock);return result;
+}
+static ABI int32_t map_named_flexible(void **out,uint64_t size,int prot,int flags,const char *name) {
+    (void)name;return map_flexible(out,size,prot,flags);
+}
+static int32_t remove_view(void *address,uint64_t size,int flexible_only) {
+    AcquireSRWLockExclusive(&mutation_lock);
+    int found=0;
+    AcquireSRWLockShared(&lock);
+    for(int i=0;i<LIMIT;i++) if(address && views[i].address==address && views[i].size==size &&
+        (flexible_only?views[i].kind==1:views[i].kind!=2)) {found=1;break;}
+    ReleaseSRWLockShared(&lock);
+    if(found && gpu_unmap) gpu_unmap((uintptr_t)address,size);
+    int32_t result=flexible_only?release_flexible_storage(address,size):unmap_storage(address,size);
+    if(found && result && gpu_unmap) {
+        fputs("STOP: failed to release a renderer-tracked view\n",stderr);ExitProcess(21);
+    }
+    ReleaseSRWLockExclusive(&mutation_lock);return result;
+}
+static ABI int32_t unmap(void *address,uint64_t size) {return remove_view(address,size,0);}
+static ABI int32_t release_flexible(void *address,uint64_t size) {return remove_view(address,size,1);}
+
+int windows_memory_register_external(void *address,uint64_t size,int protection) {
+    uintptr_t at=(uintptr_t)address;
+    if(!address || !size || size>UINTPTR_MAX-at || at%4096 || size%4096 ||
+        (protection&~7) || (protection&3)==2) return 0;
+    AcquireSRWLockExclusive(&mutation_lock);AcquireSRWLockExclusive(&lock);
+    int slot=-1,overlap=0;
+    for(int i=0;i<LIMIT;i++) {
+        if(!views[i].address && slot<0) slot=i;
+        if(views[i].address && at<(uintptr_t)views[i].address+views[i].size &&
+            (uintptr_t)views[i].address<at+size) overlap=1;
+    }
+    int result=slot>=0 && !overlap;
+    if(result) views[slot]=(View){address,size,NULL,protection,2};
+    ReleaseSRWLockExclusive(&lock);
+    if(result && gpu_map) gpu_map(at,size);
+    ReleaseSRWLockExclusive(&mutation_lock);return result;
+}
+
+void runtime_memory_set_gpu_hooks(WindowsGpuRange map_hook,WindowsGpuRange unmap_hook,WindowsGpuRange invalidate_hook) {
+    AcquireSRWLockExclusive(&mutation_lock);
+    /* Installation is serialized with mappings. Callbacks must not mutate the
+     * guest mapping table; query and protection callbacks are safe here. */
+    if(gpu_unmap) for(int i=0;i<LIMIT;i++) if(views[i].address)
+        gpu_unmap((uintptr_t)views[i].address,views[i].size);
+    gpu_map=map_hook;gpu_unmap=unmap_hook;gpu_invalidate=invalidate_hook;
+    if(gpu_map) for(int i=0;i<LIMIT;i++) if(views[i].address)
+        gpu_map((uintptr_t)views[i].address,views[i].size);
+    ReleaseSRWLockExclusive(&mutation_lock);
+}
+
+int runtime_memory_write_backing(uintptr_t address,const void *data,uint64_t size) {
+    if(!data || !size || size>UINTPTR_MAX-address) return 0;
+    AcquireSRWLockShared(&lock);
+    /* Validate the entire range before changing storage; external regions have
+     * no alias and return failure so the renderer can use its tracked path. */
+    uint64_t done=0;
+    while(done<size) {
+        View *view=NULL;
+        for(int i=0;i<LIMIT;i++) if(views[i].address && address+done>=(uintptr_t)views[i].address &&
+            address+done-(uintptr_t)views[i].address<views[i].size) {view=&views[i];break;}
+        if(!view || !view->section) {ReleaseSRWLockShared(&lock);return 0;}
+        uint64_t n=view->size-(address+done-(uintptr_t)view->address);
+        done+=n<size-done?n:size-done;
+    }
+    done=0;int ok=1;
+    while(done<size) {
+        View *view=NULL;
+        for(int i=0;i<LIMIT;i++) if(views[i].address && address+done>=(uintptr_t)views[i].address &&
+            address+done-(uintptr_t)views[i].address<views[i].size) {view=&views[i];break;}
+        uint64_t offset=address+done-(uintptr_t)view->address,n=view->size-offset;
+        if(n>size-done) n=size-done;
+        unsigned char *alias=MapViewOfFile(view->section,FILE_MAP_WRITE,0,0,(SIZE_T)view->size);
+        if(!alias) {ok=0;break;}
+        memcpy(alias+offset,(const unsigned char *)data+done,(size_t)n);
+        if(!UnmapViewOfFile(alias)) {ok=0;break;}
+        done+=n;
+    }
+    ReleaseSRWLockShared(&lock);return ok;
+}
+
+void runtime_memory_gpu_protect(uintptr_t address,uint64_t size,int read,int write) {
+    static const DWORD modes[8]={PAGE_NOACCESS,PAGE_READONLY,0,PAGE_READWRITE,
+        PAGE_EXECUTE,PAGE_EXECUTE_READ,0,PAGE_EXECUTE_READWRITE};
+    if(!size || size>UINTPTR_MAX-address) return;
+    AcquireSRWLockExclusive(&lock);
+    for(int i=0;i<LIMIT;i++) if(views[i].address) {
+        uintptr_t a=(uintptr_t)views[i].address,b=a+views[i].size;
+        if(a>=address+size || b<=address) continue;
+        if(a<address) a=address;
+        if(b>address+size) b=address+size;
+        int guest=views[i].protection&7;
+        int wanted=(read||write?1:0)|(write?2:0)|(guest&4);
+        DWORD old;
+        if(!VirtualProtect((void *)a,(SIZE_T)(b-a),modes[guest&wanted],&old)) {
+            ReleaseSRWLockExclusive(&lock);
+            fputs("STOP: GPU page protection failed\n",stderr);ExitProcess(21);
+        }
+    }
+    ReleaseSRWLockExclusive(&lock);
 }
 static ABI int32_t release(int64_t physical,uint64_t size) {
     AcquireSRWLockExclusive(&lock);
@@ -182,12 +305,32 @@ uintptr_t windows_memory_resolve(const char *name) {
 #undef EXPORT
     return 0;
 }
+static int test_maps,test_unmaps;
+static void test_map_hook(uintptr_t address,uint64_t size) {
+    if(!runtime_memory_is_mapped(address,size)) ExitProcess(21);
+    test_maps++;
+}
+static void test_unmap_hook(uintptr_t address,uint64_t size) {
+    if(!runtime_memory_is_mapped(address,size)) ExitProcess(21);
+    test_unmaps++;
+}
 int windows_memory_selftest(void) {
     int64_t a=-1,b=-1;void *x=NULL,*y=NULL;
 #define CHECK(c) do {if(!(c)) {fprintf(stderr,"memory check failed at %d\n",__LINE__);return 1;}}while(0)
     CHECK(direct_size()==POOL);CHECK(allocate(0,POOL,1,0,0,&a)==INVALID);
     CHECK(!allocate(0,POOL,PAGE,0,0,&a));CHECK(!allocate(0,POOL,PAGE,0,0,&b));CHECK(a!=b);
     CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,0x33,0x80,a,0));
+    runtime_memory_set_gpu_hooks(test_map_hook,test_unmap_hook,NULL);
+    CHECK(test_maps==2 && !test_unmaps);
+    runtime_memory_gpu_protect((uintptr_t)x,PAGE,1,0);
+    MEMORY_BASIC_INFORMATION info;
+    CHECK(VirtualQuery(x,&info,sizeof(info)) && info.Protect==PAGE_READONLY);
+    uint64_t backing_value=UINT64_C(0x445566778899aabb);
+    CHECK(runtime_memory_write_backing((uintptr_t)x,&backing_value,sizeof(backing_value)));
+    CHECK(*(volatile uint64_t *)y==backing_value && *(volatile uint64_t *)x==backing_value);
+    CHECK(VirtualQuery(x,&info,sizeof(info)) && info.Protect==PAGE_READONLY);
+    CHECK(!runtime_memory_write_backing((uintptr_t)x+PAGE-1,&backing_value,2));
+    runtime_memory_gpu_protect((uintptr_t)x,PAGE,1,1);
     uintptr_t start=0,end=0;int mapped_view=0;
     CHECK(runtime_memory_region((uintptr_t)x+1,&start,&end,&mapped_view));
     CHECK(start==(uintptr_t)x && end==(uintptr_t)x+PAGE && mapped_view);
@@ -206,6 +349,7 @@ int windows_memory_selftest(void) {
     CHECK(release_flexible(x,PAGE)==INVALID);
     CHECK((uintptr_t)x<UINT64_C(0x10000000000));CHECK(release(a,PAGE)==BUSY);
     CHECK(unmap(x,PAGE*2)==INVALID);CHECK(!unmap(x,PAGE));CHECK(!unmap(y,PAGE));
+    CHECK(test_unmaps==2);runtime_memory_set_gpu_hooks(NULL,NULL,NULL);
     CHECK(!runtime_memory_is_mapped((uintptr_t)x,1));
     CHECK(!runtime_memory_is_mapped((uintptr_t)y,1));
     CHECK(!release(a,PAGE));CHECK(release(a,PAGE)==INVALID);CHECK(!release(b,PAGE));
@@ -216,6 +360,12 @@ int windows_memory_selftest(void) {
     CHECK(map_flexible(&f,1,3,0)==INVALID);CHECK(map_flexible(&f,PAGE,3,16)==INVALID);
     CHECK(!map_flexible(&f,PAGE,3,0));CHECK(!map_named_flexible(&g,PAGE,3,0,"test"));
     CHECK(f!=g && *(volatile uint64_t *)f==0 && *(volatile uint64_t *)g==0);
+    runtime_memory_gpu_protect((uintptr_t)f,PAGE,0,0);
+    CHECK(VirtualQuery(f,&info,sizeof(info)) && info.Protect==PAGE_NOACCESS);
+    CHECK(runtime_memory_write_backing((uintptr_t)f,&backing_value,sizeof(backing_value)));
+    CHECK(VirtualQuery(f,&info,sizeof(info)) && info.Protect==PAGE_NOACCESS);
+    runtime_memory_gpu_protect((uintptr_t)f,PAGE,1,1);
+    CHECK(*(volatile uint64_t *)f==backing_value);
     CHECK(runtime_memory_is_mapped((uintptr_t)f,PAGE));
     CHECK(runtime_memory_clamp((uintptr_t)g+PAGE-8,16)==8);
     *(volatile uint64_t *)f=42;CHECK(*(volatile uint64_t *)g==0);CHECK(flexible_bytes==PAGE*2);CHECK(!available_flexible(&available) && available==FLEXIBLE-PAGE*2);
@@ -231,8 +381,13 @@ int windows_memory_selftest(void) {
     CHECK(runtime_memory_clamp((uintptr_t)f+PAGE*4-1,PAGE*4+2)==PAGE*4+1);
     CHECK(!release_flexible(f,PAGE*4));CHECK(!runtime_memory_is_mapped((uintptr_t)f,PAGE*8));
     CHECK(runtime_memory_is_mapped((uintptr_t)g,PAGE*4));CHECK(!release_flexible(g,PAGE*4));
+    f=NULL;CHECK(!map_flexible(&f,PAGE,1,0));
+    runtime_memory_gpu_protect((uintptr_t)f,PAGE,1,1);
+    CHECK(VirtualQuery(f,&info,sizeof(info)) && info.Protect==PAGE_READONLY);
+    CHECK(!release_flexible(f,PAGE));
     puts("Flexible availability: initial budget, allocation debit and release credit passed");
     puts("Renderer memory queries: view bounds, gaps, overflow and unmap invalidation passed");
+    puts("Renderer memory bridge: hook replay, pre-unmap notification, backing aliases and guest protection limits passed");
     puts("Flexible memory: zero-fill, isolation, budget, invalid requests and release passed");
     puts("Direct mapping: no-overwrite alias placement and GPU permission metadata passed");
     puts("Direct memory: allocation isolation, shared aliases, low addresses and lifecycle passed");return 0;

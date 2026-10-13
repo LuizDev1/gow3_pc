@@ -18,6 +18,7 @@ def package():
              'src/windows_mutex.c', 'src/windows_mutex.h',
              'src/windows_tls.c', 'src/windows_tls.h',
              'src/windows_memory.c', 'src/windows_memory.h',
+             'src/windows_renderer_runtime.c', 'src/windows_renderer_runtime.h',
              'src/windows_thread.c', 'src/windows_thread.h',
              'src/windows_semaphore.c', 'src/windows_semaphore.h',
              'tools/inspect_target.py', 'tools/package_entry_probe.py',

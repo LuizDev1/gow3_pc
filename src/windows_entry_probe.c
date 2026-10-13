@@ -16,6 +16,10 @@
 #include "windows_mutex.h"
 #include "windows_tls.h"
 #include "windows_memory.h"
+#include "windows_renderer_runtime.h"
+#ifdef TLG_WITH_RENDERER
+#include "../platform/windows/gow3-base/gpu/gow3gpu.h"
+#endif
 #include "windows_thread.h"
 #include "windows_semaphore.h"
 #if !defined(__x86_64__) || !defined(__clang__)
@@ -191,6 +195,9 @@ static ABI uint64_t guest_process_time(void) {
     if(!QueryPerformanceCounter(&now) || (uint64_t)now.QuadPart<process_start) ExitProcess(21);
     return (uint64_t)(((__uint128_t)((uint64_t)now.QuadPart-process_start)*1000000)/qpc_hz);
 }
+uint64_t runtime_process_time_us(void) {return guest_process_time();}
+uint64_t runtime_process_time_counter(void) {return guest_read_tsc();}
+uint64_t runtime_tsc_frequency(void) {return guest_tsc_frequency();}
 static int selftest_clock(void) {
     uint64_t hz=guest_tsc_frequency(),a=guest_read_tsc(),before=guest_process_time();
     Sleep(30);uint64_t b=guest_read_tsc(),after=guest_process_time();
@@ -202,6 +209,7 @@ static int selftest_clock(void) {
 }
 /* POSIX console writes only. File descriptors are not host Win32 handles. */
 static _Thread_local int32_t console_errno;
+int32_t *runtime_errno(void) {return &console_errno;}
 typedef struct { int64_t seconds,nanoseconds; } GuestTimespec;
 _Static_assert(sizeof(GuestTimespec)==16,"guest timespec layout");
 static ABI int guest_clock_gettime(uint32_t id,GuestTimespec *out) {
@@ -276,26 +284,37 @@ static int file_error(DWORD error) {
     return error==ERROR_FILE_NOT_FOUND || error==ERROR_PATH_NOT_FOUND?2:
         error==ERROR_ACCESS_DENIED?13:5;
 }
+static int translate_path(const char *path,char *host,size_t size) {
+    if(!path || !host) return 14;
+    const char *relative=NULL;
+    if(!strncmp(path,"/app0/",6)) relative=path+6;
+    else if(!strncmp(path,"/hostapp/",9)) relative=path+9;
+    else if(path[0]!='/') relative=path;
+    if(!relative || !*relative || strlen(relative)>1024) return 22;
+    for(const char *at=relative;*at;) {
+        const char *end=strchr(at,'/');size_t n=end?(size_t)(end-at):strlen(at);
+        if(!n || (n==1 && at[0]=='.') || (n==2 && at[0]=='.' && at[1]=='.')) return 22;
+        for(size_t i=0;i<n;i++) if(at[i]=='\\' || at[i]==':' || at[i]=='*' || at[i]=='?') return 22;
+        if(!end) break;at=end+1;
+    }
+    const char *root=getenv("TLG_GAME_ROOT");
+    if(!root || !*root) return 2;
+    if(strlen(root)+strlen(relative)+2>size) return 63;
+    snprintf(host,size,"%s/%s",root,relative);return 0;
+}
+int runtime_file_translate(const char *path,char *host,size_t size) {
+    int result=translate_path(path,host,size);
+    if(result) console_errno=result;
+    return result?-1:0;
+}
 static ABI int64_t guest_file_open(const char *path,int flags,int mode) {
     (void)mode;
     if(!path) return FILE_ERROR(14);
     printf("Runtime: file open %s (flags 0x%x)\n",path,flags);
     if(flags) return FILE_ERROR(45);
-    const char *relative=NULL;
-    if(!strncmp(path,"/app0/",6)) relative=path+6;
-    else if(!strncmp(path,"/hostapp/",9)) relative=path+9;
-    else if(path[0]!='/') relative=path;
-    if(!relative || !*relative || strlen(relative)>1024) return FILE_ERROR(22);
-    for(const char *at=relative;*at;) {
-        const char *end=strchr(at,'/');size_t n=end?(size_t)(end-at):strlen(at);
-        if(!n || (n==1 && at[0]=='.') || (n==2 && at[0]=='.' && at[1]=='.')) return FILE_ERROR(22);
-        for(size_t i=0;i<n;i++) if(at[i]=='\\' || at[i]==':' || at[i]=='*' || at[i]=='?') return FILE_ERROR(22);
-        if(!end) break;at=end+1;
-    }
-    const char *root=getenv("TLG_GAME_ROOT");
-    if(!root || !*root) return FILE_ERROR(2);
     char host[2048];
-    if(snprintf(host,sizeof(host),"%s/%s",root,relative)>=(int)sizeof(host)) return FILE_ERROR(63);
+    int result=translate_path(path,host,sizeof(host));
+    if(result) return FILE_ERROR(result);
     HANDLE h=CreateFileA(host,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
     if(h==INVALID_HANDLE_VALUE) return FILE_ERROR(file_error(GetLastError()));
     AcquireSRWLockExclusive(&file_lock);
@@ -837,6 +856,13 @@ static ABI __attribute__((noreturn)) void guest_exit(void) {
     ExitProcess(24);
 }
 static LONG WINAPI fault(EXCEPTION_POINTERS *e) {
+#ifdef TLG_WITH_RENDERER
+    if(e->ExceptionRecord->ExceptionCode==EXCEPTION_ACCESS_VIOLATION &&
+        e->ExceptionRecord->NumberParameters>=2 &&
+        gow3gpu_handle_fault(e,(void *)e->ExceptionRecord->ExceptionInformation[1]))
+        return EXCEPTION_CONTINUE_EXECUTION;
+#endif
+    if(windows_renderer_recover(e)) return EXCEPTION_CONTINUE_EXECUTION;
     uintptr_t at = (uintptr_t)e->ExceptionRecord->ExceptionAddress;
     printf("STOP: Windows exception 0x%08lx at 0x%" PRIxPTR,
            (unsigned long)e->ExceptionRecord->ExceptionCode, at);
@@ -884,6 +910,13 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread")) return windows_thread_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-memory")) return windows_memory_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-renderer-recovery")) return windows_renderer_recovery_selftest();
+#ifdef TLG_WITH_RENDERER
+    if (argc == 2 && !strcmp(argv[1], "--selftest-renderer-link")) {
+        printf("Renderer linked: %u symbols before initialization; no GPU started\n",gow3gpu_symbol_count());
+        return 0;
+    }
+#endif
     if (argc == 2 && !strcmp(argv[1], "--selftest-tls")) return windows_tls_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-heap-trace")) return selftest_heap_trace();
     if (argc != 2) {
@@ -1049,6 +1082,12 @@ int main(int argc, char **argv) {
     protect(image, rounded((size_t)image_size), 0);
     for (uint64_t i = 0; i < ns; ++i)
         protect(image + segments[i].address, rounded((size_t)segments[i].size), (unsigned)segments[i].flags);
+    for(uint64_t i=0;i<ns;i++) {
+        unsigned flags=(unsigned)segments[i].flags;
+        int protection=((flags&4)?1:0)|((flags&2)?2:0)|((flags&1)?4:0);
+        if(!windows_memory_register_external(image+segments[i].address,
+            rounded((size_t)segments[i].size),protection)) fail("cannot register image memory for renderer");
+    }
     require_clock();
     if (!AddVectoredExceptionHandler(1, fault)) fail("exception handler unavailable");
     HANDLE timer = CreateThread(NULL, 0, watchdog, NULL, 0, NULL);

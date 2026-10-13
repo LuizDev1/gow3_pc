@@ -476,3 +476,27 @@ backing writes, GPU hooks, page protection and Windows fault recovery are still
 required before the selected library can be connected and run with TLG.
 The local Windows diagnostic builds with warnings as errors; its memory self-test
 covers mapped bounds, gaps, invalid pointers, overflow and release invalidation.
+
+### Combined Windows renderer runtime bridge (October 13, 2026)
+
+Implemented the remaining selected shim services as a coordinated change:
+direct/flexible backing writes through temporary section aliases; CPU protection
+restricted by guest permission metadata; serialized map/unmap hook installation
+with existing-view replay and callbacks outside the view-table lock; external
+image region registration; shared guest/renderer clocks and errno; validated file
+translation; and idempotent host-worker guest TLS attachment.
+
+Flexible mappings now own pagefile sections rather than VirtualAlloc storage.
+Backing writes do not relax protections on the guest view. External image ranges
+return false for backing writes so the renderer uses its tracked access path.
+Win64 speculative-read recovery preserves nonvolatile registers and resumes via
+the exception context without unwinding through guest frames. Renderer access
+violation dispatch is tried before speculative recovery in the linked diagnostic.
+Unknown/unhandled exceptions retain the existing diagnostic behavior.
+
+The selected CMake project now has a tlg-renderer-probe executable with the whole
+renderer archive linked, rather than a static-library-only check. CI tests its
+link, memory and protected-read recovery paths without starting a GPU. No GoW3
+loader is imported; its overlay restart action is disabled. This stage still does
+not enable guest GPU imports, Vulkan startup or claim a frame/menu. Stack region
+registration and game-specific renderer assumptions remain to be addressed.
