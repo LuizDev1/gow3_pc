@@ -542,3 +542,8 @@ CI adds canonical resolver/profile tests and packages the diagnostic with its
 transitive MSYS2 DLL dependencies, licenses and source revision. The package
 contains no game files. Full build and a local GPU-enabled run are the next
 validation steps; this source change alone does not establish a rendered frame.
+
+Pre-startup review also corrected the renderer's process-counter units: its
+frequency service advertises 1 GHz, so the bridge now returns nanoseconds from
+the shared QPC origin. Raw RDTSC remains the separate hardware-counter service.
+The clock test compares both counters with elapsed process microseconds.

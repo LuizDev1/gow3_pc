@@ -200,15 +200,23 @@ static ABI uint64_t guest_process_time(void) {
     return (uint64_t)(((__uint128_t)((uint64_t)now.QuadPart-process_start)*1000000)/qpc_hz);
 }
 uint64_t runtime_process_time_us(void) {return guest_process_time();}
-uint64_t runtime_process_time_counter(void) {return guest_read_tsc();}
+uint64_t runtime_process_time_counter(void) {
+    require_clock();LARGE_INTEGER now;
+    if(!QueryPerformanceCounter(&now) || (uint64_t)now.QuadPart<process_start) ExitProcess(21);
+    return (uint64_t)(((__uint128_t)((uint64_t)now.QuadPart-process_start)*1000000000)/qpc_hz);
+}
 uint64_t runtime_tsc_frequency(void) {return guest_tsc_frequency();}
 static int selftest_clock(void) {
     uint64_t hz=guest_tsc_frequency(),a=guest_read_tsc(),before=guest_process_time();
+    uint64_t counter_before=runtime_process_time_counter();
     Sleep(30);uint64_t b=guest_read_tsc(),after=guest_process_time();
+    uint64_t counter_after=runtime_process_time_counter();
     if(!hz || guest_tsc_frequency()!=hz || b<=a || after<=before) return 1;
     uint64_t elapsed=(uint64_t)(((__uint128_t)(b-a)*1000000)/hz);
     uint64_t expected=after-before;
     if(elapsed<expected/2 || elapsed>expected*2) return 1;
+    uint64_t counter_us=(counter_after-counter_before)/1000;
+    if(counter_after<=counter_before || counter_us<expected/2 || counter_us>expected*2) return 1;
     puts("Timing: advancing hardware counter, stable frequency and elapsed-time agreement passed");return 0;
 }
 /* POSIX console writes only. File descriptors are not host Win32 handles. */
