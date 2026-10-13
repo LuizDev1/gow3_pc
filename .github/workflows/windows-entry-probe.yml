@@ -12,6 +12,8 @@ on:
       - 'src/windows_memory.*'
       - 'src/windows_thread.*'
       - 'tools/configure_probe_stack.py'
+      - 'tools/prepare_content_parameters.py'
+      - 'tests/test_content_parameters.py'
       - 'tests/test_probe_stack.py'
       - 'scripts/**'
       - 'tools/inspect_target.py'
@@ -29,6 +31,8 @@ on:
       - 'src/windows_memory.*'
       - 'src/windows_thread.*'
       - 'tools/configure_probe_stack.py'
+      - 'tools/prepare_content_parameters.py'
+      - 'tests/test_content_parameters.py'
       - 'tests/test_probe_stack.py'
       - 'scripts/**'
       - 'tools/inspect_target.py'
@@ -78,6 +82,8 @@ jobs:
           python tools/configure_probe_stack.py out/tlg-entry-probe.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_probe_stack.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_content_parameters.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_windows_entry_probe.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

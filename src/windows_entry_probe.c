@@ -377,6 +377,31 @@ static ABI int32_t guest_content_init(const unsigned char *init,unsigned char *b
     memset(boot,0,40);content_initialized=1;
     ReleaseSRWLockExclusive(&content_lock);return 0;
 }
+static uint32_t content_parameters[4];
+static int parameters_loaded;
+static int load_content_parameters(void) {
+    const char *path=getenv("TLG_CONTENT_PARAMETERS");
+    if(!path) path="out/tlg/content-parameters.bin";
+    FILE *f=fopen(path,"rb");unsigned char data[48];
+    if(!f) return -1;
+    size_t count=fread(data,1,sizeof(data),f);int extra=fgetc(f);fclose(f);
+    static const unsigned char title[16]="CUSA03627",version[8]="01.03";
+    if(count!=sizeof(data) || extra!=EOF || memcmp(data,"TLGPAR01",8) ||
+        memcmp(data+8,title,16) || memcmp(data+24,version,8)) return -1;
+    memcpy(content_parameters,data+32,16);parameters_loaded=1;return 0;
+}
+static ABI int32_t guest_content_parameter(uint32_t id,int32_t *out) {
+    if(!out || id<1 || id>4) return CONTENT_PARAMETER;
+    AcquireSRWLockExclusive(&content_lock);
+    if(!content_refs || !content_initialized) {ReleaseSRWLockExclusive(&content_lock);return MODULE_UNLOADED;}
+    if(!parameters_loaded && load_content_parameters()) {
+        ReleaseSRWLockExclusive(&content_lock);
+        fputs("STOP: prepare validated TLG content parameters before querying AppContent\n",stderr);ExitProcess(21);
+    }
+    memcpy(out,&content_parameters[id-1],4);
+    ReleaseSRWLockExclusive(&content_lock);
+    printf("Runtime: AppContent metadata parameter %u = %d\n",id,*out);return 0;
+}
 static int selftest_content(void) {
     unsigned char init[32]={0},boot[42];memset(boot,0x55,sizeof(boot));
     if(guest_module_loaded(0xb4)!=MODULE_UNLOADED || guest_module_load(0xb5)!=MODULE_INVALID ||
@@ -384,6 +409,12 @@ static int selftest_content(void) {
     init[31]=1;if(guest_content_init(init,boot+1)!=CONTENT_PARAMETER || boot[1]!=0x55) return 1;
     init[31]=0;if(guest_content_init(init,boot+1) || boot[0]!=0x55 || boot[41]!=0x55) return 1;
     for(unsigned i=1;i<=40;i++) if(boot[i]) return 1;
+    parameters_loaded=1;content_parameters[0]=1;content_parameters[1]=1612131828;content_parameters[2]=0;content_parameters[3]=0;
+    int32_t value=-1;
+    if(guest_content_parameter(1,&value) || value!=1 || guest_content_parameter(2,&value) || value!=1612131828 ||
+        guest_content_parameter(4,&value) || value!=0) return 1;
+    value=123;if(guest_content_parameter(0,&value)!=CONTENT_PARAMETER || value!=123 ||
+        guest_content_parameter(5,&value)!=CONTENT_PARAMETER || guest_content_parameter(1,NULL)!=CONTENT_PARAMETER) return 1;
     if(guest_content_init(init,boot+1)!=CONTENT_BUSY || guest_module_unload(0xb4) ||
        guest_module_loaded(0xb4) || guest_module_unload(0xb4) || guest_module_loaded(0xb4)!=MODULE_UNLOADED ||
        guest_module_unload(0xb4)!=MODULE_UNLOADED || guest_module_load(0xb4) ||
@@ -417,6 +448,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
         if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
         if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
+        if (!strcmp(name,"99b82IKXpH4#appcontent")) return (uintptr_t)guest_content_parameter;
         if (!strcmp(name,"R9lA82OraNs#appcontent")) return (uintptr_t)guest_content_init;
         if (!strcmp(name,"1G3lF1Gg1k8#U#H")) return (uintptr_t)guest_file_open;
         if (!strcmp(name,"Cg4srZ6TKbU#U#H")) return (uintptr_t)guest_file_read;

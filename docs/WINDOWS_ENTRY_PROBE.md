@@ -296,3 +296,21 @@ USA 1.03 target completes AppContent initialization and stops at
 `sceAppContentAppParamGetInt` (`99b82IKXpH4`, caller offset `0xd4c9e5`), requesting
 parameter ID 1. The next step is validating that parameter against the supplied
 content metadata rather than guessing a response. No graphics or menu are enabled.
+
+
+### Metadata-backed application parameters (October 13, 2026)
+
+Run `python tools/prepare_content_parameters.py <game-directory>` before the
+linked diagnostic. It validates TITLE_ID CUSA03627 / APP_VER 01.03 and extracts
+all four USER_DEFINED_PARAM fields into ignored `out/tlg/content-parameters.bin`.
+An alternative path can be selected with `TLG_CONTENT_PARAMETERS`. The Windows
+loader validates the fixed binary format, exact title/version and length before
+serving AppContent IDs 1-4. ID 0 (SKU) remains unsupported: no license state is
+inferred. Queries require a loaded and initialized provider. Invalid requests
+leave output unchanged; absent or invalid prepared metadata stops explicitly.
+
+Validation: 23 Windows entry tests and two metadata-format tests pass. USA 1.03
+queries return SFO values 1, 1612131828 and 0 for IDs 1, 2 and 3 respectively.
+Startup next stops at `sceSystemServiceParamGetInt` (`fZo48un7LK4`, caller offset
+`0xd4ca5c`), requesting system parameter 1. That system setting must be handled
+separately from application metadata. Graphics and menu remain unavailable.
