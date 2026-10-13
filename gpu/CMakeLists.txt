@@ -97,6 +97,13 @@ add_subdirectory(third_party/sirit EXCLUDE_FROM_ALL)
 set(FFX_VK_PORTABLE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FFX_VK_PORTABLE_BUILD_PROBE OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/fsr-vulkan EXCLUDE_FROM_ALL)
+# FidelityFX's Windows debug-message source calls swprintf_s without including
+# its declaring header. Supply the CRT header to this dependency target only;
+# preserve the pinned upstream source and function behavior.
+if(WIN32 AND MINGW AND TARGET ffx_vulkan_fsr3_host_1_1_4)
+    target_compile_options(ffx_vulkan_fsr3_host_1_1_4 PRIVATE -include wchar.h)
+endif()
+
 
 # Host shaders -> headers (same scheme as shadPS4's host_shaders/CMakeLists.txt).
 set(SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/host_shaders)

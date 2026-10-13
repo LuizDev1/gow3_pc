@@ -239,3 +239,17 @@ upstream licensing is retained by FetchContent. Linux package requirements remai
 unchanged. A successful static-library compile alone does not prove runtime
 callbacks link correctly or compute queues execute. The first run must establish
 actual configure/compile blockers before more integration changes are claimed.
+
+
+### First full-renderer CI result and FSR header fix (October 13, 2026)
+
+Run 38460942003 configured successfully, then failed compiling FidelityFX 1.1.4
+`ffx_message.cpp`: `swprintf_s` was undeclared. The source includes Windows headers
+but omits the CRT wide-character header declaring that function. On MinGW Windows,
+CMake now force-includes `wchar.h` for the affected FSR host target only. Upstream
+submodule bytes and formatting behavior are unchanged.
+
+A local Windows compile/run of a small wide-formatting program confirmed that
+including `wchar.h` declares and links `swprintf_s`. This checks the proposed header
+fix, not the full renderer. The next GPU CI run must verify it with MSYS2 CLANG64
+and reveal any subsequent portability failures. No GPU execution is claimed.
