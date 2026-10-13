@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include "windows_equeue.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -96,6 +97,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)guest_atexit;
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
+    if (!is_data && (capabilities & 1)) return windows_equeue_resolve(name);
     return 0;
 }
 
@@ -178,6 +180,7 @@ static DWORD WINAPI watchdog(void *unused) {
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
     if (argc != 2) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;
@@ -259,7 +262,7 @@ int main(int argc, char **argv) {
     if (!timer) fail("watchdog unavailable");
     CloseHandle(timer);
     printf("Windows entry diagnostic: mapped %" PRIu64 " bytes; %" PRIu64 " relocations\n", image_size, nr);
-    puts("Startup contracts: _init_env, atexit, stack canary; no native modules, GPU or TLS rewrite.");
+    puts("Startup contracts: _init_env, atexit, stack canary, equeue lifecycle; no GPU or TLS rewrite.");
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     typedef void (ABI *Entry)(void *, void (ABI *)(void));

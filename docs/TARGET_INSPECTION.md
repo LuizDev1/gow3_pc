@@ -111,3 +111,15 @@ The observed executable now registers two exit callbacks and reaches
 Eight native Windows tests cover previous behavior, callback order/reentrancy and
 readable canary data. Event queues are not implemented by this diagnostic yet;
 no graphics or gameplay has been validated.
+
+## Event queue lifecycle
+
+`src/windows_equeue.c` implements creation/deletion using a locked registry of
+64-bit guest handles, distinct handles for live queues, bounded names and
+guest error codes. Unknown/deleted handles fail without dereferencing pointers.
+There is no event registration, signaling or waiting implementation yet.
+
+The observed executable creates `EOP QUEUE` (handle `0x40000`) and stops at
+`b0xyllnVY-I#E#F` (`sceGnmAddEqEvent`), caller offset `0x1494510`, exit 20.
+This is the next boundary between the CPU startup and GPU event system.
+Nine native Windows tests include queue lifecycle and invalid-handle behavior.

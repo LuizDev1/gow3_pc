@@ -3,7 +3,9 @@
 This artifact is a CPU entry diagnostic, **not a playable port**. It maps an
 unlinked image, applies its relocations, and attempts the original x86-64 entry.
 Startup contracts currently include the observed USA 1.03 `_init_env` return,
-`atexit` callback registration and a Windows-generated stack canary. Resolution
+`atexit` callback registration, a Windows-generated stack canary and event queue
+creation/deletion. Event registration, delivery and waiting remain unresolved;
+queue creation alone does not provide GPU synchronization. Resolution
 requires preparation evidence and the observed exact import scopes. The libc
 `_init_env` implementation was verified as exactly RET. Registered callbacks run
 in reverse order on normal guest termination; diagnostic failures skip them.

@@ -20,6 +20,12 @@ def package(code, relocs=(), imports=(), flags=5, capabilities=0):
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_event_queue_lifecycle_and_invalid_handles(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-equeue'],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('lifecycle, invalid handles, invalid inputs and exact scope checks passed', result.stdout)
+
     def test_atexit_callbacks_finalize_in_reverse_order_exactly_once(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-atexit'],
                                 capture_output=True, text=True, timeout=15)
