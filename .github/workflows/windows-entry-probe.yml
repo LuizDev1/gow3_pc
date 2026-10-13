@@ -14,6 +14,8 @@ on:
       - 'src/windows_semaphore.*'
       - 'tools/configure_probe_stack.py'
       - 'tools/prepare_content_parameters.py'
+      - 'tools/inspect_playgo.py'
+      - 'tests/test_inspect_playgo.py'
       - 'tests/test_content_parameters.py'
       - 'tests/test_probe_stack.py'
       - 'scripts/**'
@@ -34,6 +36,8 @@ on:
       - 'src/windows_semaphore.*'
       - 'tools/configure_probe_stack.py'
       - 'tools/prepare_content_parameters.py'
+      - 'tools/inspect_playgo.py'
+      - 'tests/test_inspect_playgo.py'
       - 'tests/test_content_parameters.py'
       - 'tests/test_probe_stack.py'
       - 'scripts/**'
@@ -84,6 +88,8 @@ jobs:
           python tools/configure_probe_stack.py out/tlg-entry-probe.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_probe_stack.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_inspect_playgo.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_content_parameters.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

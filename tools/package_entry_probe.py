@@ -21,7 +21,7 @@ def package():
              'src/windows_thread.c', 'src/windows_thread.h',
              'src/windows_semaphore.c', 'src/windows_semaphore.h',
              'tools/inspect_target.py', 'tools/package_entry_probe.py',
-             'tools/configure_probe_stack.py', 'tools/prepare_content_parameters.py',
+             'tools/configure_probe_stack.py', 'tools/inspect_playgo.py', 'tools/prepare_content_parameters.py',
              'tests/paths.py', 'tests/test_windows_entry_probe.py']
     files.extend(p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'scripts').glob('*.py')))
     for name in files:

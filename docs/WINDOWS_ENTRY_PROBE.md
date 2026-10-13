@@ -371,3 +371,26 @@ metadata rejection and open lifecycle. The USA 1.03 target reads its actual
 then stops at `scePlayGoGetLocus` (`uWIYLFkkwqk`, caller offset `0xdd54a4`).
 Determining actual local chunk availability is the next blocker. No graphics or
 menu are available.
+
+
+### PlayGo availability investigation (October 13, 2026)
+
+`tools/inspect_playgo.py` validates the metadata header, table bounds, chunk and
+microchunk attribute sizes, chunk reference indices and terminated labels. It
+writes an ignored inspection report containing package ranges. Three synthetic
+tests cover valid mappings, truncated/out-of-bounds data and invalid references.
+The tool does not fully validate scenarios or inner microchunk tables.
+
+The actual USA 1.03 file declares 27 logical chunks referencing only two physical
+microchunks. Those microchunks describe offsets and sizes in the original package,
+not paths in the extracted game directory. Required locus is a requested target
+state, not evidence of current availability. Therefore neither the header count
+nor required-locus fields justify reporting every chunk as LocalFast.
+
+Format reference: [shadPS4 PlayGo chunk structures](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/file_format/playgo_chunk.h),
+GPL-2.0-or-later, Copyright 2024 shadPS4 Emulator Project.
+
+Runtime behavior is unchanged and remains blocked at `scePlayGoGetLocus`. The next
+step is identifying a reliable correspondence between package regions and the
+extracted file set, or defining an explicit offline installation profile with
+clearly stated validation limits. No graphics/menu progress is claimed.
