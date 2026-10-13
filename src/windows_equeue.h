@@ -4,4 +4,5 @@
 #include <stdint.h>
 uintptr_t windows_equeue_resolve(const char *name);
 int windows_equeue_selftest(void);
+int windows_equeue_signal_gpu(int64_t handle, uint64_t id);
 #endif

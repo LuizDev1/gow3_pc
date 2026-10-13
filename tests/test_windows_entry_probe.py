@@ -25,6 +25,7 @@ class WindowsEntryTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('lifecycle, invalid handles, invalid inputs and exact scope checks passed', result.stdout)
+        self.assertIn('replacement, isolation, explicit signaling and deletion checks passed', result.stdout)
 
     def test_atexit_callbacks_finalize_in_reverse_order_exactly_once(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-atexit'],

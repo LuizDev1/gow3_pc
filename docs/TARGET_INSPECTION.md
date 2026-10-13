@@ -123,3 +123,15 @@ The observed executable creates `EOP QUEUE` (handle `0x40000`) and stops at
 `b0xyllnVY-I#E#F` (`sceGnmAddEqEvent`), caller offset `0x1494510`, exit 20.
 This is the next boundary between the CPU startup and GPU event system.
 Nine native Windows tests include queue lifecycle and invalid-handle behavior.
+
+## GPU event subscriptions
+
+The Windows queue registry now stores GPU event IDs and userdata, replaces
+duplicate subscriptions, removes subscriptions and isolates queues. Registration
+does not mark an event completed. `windows_equeue_signal_gpu` is an explicit future
+renderer completion hook; no renderer currently calls it and waiting is unresolved.
+The native queue test verifies these behaviors, including cleanup on deletion.
+
+The local USA 1.03 run subscribes event `0x40` on `EOP QUEUE`, then stops at
+`F8bUHwAG284#U#H` (`scePthreadMutexattrInit`), caller offset `0x149451f`, exit 20.
+This advances CPU startup only; no graphics or GPU execution is validated.
