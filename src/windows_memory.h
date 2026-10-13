@@ -14,6 +14,8 @@ void runtime_memory_set_gpu_hooks(WindowsGpuRange map, WindowsGpuRange unmap, Wi
 int runtime_memory_write_backing(uintptr_t address, const void *data, uint64_t size);
 void runtime_memory_gpu_protect(uintptr_t address, uint64_t size, int read, int write);
 int windows_memory_register_external(void *address, uint64_t size, int protection);
+int windows_memory_register_current_stack(void);
+void windows_memory_unregister_current_stack(void);
 #ifdef __cplusplus
 }
 #endif

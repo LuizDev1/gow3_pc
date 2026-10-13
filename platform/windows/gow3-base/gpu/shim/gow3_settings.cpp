@@ -155,6 +155,16 @@ Values& Get() {
 
 void Load() {
     auto& v = Get();
+#ifdef TLG_WINDOWS_BASE
+    // Bring up the guest's native frame without GoW3 patches or configuration.
+    v.upscaler=UpscalerOff;v.jitter=false;v.object_motion=false;
+    v.sharpen=false;v.rcas=false;v.async_shaders=false;
+    v.deferred_readback=false;v.stale_readback=false;
+    v.engine_fps=60;v.applied_engine_fps=60;
+    v.startup_engine_fps=60;v.startup_object_motion=false;
+    v.startup_deferred_readback=false;v.startup_stale_readback=false;
+    return;
+#endif
     if (FILE* file = std::fopen(Path(), "r")) {
         char line[256];
         while (std::fgets(line, sizeof(line), file)) {
@@ -240,6 +250,9 @@ void ConfigureDlssSupport(bool available, const char* problem) {
 }
 
 bool FixedRenderSession() {
+#ifdef TLG_WINDOWS_BASE
+    return false;
+#endif
     const char* size = std::getenv("GOW3_RENDER_RES");
     return size && size[0];
 }
@@ -260,6 +273,9 @@ bool ResolutionNeedsRestart() {
 }
 
 void Save() {
+#ifdef TLG_WINDOWS_BASE
+    return;
+#endif
     const auto& v = Get();
     FILE* file = std::fopen(Path(), "w");
     if (!file) {

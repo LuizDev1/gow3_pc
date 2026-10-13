@@ -8,6 +8,13 @@ spec.loader.exec_module(module)
 
 
 class ContentParameterTests(unittest.TestCase):
+    def test_gpu_attributes_preserved_and_validated(self):
+        values=self.values() | {'ATTRIBUTE':0x12345678}
+        data=module.encode_gpu(values)
+        self.assertEqual(struct.unpack('<8s16s8sI',data)[-1],0x12345678)
+        for bad in (-1,True,None,0x100000000):
+            with self.assertRaises(ValueError): module.encode_gpu(values | {'ATTRIBUTE':bad})
+
     def values(self):
         return dict(TITLE_ID='CUSA03627',APP_VER='01.03',**{f'USER_DEFINED_PARAM_{i}':i for i in range(1,5)})
 

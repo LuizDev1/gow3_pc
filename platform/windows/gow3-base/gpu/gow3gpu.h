@@ -20,6 +20,10 @@ void gow3gpu_register_kernel(void);
 int gow3gpu_init(const Gow3GpuConfig *config);
 /* Function for an imported NID ("NID#lib#mod"), or 0 when the GPU library does not provide it. */
 uintptr_t gow3gpu_resolve(const char *scoped_nid);
+uintptr_t gow3gpu_resolve_identity(const char *nid, const char *library, uint32_t version,
+                                 const char *module, int is_data);
+int gow3gpu_selftest_identity(void);
+int gow3gpu_selftest_profile(void);
 /* Called first by the loader's SIGSEGV handler: 1 when a GPU page-tracking fault was handled. */
 int gow3gpu_handle_fault(void *ucontext, void *address);
 /* GOW3_WRITE_LOG=1: prints the logged GPU-side writes to guest memory near the fault. */

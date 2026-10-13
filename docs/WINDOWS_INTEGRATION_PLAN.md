@@ -518,3 +518,27 @@ renderer integration tests. A local USA 1.03 run preserved the existing startup
 milestone and stopped at sceGnmMapComputeQueueWithPriority, caller 0x1472d4d.
 This proves the service/link checkpoint, not enabled GPU execution: the executable
 still does not initialize Vulkan or route guest GPU imports. No frame/menu is claimed.
+
+### Opt-in Vulkan startup and canonical GPU dispatch (October 13, 2026)
+
+The linked diagnostic now has an explicit GPU mode for canonical linked Windows
+images. It configures native guest TLS before renderer startup, uses the process
+parameter's actual SDK version and validated SFO attributes, registers image and
+growable thread-stack ranges, then rebinds imports before native initialization.
+The renderer registry retains library version and symbol kind; dispatch checks
+NID, library, module, version and function/object identity. GPU event queues use
+the renderer's own provider, avoiding mixed handle types. Unprovided services
+retain the existing diagnostic traps. The graphical watchdog allows 120 seconds.
+
+The TLG build disables GoW3 camera tracking, temporal upscaling, reduced scene
+targets, configuration loading/saving and settings overlay. Readbacks use the
+precise mode; GoW3 option overrides cannot enable null GPU or those enhancements.
+Generic renderer changes remain inherited and target compatibility is unproven.
+Stacks expose committed nonguard regions; reserved pages and Windows growth guards
+are not made accessible by GPU protection. Worker stack registrations are removed
+before thread exit.
+
+CI adds canonical resolver/profile tests and packages the diagnostic with its
+transitive MSYS2 DLL dependencies, licenses and source revision. The package
+contains no game files. Full build and a local GPU-enabled run are the next
+validation steps; this source change alone does not establish a rendered frame.

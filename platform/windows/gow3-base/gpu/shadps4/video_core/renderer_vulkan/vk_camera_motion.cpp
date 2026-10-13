@@ -51,6 +51,10 @@ std::array<float, 12> Multiply(const std::array<float, 12>& a, const std::array<
 CameraMotion::CameraMotion(const Instance& instance_, Scheduler& scheduler_,
                            VideoCore::TextureCache& texture_cache_, Runtime& runtime_)
     : instance{instance_}, scheduler{scheduler_}, texture_cache{texture_cache_}, runtime{runtime_} {
+#ifdef TLG_WINDOWS_BASE
+    debug_overlay=false;for_upscaler=false;
+    return;
+#endif
     const char* env = std::getenv("GOW3_DEBUG_MOTION");
     debug_overlay = env && env[0] == '1';
     const char* upscaler = std::getenv("GOW3_UPSCALER");

@@ -960,6 +960,10 @@ bool HandleChoiceEvent(const SDL_Event& event) {
 }
 
 bool HandleEvent(const SDL_Event& event) {
+#ifdef TLG_WINDOWS_BASE
+    (void)event;
+    return false;
+#endif
     std::scoped_lock lock{imgui_mutex};
     if (!initialized) {
         return false;
@@ -1096,6 +1100,9 @@ void SetLoading(bool active, u32 done, u32 total) {
 }
 
 bool Visible() {
+#ifdef TLG_WINDOWS_BASE
+    return false;
+#endif
     const auto& s = Gow3Settings::Get();
     return initialized && (loading || background_total || menu_open || text_entry_active || choice_active ||
                            choice_retiring || s.show_fps ||

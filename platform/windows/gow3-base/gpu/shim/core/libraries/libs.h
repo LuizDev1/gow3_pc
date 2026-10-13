@@ -9,12 +9,12 @@ namespace Core::Loader {
 enum class SymbolType { Function, Object };
 class SymbolsResolver {
 public:
-    void AddSymbol(const char* nid, const char* library, const char* module, SymbolType type, u64 address);
+    void AddSymbol(const char* nid, const char* library, u32 version, const char* module, SymbolType type, u64 address);
 };
 } // namespace Core::Loader
 
 #define LIB_FUNCTION(nid, lib, libversion, mod, function)                                          \
-    sym->AddSymbol(nid, lib, mod, Core::Loader::SymbolType::Function,                             \
+    sym->AddSymbol(nid, lib, libversion, mod, Core::Loader::SymbolType::Function,                 \
                    reinterpret_cast<u64>(function))
 #define LIB_OBJ(nid, lib, libversion, mod, obj)                                                    \
-    sym->AddSymbol(nid, lib, mod, Core::Loader::SymbolType::Object, reinterpret_cast<u64>(obj))
+    sym->AddSymbol(nid, lib, libversion, mod, Core::Loader::SymbolType::Object, reinterpret_cast<u64>(obj))

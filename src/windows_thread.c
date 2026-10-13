@@ -3,6 +3,7 @@
  * Joinable guest threads use Windows workers; PS4 scheduling remains unresolved. */
 #include "windows_thread.h"
 #include "windows_tls.h"
+#include "windows_memory.h"
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
@@ -100,6 +101,7 @@ static unsigned thread_count;
  * TLS and a stable thread record; these bounded host records live to process exit. */
 void runtime_thread_attach_host(const char *name) {
     (void)name;
+    if(!windows_memory_register_current_stack()) ExitProcess(21);
     if(windows_tls_current_thread()) return;
     AcquireSRWLockExclusive(&lock);
     Thread *t=thread_count<LIMIT?calloc(1,sizeof(*t)):NULL;
@@ -109,15 +111,20 @@ void runtime_thread_attach_host(const char *name) {
     ReleaseSRWLockExclusive(&lock);
     if(windows_tls_attach_main() || windows_tls_bind_thread(t)) ExitProcess(21);
 }
+void runtime_thread_detach_host(void) {
+    windows_memory_unregister_current_stack();windows_tls_detach();
+}
 static Thread *find_thread(void *handle) {
     for(Thread *t=threads;t;t=t->next) if(t==handle) return t;return NULL;
 }
 static DWORD WINAPI run_guest_thread(void *argument) {
     Thread *t=argument;
+    if(!windows_memory_register_current_stack()) ExitProcess(21);
     if(windows_tls_attach_main() || windows_tls_bind_thread(t)) {
         fputs("STOP: guest worker TLS initialization failed\n",stderr);ExitProcess(21);
     }
     void *result=t->entry(t->argument);
+    windows_memory_unregister_current_stack();
     windows_tls_detach();
     AcquireSRWLockExclusive(&lock);t->tcb=NULL;t->result=result;t->finished=1;
     ReleaseSRWLockExclusive(&lock);return 0;
@@ -166,7 +173,7 @@ static DWORD WINAPI test_host_worker(void *argument) {
     runtime_thread_attach_host("tlg:test-again");
     void *result=synthetic_worker(argument);
     if(identity!=thread_self()) result=NULL;
-    windows_tls_detach();
+    runtime_thread_detach_host();
     return result==argument?0:1;
 }
 int windows_thread_create_selftest(void) {

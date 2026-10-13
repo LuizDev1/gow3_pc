@@ -10,6 +10,10 @@ on:
       - 'gpu/shim/fsr_windows_headers.h'
       - '.gitmodules'
       - 'tools/check_windows_renderer_dependencies.py'
+      - 'tools/package_renderer_probe.py'
+      - 'tools/prepare_content_parameters.py'
+      - 'tests/test_content_parameters.py'
+      - 'tests/test_package_renderer_probe.py'
       - 'src/windows*'
       - 'tests/test_fsr_windows_headers.cpp'
       - 'tests/test_gpu_windows_host.cpp'
@@ -34,6 +38,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Renderer dependency checkout failed' }
           python tools/check_windows_renderer_dependencies.py
           if ($LASTEXITCODE -ne 0) { throw 'Renderer dependency verification failed' }
+          python -m unittest discover -s tests -p test_package_renderer_probe.py
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer package tests failed' }
       - uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
@@ -97,8 +103,22 @@ jobs:
         run: |
           set -o pipefail
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-link 2>&1 | tee out/gpu-build-logs/link-test.log
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-identity 2>&1 | tee out/gpu-build-logs/identity-test.log
+          GOW3_UPSCALER=fsr3 GOW3_NULL_GPU=1 GOW3_READBACKS=0 ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-profile 2>&1 | tee out/gpu-build-logs/profile-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-memory 2>&1 | tee out/gpu-build-logs/memory-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-recovery 2>&1 | tee out/gpu-build-logs/recovery-test.log
+      - name: Package renderer diagnostic and runtime dependencies
+        shell: msys2 {0}
+        run: |
+          set -o pipefail
+          python tools/package_renderer_probe.py --binary out/gpu-windows/tlg-renderer-probe.exe \
+            --dll-dir "$(cygpath -w /clang64/bin)" 2>&1 | tee out/gpu-build-logs/package.log
+      - name: Preserve experimental renderer diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: tlg-windows-renderer-diagnostic
+          path: out/renderer-package/
+          retention-days: 14
       - name: Preserve diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4

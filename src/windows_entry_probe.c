@@ -31,6 +31,10 @@ typedef struct { uint64_t target, kind, value, addend; } Reloc;
 static unsigned char *image, *data_traps;
 static char (*names)[128];
 static uint64_t image_size, import_count;
+static int gpu_requested;
+#ifdef TLG_WITH_RENDERER
+static int gpu_active;
+#endif
 typedef struct {
     char nid[12], library[64];
     uint32_t library_version;
@@ -780,6 +784,16 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
 static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabilities) {
     if (!identities) return resolve_verified(names[index], is_data, capabilities);
     const ImportIdentity *id = &identities[index];
+#ifdef TLG_WITH_RENDERER
+    if(gpu_active && id->kind==(is_data?1u:2u) && id->library_version==1 &&
+        ((!strcmp(id->library,"libSceGnmDriver") && !strcmp(id->module,"libSceGnmDriver") && id->module_version==257) ||
+         (!strcmp(id->library,"libSceVideoOut") && !strcmp(id->module,"libSceVideoOut") && id->module_version==0) ||
+         (!strcmp(id->library,"libkernel") && !strcmp(id->module,"libkernel") && id->module_version==257) ||
+         (!strcmp(id->library,"libSceAvPlayer") && !strcmp(id->module,"libSceAvPlayer") && id->module_version==257))) {
+        uintptr_t resolved=gow3gpu_resolve_identity(id->nid,id->library,id->library_version,id->module,is_data);
+        if(resolved) return resolved;
+    }
+#endif
     const char *scope = NULL;
     /* Explicit contracts for the observed ABI identities. These aliases are
      * internal dispatch keys, never untrusted dump-local library IDs.
@@ -885,8 +899,8 @@ static LONG WINAPI fault(EXCEPTION_POINTERS *e) {
 }
 static DWORD WINAPI watchdog(void *unused) {
     (void)unused;
-    Sleep(10000);
-    fputs("STOP: diagnostic timeout after 10 seconds\n", stderr);
+    Sleep(gpu_requested?120000:10000);
+    fprintf(stderr,"STOP: diagnostic timeout after %d seconds\n",gpu_requested?120:10);
     fflush(NULL);
     ExitProcess(124);
     return 0;
@@ -916,15 +930,33 @@ int main(int argc, char **argv) {
         printf("Renderer linked: %u symbols before initialization; no GPU started\n",gow3gpu_symbol_count());
         return 0;
     }
+    if(argc==2 && !strcmp(argv[1],"--selftest-renderer-identity")) {
+        int result=gow3gpu_selftest_identity();
+        if(!result) puts("Renderer identity: library, module, version and object/function isolation passed");
+        return result;
+    }
+    if(argc==2 && !strcmp(argv[1],"--selftest-renderer-profile")) {
+        int result=gow3gpu_selftest_profile();
+        if(!result) puts("TLG graphics profile: native targets, precise readbacks and GoW3 enhancements disabled passed");
+        return result;
+    }
 #endif
     if (argc == 2 && !strcmp(argv[1], "--selftest-tls")) return windows_tls_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-heap-trace")) return selftest_heap_trace();
-    if (argc != 2) {
+    const char *boot_path=argc==2?argv[1]:NULL;
+    if(argc==3 && !strcmp(argv[1],"--gpu")) {
+#ifdef TLG_WITH_RENDERER
+        gpu_requested=1;boot_path=argv[2];
+#else
+        fputs("GPU mode requires the linked tlg-renderer-probe executable\n",stderr);return 1;
+#endif
+    }
+    if (!boot_path) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;
     }
     SYSTEM_INFO system; GetSystemInfo(&system); page_size = system.dwPageSize;
-    FILE *f = fopen(argv[1], "rb");
+    FILE *f = fopen(boot_path, "rb");
     if (!f) fail("cannot open boot file");
     char magic[8];
     if (fread(magic, 1, 8, f) != 8 || (memcmp(magic, "BBPROBE2", 8) && memcmp(magic, "TLGWIN01", 8) && memcmp(magic,"TLGWIN02",8)))
@@ -934,6 +966,7 @@ int main(int argc, char **argv) {
     import_count = read64(f);
     uint64_t capabilities = read64(f);
     int linked=!memcmp(magic,"TLGWIN02",8);
+    if(gpu_requested && !linked) fail("GPU mode requires a canonical linked Windows image");
     if (!image_size || image_size > 512 * 1024 * 1024 || entry >= image_size ||
         !ns || ns > 64 || nr > 1000000 || import_count > 100000 || capabilities > 1)
         fail("boot file limits exceeded");
@@ -1102,6 +1135,41 @@ int main(int argc, char **argv) {
             if (m->tls_module && windows_tls_set_module(m->tls_module,image+m->tls_address,m->tls_filesz,m->tls_memsz))
                 fail("native module TLS configuration failed");
         }
+#ifdef TLG_WITH_RENDERER
+        if(gpu_requested) {
+            if(!windows_memory_register_current_stack()) fail("cannot register main stack for GPU");
+            const char *path=getenv("TLG_GPU_PARAMETERS");
+            FILE *metadata=fopen(path?path:"out/tlg/gpu-parameters.bin","rb");
+            unsigned char data[36];
+            if(!metadata || fread(data,1,sizeof(data),metadata)!=sizeof(data) || fgetc(metadata)!=EOF ||
+                memcmp(data,"TLGGPU01",8) || memcmp(data+8,"CUSA03627",10) || memcmp(data+24,"01.03",5))
+                fail("GPU mode requires validated CUSA03627 01.03 parameters");
+            fclose(metadata);
+            uint32_t sdk,attributes;memcpy(&sdk,image+procparam+16,4);memcpy(&attributes,data+32,4);
+            CreateDirectoryA("out/tlg/gpu-user",NULL);
+            Gow3GpuConfig config={"The Last Guardian - Windows diagnostic","CUSA03627","out/tlg/gpu-user",sdk,attributes,1280,720};
+            printf("Starting Vulkan renderer: SDK 0x%08x, SFO attributes 0x%08x\n",sdk,attributes);
+            gow3gpu_register_kernel();
+            if(gow3gpu_init(&config)) fail("GPU initialization failed");
+            gpu_active=1;
+            uint64_t rebound=0;
+            for(uint64_t i=0;i<nr;i++) if(relocs[i].kind) {
+                Reloc *r=&relocs[i];
+                uintptr_t resolved=resolve_identity(r->value,r->kind==2,capabilities);
+                if(!resolved) continue;
+                uintptr_t previous,value=resolved+r->addend;
+                memcpy(&previous,image+r->target,8);
+                if(previous==value) continue;
+                DWORD old,ignored;
+                if(!VirtualProtect(image+r->target,8,PAGE_READWRITE,&old)) fail("GPU relocation protection failed");
+                memcpy(image+r->target,&value,8);
+                if(!VirtualProtect(image+r->target,8,old,&ignored) ||
+                    !FlushInstructionCache(GetCurrentProcess(),image+r->target,8)) fail("GPU relocation restore failed");
+                rebound++;
+            }
+            printf("GPU imports connected: %llu relocations; %u registered symbols\n",(unsigned long long)rebound,gow3gpu_symbol_count());
+        }
+#endif
         for (uint64_t i=0;i<native_count;++i) {
             printf("Starting native module %" PRIu64 " at guest offset 0x%" PRIx64 "\n",i,native_modules[i].init);
             typedef int (ABI *Initialize)(uint64_t,void *,void *);
@@ -1111,7 +1179,7 @@ int main(int argc, char **argv) {
         }
     }
     printf("Windows entry diagnostic: mapped %" PRIu64 " bytes; %" PRIu64 " relocations\n", image_size, nr);
-    puts(linked ? "Windows native modules and TLS enabled; no GPU integration." :
+    puts(gpu_requested ? "Windows native modules, TLS and experimental Vulkan GPU enabled." : linked ? "Windows native modules and TLS enabled; no GPU integration." :
                   "Startup contracts enabled; no native modules, GPU or TLS rewrite.");
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     entered_game=1;

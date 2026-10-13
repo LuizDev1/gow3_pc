@@ -27,6 +27,7 @@
 #include "common/rdtsc.h"
 #include "core/libraries/kernel/orbis_error.h"
 #include "core/libraries/libs.h"
+#include "core/emulator_settings.h"
 #include "core/memory.h"
 #include "core/signals.h"
 #include "sdl_window.h"
@@ -58,6 +59,8 @@ namespace Libraries::Kernel { void RegisterEventQueue(Core::Loader::SymbolsResol
 namespace {
 struct Symbol {
     std::string nid, library, module;
+    u32 version;
+    Core::Loader::SymbolType type;
     u64 address;
 };
 std::vector<Symbol> g_symbols;
@@ -65,9 +68,9 @@ u32 g_sdk_version;
 } // namespace
 
 namespace Core::Loader {
-void SymbolsResolver::AddSymbol(const char* nid, const char* library, const char* module, SymbolType,
+void SymbolsResolver::AddSymbol(const char* nid, const char* library, u32 version, const char* module, SymbolType type,
                                 u64 address) {
-    g_symbols.push_back({nid, library, module, address});
+    g_symbols.push_back({nid, library, module, version, type, address});
 }
 } // namespace Core::Loader
 
@@ -267,6 +270,35 @@ extern "C" uintptr_t gow3gpu_resolve(const char* scoped_nid) {
         }
     }
     return 0;
+}
+extern "C" uintptr_t gow3gpu_resolve_identity(const char* nid, const char* library, u32 version,
+                                              const char* module, int is_data) {
+    if (!nid || !library || !module) return 0;
+    const auto type = is_data ? Core::Loader::SymbolType::Object : Core::Loader::SymbolType::Function;
+    for (const auto& symbol : g_symbols) {
+        if (symbol.nid == nid && symbol.library == library && symbol.module == module &&
+            symbol.version == version && symbol.type == type) return uintptr_t(symbol.address);
+    }
+    return 0;
+}
+extern "C" int gow3gpu_selftest_identity(void) {
+    Core::Loader::SymbolsResolver resolver;
+    const auto count = g_symbols.size();
+    resolver.AddSymbol("tlg-test", "test-library", 7, "test-module", Core::Loader::SymbolType::Function, 123);
+    const bool ok = gow3gpu_resolve_identity("tlg-test", "test-library", 7, "test-module", 0) == 123 &&
+        !gow3gpu_resolve_identity("tlg-test", "wrong-library", 7, "test-module", 0) &&
+        !gow3gpu_resolve_identity("tlg-test", "test-library", 8, "test-module", 0) &&
+        !gow3gpu_resolve_identity("tlg-test", "test-library", 7, "wrong-module", 0) &&
+        !gow3gpu_resolve_identity("tlg-test", "test-library", 7, "test-module", 1);
+    g_symbols.resize(count);
+    return ok ? 0 : 1;
+}
+extern "C" int gow3gpu_selftest_profile(void) {
+    Gow3Settings::Load();
+    const auto& v=Gow3Settings::Get();
+    return v.upscaler!=Gow3Settings::UpscalerOff || v.jitter || v.object_motion || v.async_shaders ||
+        v.deferred_readback || v.stale_readback || v.rcas || Gow3Settings::FixedRenderSession() ||
+        EmulatorSettings.IsNullGPU() || EmulatorSettings.GetReadbacksMode()!=GpuReadbacksMode::Precise;
 }
 
 extern "C" int gow3gpu_handle_fault(void* ucontext, void* address) {

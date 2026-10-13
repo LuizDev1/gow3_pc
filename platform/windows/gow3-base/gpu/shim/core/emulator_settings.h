@@ -14,10 +14,16 @@ class EmulatorSettingsImpl {
 public:
     static EmulatorSettingsImpl* GetInstance() { static EmulatorSettingsImpl s; return &s; }
     static bool Flag(const char* name, bool fallback) {
+#ifdef TLG_WINDOWS_BASE
+        (void)name;return fallback;
+#endif
         const char* v = std::getenv(name);
         return v ? (v[0] == '1' || v[0] == 'y' || v[0] == 't') : fallback;
     }
     static long Number(const char* name, long fallback) {
+#ifdef TLG_WINDOWS_BASE
+        (void)name;return fallback;
+#endif
         const char* v = std::getenv(name);
         return v ? std::strtol(v, nullptr, 10) : fallback;
     }
@@ -27,7 +33,13 @@ public:
     std::string GetPresentMode() { const char* v = std::getenv("GOW3_PRESENT_MODE"); return v ? v : "Mailbox"; }
     // gow3: Relaxed by default: without readbacks FaceGen reads stale GPU-written vertices
     // (vertex explosions); in the test scene it costs no measurable frame rate.
-    u32 GetReadbacksMode() { static const auto value = u32(Number("GOW3_READBACKS", GpuReadbacksMode::Relaxed)); return value; }
+    u32 GetReadbacksMode() {
+#ifdef TLG_WINDOWS_BASE
+        return GpuReadbacksMode::Precise;
+#else
+        static const auto value = u32(Number("GOW3_READBACKS", GpuReadbacksMode::Relaxed)); return value;
+#endif
+    }
     // gow3: GOW3_VBLANK_HZ=0 (uncapped presets): vblank runs at 480 Hz so a finished frame is
     // shown within ~2 ms instead of waiting for the next display-rate vblank (below the display
     // rate frames alternated 10/20 ms at 100 Hz: judder), and GetFrameLimit() caps the rate at

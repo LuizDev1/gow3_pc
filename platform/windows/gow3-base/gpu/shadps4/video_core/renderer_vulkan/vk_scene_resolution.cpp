@@ -22,6 +22,9 @@ SceneTargets::SceneTargets(const Instance& i, Scheduler& s, Runtime& r,
 SceneTargets::SceneTargets(const Instance& i, Scheduler& s, Runtime& r, Lookup get)
     : instance{i}, scheduler{s}, runtime{r}, lookup{std::move(get)} {
     runtime.scene_targets = this;
+#ifdef TLG_WINDOWS_BASE
+    return;
+#endif
     const char* force = std::getenv("GOW3_SCENE_STENCIL_BITS");
     force_stencil_bits = force && force[0] == '1';
     CreateResampleResources();
@@ -100,6 +103,10 @@ SceneResolution::Size SceneTargets::ProxySize(const VideoCore::Image& image, u32
     return {std::max(1u, size.width / div >> level), std::max(1u, size.height / div >> level)};
 }
 bool SceneTargets::SetSize(SceneResolution::Size next) {
+#ifdef TLG_WINDOWS_BASE
+    (void)next;
+    return false;
+#endif
     if (next == size) return false;
     ResolveAll();
     scheduler.Finish();
