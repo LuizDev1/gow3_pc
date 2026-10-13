@@ -10,9 +10,9 @@ import unittest
 EXE = Path(os.environ.get('TLG_ENTRY_PROBE', str(ROOT / 'out/tlg-entry-probe.exe')))
 
 
-def package(code, relocs=(), imports=(), flags=5):
+def package(code, relocs=(), imports=(), flags=5, capabilities=0):
     image = code.ljust(4096, b'\0')
-    return (struct.pack('<8s6Q', b'BBPROBE2', len(image), 0, 1, len(relocs), len(imports), 0)
+    return (struct.pack('<8s6Q', b'BBPROBE2', len(image), 0, 1, len(relocs), len(imports), capabilities)
             + struct.pack('<3Q', 0, len(image), flags)
             + b''.join(name.encode().ljust(128, b'\0') for name in imports)
             + b''.join(struct.pack('<4Q', *r) for r in relocs) + image)
@@ -38,6 +38,25 @@ class WindowsEntryTests(unittest.TestCase):
         result = self.run_image(package(code, [(16, 2, 0, 0)], ['fixture-data']))
         self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
         self.assertIn('Unsupported data import: fixture-data', result.stdout)
+
+    def test_verified_init_env_returns_then_reaches_next_import(self):
+        # Align the SysV stack, call the first import, then tail-jump to the second.
+        code = (b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+                b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        result = self.run_image(package(code, [(32, 1, 0, 0), (40, 1, 1, 0)],
+                                       ['bzQExy189ZI#V#V', 'after-init'], capabilities=1))
+        self.assertEqual(result.returncode, 20, result.stdout + result.stderr)
+        self.assertIn('Verified _init_env calls: 1', result.stdout)
+        self.assertIn('first unsupported PS4 import: after-init', result.stdout)
+
+    def test_init_env_requires_preparation_evidence_and_exact_scope(self):
+        for name, capabilities in [('bzQExy189ZI#V#V', 0), ('bzQExy189ZI#q#q', 1)]:
+            with self.subTest(name=name, capabilities=capabilities):
+                result = self.run_image(package(b'\xff\x25\x02\0\0\0\x90\x90',
+                                                [(8, 1, 0, 0)], [name], capabilities=capabilities))
+                self.assertEqual(result.returncode, 20, result.stdout + result.stderr)
+                self.assertIn('Verified _init_env calls: 0', result.stdout)
+                self.assertNotIn('Runtime: _init_env returned', result.stdout)
 
     def test_guest_fault_reports_offset(self):
         result = self.run_image(package(b'\x0f\x0b'))

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Windows x86-64 entry diagnostic. No HLE, native modules, GPU or game patches.
+ * Windows x86-64 entry diagnostic. One verified libc contract; no native modules,
+ * GPU or game patches.
  * Accepts only unlinked BBPROBE2 images, never Linux FS-to-GS linked images.
  */
 #define WIN32_LEAN_AND_MEAN
@@ -19,6 +20,21 @@ static unsigned char *image, *data_traps;
 static char (*names)[128];
 static uint64_t image_size, import_count;
 static size_t page_size;
+static uint64_t init_env_calls;
+
+static ABI void init_env_ret(void) {
+    ++init_env_calls;
+    puts("Runtime: _init_env returned (prepared libc export verified as RET)");
+}
+static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
+    /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
+     * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
+     * Match the observed full scope, never an arbitrary same-NID import.
+     */
+    if (!is_data && (capabilities & 1) && !strcmp(name, "bzQExy189ZI#V#V"))
+        return (uintptr_t)init_env_ret;
+    return 0;
+}
 
 static void fail(const char *message) {
     fprintf(stderr, "ERROR: %s\n", message);
@@ -56,7 +72,8 @@ static ABI __attribute__((noreturn)) void unsupported(uint32_t id, uintptr_t fir
     printf("STOP: first unsupported PS4 import: %s (index %u)\n", names[id], id);
     printf("Caller offset: 0x%" PRIxPTR "; first argument: 0x%" PRIxPTR "\n",
            (uintptr_t)__builtin_return_address(0) - (uintptr_t)image, first_arg);
-    puts("Original entry reached an import. No PS4 runtime is implemented by this probe.");
+    printf("Verified _init_env calls: %" PRIu64 "\n", init_env_calls);
+    puts("Original entry reached an unsupported import; game initialization is incomplete.");
     fflush(NULL);
     ExitProcess(20);
 }
@@ -155,6 +172,10 @@ int main(int argc, char **argv) {
         uintptr_t value = r->kind == 2 ? (uintptr_t)(data_traps + page_size*r->value + r->addend)
                         : r->kind == 1 ? (uintptr_t)(traps + 32*r->value)
                         : (uintptr_t)image + r->value;
+        if (r->kind) {
+            uintptr_t resolved = resolve_verified(names[r->value], r->kind == 2, capabilities);
+            if (resolved) value = resolved + r->addend;
+        }
         memcpy(image + r->target, &value, 8);
     }
     protect(traps, rounded((size_t)(import_count + 1)*32), 5);
@@ -166,7 +187,7 @@ int main(int argc, char **argv) {
     if (!timer) fail("watchdog unavailable");
     CloseHandle(timer);
     printf("Windows entry diagnostic: mapped %" PRIu64 " bytes; %" PRIu64 " relocations\n", image_size, nr);
-    puts("No native modules, HLE implementations, GPU, TLS rewrite or game patches applied.");
+    puts("Only verified _init_env RET enabled; no native modules, GPU, TLS rewrite or game patches.");
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     typedef void (ABI *Entry)(void *, void (ABI *)(void));

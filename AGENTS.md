@@ -4,13 +4,15 @@ These instructions apply to the entire repository.
 
 ## Project context
 
-- This repository is a fork of `deadinside28/bloodborne_pc` (bbport), now targeting
-  The Last Guardian on PC.
+- This is LuizDev1's individual Windows project for The Last Guardian, based on
+  `deadinside28/bloodborne_pc` (bbport). Spexxl develops a separate Linux effort;
+  do not treat this branch as work submitted to or maintained by that project.
 - The inherited foundation uses native x86-64 execution, a PS4 system runtime,
   and a Vulkan renderer derived from shadPS4. Its starting platform is Linux x86-64.
 - The implementation still contains Bloodborne-specific executable validation,
   patches, hooks, addresses, graphics assumptions, and launcher options.
-- The Last Guardian execution has not been implemented or validated. Never carry
+- A Windows entry diagnostic reaches original instructions; it is not a playable
+  runtime. See `docs/TARGET_INSPECTION.md` for the exact observed milestone. Never carry
   Bloodborne compatibility claims, benchmarks, or completed milestones over to it.
 - Consult `docs/ROADMAP.md` for the fork's direction and `docs/UPSTREAM_README.md`
   for inherited technical documentation. Upstream history describes Bloodborne.

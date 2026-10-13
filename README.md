@@ -1,17 +1,19 @@
-# The Last Guardian PC
+# The Last Guardian for Windows
 
 > Bringing the journey of a boy and Trico to PC.
 
-An independent community project aiming to bring **The Last Guardian** to PC,
-built on the native execution technology of
+An individual project by **LuizDev1** aiming to bring **The Last Guardian** to
+Windows, built on the native execution technology of
 [bbport](https://github.com/deadinside28/bloodborne_pc).
+
+Development is independent of Spexxl's Linux project. The original upstream
+history and inherited documentation are preserved with their attribution.
 
 ## Playing on PC
 
-Visit the [releases page](https://github.com/Spexxl/The-Last-Guadian-PC/releases)
-for published downloads and their release notes. Check that a release explicitly
-supports **The Last Guardian**, and follow its system requirements and installation
-instructions before downloading.
+There is no playable Windows release yet. Experimental diagnostic downloads are
+available from [Windows builds](https://github.com/LuizDev1/gow3_pc/actions/workflows/windows-entry-probe.yml?query=branch%3Athe-last-guardian).
+See the [diagnostic instructions](docs/WINDOWS_ENTRY_PROBE.md) before testing.
 
 Bloodborne releases and setup guides belong to the original project and should
 not be used as instructions for playing The Last Guardian.
@@ -24,8 +26,7 @@ game executables, assets, or downloadable copies of the game.
 
 ## Questions and feedback
 
-Use [GitHub Issues](https://github.com/Spexxl/The-Last-Guadian-PC/issues)
-for questions and bug reports about this project. When reporting a problem,
+When reporting a problem with this Windows project,
 include your operating system, CPU, GPU, game version, and any relevant error
 messages or logs.
 

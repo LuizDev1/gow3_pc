@@ -78,3 +78,19 @@ This validates only this attempt at mapping, relocation and entry execution.
 No game initialization, graphics or gameplay is demonstrated. Four synthetic
 Windows tests cover import traps, data traps, guest faults and invalid inputs.
 The GitHub workflow packages the diagnostic and source without game data.
+
+## Verified `_init_env` return
+
+The Windows diagnostic now resolves only `bzQExy189ZI#V#V` as a function, gated
+by the preparation capability bit proving the supplied libc export is exactly
+RET. Other scopes and data imports are not resolved by this contract.
+
+The observed USA 1.03 executable returned from `_init_env` once and next stopped
+at `8G2LB+A3rzg#V#V` (`atexit`), caller offset `0xc1`, exit 20. This is still
+startup code, not successful game initialization. Six synthetic Windows tests
+now include the verified return and rejection without evidence or exact scope.
+
+This Windows work is maintained independently by LuizDev1, with bbport as the
+original upstream. Spexxl's Linux project is a separate effort. The current
+hosting location remains the dedicated `the-last-guardian` branch of `gow3_pc`;
+the God of War main branch is unrelated to these Windows diagnostic changes.

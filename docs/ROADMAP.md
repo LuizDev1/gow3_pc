@@ -1,8 +1,12 @@
-# The Last Guardian PC — fork direction
+# The Last Guardian for Windows — project direction
 
-**Current stage:** defining the new focus. The inherited implementation remains
-specialized for Bloodborne; no The Last Guardian execution milestone has been
-validated in this fork.
+LuizDev1 maintains this individual Windows project, based on
+`deadinside28/bloodborne_pc`. Spexxl's Linux project is developed separately.
+
+**Current stage:** offline target preparation and early Windows entry diagnostics.
+The USA 1.03 executable reaches original startup instructions and returns from
+the verified `_init_env` contract, then stops at `atexit`. No graphics or gameplay
+has been validated. See [target inspection](TARGET_INSPECTION.md) for evidence.
 
 ## Initial priorities
 
