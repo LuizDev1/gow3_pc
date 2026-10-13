@@ -27,6 +27,12 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_console_preserves_binary_data_and_routes_descriptors(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-console'], capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, b'TLG\0\n')
+        self.assertEqual(result.stderr, b'console stderr\n')
+
     def test_thread_attribute_lifecycle_and_validation(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-thread'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

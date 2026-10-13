@@ -167,3 +167,21 @@ at offset `0xa0`. It registers 1934 exit callbacks and creates the EOP queue bef
 stopping at `_write` (`FxVZqBAA7ks`, caller offset `0x5b70427`, descriptor 1).
 This is original-entry execution with linked native libraries, not menu or gameplay
 compatibility. No GPU integration is enabled. Console output is the next blocker.
+
+
+### Console output and first main message (October 13, 2026)
+
+The diagnostic implements `_write` for guest descriptors 1 and 2 using Windows
+standard handles, preserving binary bytes and reporting actual partial writes.
+Other descriptors fail with EBADF; null nonempty buffers and oversized requests
+are rejected. `__error` exposes thread-local POSIX errno storage. Host write
+failures currently map to EIO. This is console-only support, not a guest filesystem.
+
+All 19 Windows entry tests pass, including captured stdout/stderr separation,
+embedded NUL bytes, zero-length writes and rejected arguments. The validated USA
+1.03 target completes both native initializers and now prints its original
+`trico main() start...` banner. Immediately afterward the process terminates with
+Windows access violation `0xc0000005`; the existing exception diagnostic does not
+produce a fault address for this case. The cause is not yet established. This
+must be investigated before claiming further startup progress. Graphics, menu and
+gameplay remain unavailable.

@@ -161,6 +161,30 @@ static ABI void init_env_ret(void) {
     ++init_env_calls;
     puts("Runtime: _init_env returned (prepared libc export verified as RET)");
 }
+/* POSIX console writes only. File descriptors are not host Win32 handles. */
+static _Thread_local int32_t console_errno;
+static ABI int32_t *guest_console_error(void) { return &console_errno; }
+static ABI int64_t guest_console_write(int fd,const void *buffer,uint64_t size) {
+    if(fd!=1 && fd!=2) {console_errno=9;return -1;}
+    if(size>INT64_MAX) {console_errno=22;return -1;}
+    if(size && !buffer) {console_errno=14;return -1;}
+    if(!size) return 0;
+    HANDLE handle=GetStdHandle(fd==1?STD_OUTPUT_HANDLE:STD_ERROR_HANDLE);
+    DWORD written=0;
+    DWORD count=size>UINT32_MAX?UINT32_MAX:(DWORD)size;
+    if(!WriteFile(handle,buffer,count,&written,NULL)) {console_errno=5;return -1;}
+    return written; /* Partial writes are reported, not silently discarded. */
+}
+static int selftest_console(void) {
+    static const unsigned char bytes[]={'T','L','G',0,'\n'};
+    if(guest_console_write(99,bytes,sizeof(bytes))!=-1 || *guest_console_error()!=9 ||
+       guest_console_write(1,NULL,1)!=-1 || *guest_console_error()!=14 ||
+       guest_console_write(1,bytes,UINT64_MAX)!=-1 || *guest_console_error()!=22 ||
+       guest_console_write(1,NULL,0)!=0) return 1;
+    if(guest_console_write(1,bytes,sizeof(bytes))!=(int64_t)sizeof(bytes) ||
+       guest_console_write(2,"console stderr\n",15)!=15) return 1;
+    return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -185,6 +209,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"FxVZqBAA7ks#U#H")) return (uintptr_t)guest_console_write;
+        if (!strcmp(name,"9BcDykPmo1I#U#H")) return (uintptr_t)guest_console_error;
         uintptr_t resolved = windows_equeue_resolve(name);
         if (!resolved) resolved = windows_mutex_resolve(name);
         if (!resolved) resolved = windows_memory_resolve(name);
@@ -292,6 +318,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-console")) return selftest_console();
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
