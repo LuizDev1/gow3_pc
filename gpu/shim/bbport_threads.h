@@ -16,6 +16,14 @@
 #endif
 
 namespace BbThreads {
+inline unsigned CurrentId() {
+#ifdef _WIN32
+    return static_cast<unsigned>(GetCurrentThreadId());
+#else
+    return static_cast<unsigned>(gettid());
+#endif
+}
+
 
 /// Hardware threads available to the process.
 inline unsigned Available() {

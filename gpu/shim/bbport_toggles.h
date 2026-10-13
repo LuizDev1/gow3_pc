@@ -12,7 +12,9 @@ extern "C" std::uint64_t runtime_disabled_optimizations;
 /// Temporary experiment bits: the second number in BB_TOGGLE_FILE (runtime_memory.c).
 extern "C" std::uint64_t runtime_experiment_bits;
 /// Recovery point for speculative guest memory reads on this thread (runtime_memory.c).
+#ifndef _WIN32
 extern "C" __thread sigjmp_buf* runtime_fault_recover;
+#endif
 
 namespace BbToggle {
 enum : std::uint64_t {

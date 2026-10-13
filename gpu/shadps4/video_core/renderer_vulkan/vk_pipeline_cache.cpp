@@ -1088,15 +1088,24 @@ PipelineCache::Result PipelineCache::GetProgram(PipelineSelection& sel, HwStage 
         // pointers in the registers; ahead of the GPU thread that memory may already be
         // reused. A fault returns here (runtime_fault_recover) and the draw is left to the GPU
         // thread. A jump out of the specialization leaks its partial allocations (rare).
+#ifdef _WIN32
+        // No speculative signal-recovery contract exists in the Windows loader.
+        // Let the regular GPU-thread path specialize instead of risking a fault.
+        worker.failed = true;
+        return {};
+#else
         sigjmp_buf recover;
         if (sigsetjmp(recover, 0)) {
             worker.failed = true;
             return {};
         }
         runtime_fault_recover = &recover;
+#endif
         info.RefreshFlatBuf();
         auto spec = Shader::StageSpecialization(info, runtime_info, profile, binding);
+#ifndef _WIN32
         runtime_fault_recover = nullptr;
+#endif
         const auto it = std::ranges::find(program->modules, spec, &Program::Module::spec);
         if (it == program->modules.end()) {
             worker.failed = true;

@@ -308,3 +308,23 @@ nonzero processor count and background-priority setup. Local Windows C++ object
 compilation passed; the GPU CI runs the executable before attempting the complete
 renderer. Additional platform failures are still possible. No successful renderer
 link, compute execution, frame or menu is claimed.
+
+
+### Signal recovery and diagnostics portability (October 13, 2026)
+
+Run 38466519756 passed host-helper tests, then exposed Linux sigjmp_buf/gettid/
+getrusage dependencies and libc++'s rejection of atomic_ref<const u32>. Windows
+now uses the native host-thread ID helper; Linux-only per-thread resource counters
+are omitted. Atomic flag reads retain acquire ordering through the compiler's
+const-aware atomic-load builtin.
+
+Windows has no implemented speculative fault-recovery contract. Speculative
+shader specialization therefore reports worker failure and leaves work to the
+existing regular path; optional stale resource-table probing is skipped. Linux
+signal recovery remains unchanged. No fake setjmp aliases or unsafe replacement
+memory probes are introduced. This may reduce optimization/diagnostic coverage;
+it does not implement the loader's missing GPU memory fault tracking.
+
+The updated host-helper test compiles locally for Windows and checks native thread
+identity and const atomic reads in CI. The complete renderer still requires the
+next build result; GPU execution, window presentation and menu remain unverified.
