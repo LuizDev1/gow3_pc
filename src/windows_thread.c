@@ -8,6 +8,7 @@
 #include <string.h>
 #define ABI __attribute__((sysv_abi))
 #define INVALID ((int32_t)0x80020016)
+#define NO_THREAD ((int32_t)0x80020003)
 #define NOMEM ((int32_t)0x8002000c)
 #define LIMIT 256
 typedef struct { uint64_t id,stack,guard,affinity; int detach,policy,priority,inherit; } Attr;
@@ -63,9 +64,28 @@ static ABI int32_t set_priority(uint64_t *handle,const int *value) {
     ReleaseSRWLockExclusive(&lock);return a?0:INVALID;
 }
 static ABI void *thread_self(void) { return windows_tls_current_thread(); }
+static ABI int32_t attr_get(void *thread,uint64_t *out) {
+    if(!thread || !out) return INVALID;
+    /* No arbitrary handle dereference. Other-thread snapshots require a future
+     * registry and lifecycle synchronization; only the current thread is valid. */
+    if(thread!=thread_self()) return NO_THREAD;
+    ULONG_PTR low=0,high=0;
+    GetCurrentThreadStackLimits(&low,&high);
+    MEMORY_BASIC_INFORMATION memory={0};
+    if(!VirtualQuery(&memory,&memory,sizeof(memory)) || high<=(uintptr_t)memory.AllocationBase) return INVALID;
+    uint64_t stack=high-(uintptr_t)memory.AllocationBase;
+    AcquireSRWLockExclusive(&lock);Attr *a=find(out);
+    if(!a) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+    uint64_t id=a->id;
+    /* These scheduling fields describe the guest's default profile, not an
+     * emulated PS4 scheduler. Host-owned threads have no runtime guard request. */
+    *a=(Attr){.id=id,.stack=stack,.affinity=0x7f,.policy=1,.priority=700,.inherit=4};
+    ReleaseSRWLockExclusive(&lock);return 0;
+}
+
 uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
-    EXPORT("aI+OeCz8xrQ",thread_self);
+    EXPORT("aI+OeCz8xrQ",thread_self);EXPORT("x1X76arYMxU",attr_get);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
     EXPORT("UTXzJbWhhTE",set_stack);EXPORT("-Wreprtu0Qs",set_detach);
     EXPORT("4+h9EzwKF4I",set_policy);EXPORT("DzES9hQF4f4",set_priority);
@@ -84,7 +104,20 @@ int windows_thread_selftest(void) {
     CHECK(thread_self()!=NULL && thread_self()==windows_tls_current_thread());
     CHECK(windows_thread_resolve("aI+OeCz8xrQ#U#H")==(uintptr_t)thread_self);
     CHECK(!windows_thread_resolve("aI+OeCz8xrQ#other"));
+    uint64_t snapshot=0,independent=0;
+    CHECK(!attr_init(&snapshot));CHECK(!attr_init(&independent));
+    CHECK(!set_stack(&snapshot,16384));CHECK(!attr_get(thread_self(),&snapshot));
+    CHECK(!get_stack(&snapshot,&size) && size>=16384);
+    ULONG_PTR low=0,high=0;GetCurrentThreadStackLimits(&low,&high);
+    MEMORY_BASIC_INFORMATION memory={0};CHECK(VirtualQuery(&memory,&memory,sizeof(memory))!=0);
+    CHECK(size==high-(uintptr_t)memory.AllocationBase);
+    CHECK(!get_stack(&independent,&mask) && mask==1024*1024);
+    CHECK(attr_get((void *)(uintptr_t)1,&snapshot)==NO_THREAD);
+    CHECK(attr_get(NULL,&snapshot)==INVALID);CHECK(attr_get(thread_self(),NULL)==INVALID);
+    uint64_t bogus=UINT64_MAX;CHECK(attr_get(thread_self(),&bogus)==INVALID);
+    CHECK(!attr_destroy(&snapshot));CHECK(!attr_destroy(&independent));
     windows_tls_detach();CHECK(thread_self()==NULL);
+    puts("Thread snapshot: actual reserved stack, output isolation and invalid handles passed");
     CHECK(attr_init(NULL)==INVALID);CHECK(!attr_init(&a));CHECK(!attr_init(&b));CHECK(a!=b);
     CHECK(!get_stack(&a,&size) && size==1024*1024);CHECK(!get_priority(&a,&value) && value==700);
     CHECK(set_stack(&a,16383)==INVALID);CHECK(!set_stack(&a,65536));CHECK(!get_stack(&a,&size) && size==65536);

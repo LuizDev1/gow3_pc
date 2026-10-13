@@ -148,3 +148,22 @@ isolation and detach, alongside existing attributes and memory tests. Actual USA
 1.03 libc initialization passes `scePthreadSelf` and stops at `scePthreadAttrGet`
 (`x1X76arYMxU`, caller offset `0x5b4296f`). The next step is reporting validated
 attributes for the running thread. Original game entry and the menu have not run.
+
+
+### Current-thread attributes and native initializer completion (October 13, 2026)
+
+`scePthreadAttrGet` now snapshots the current attached thread into an existing,
+validated attribute object. Its stack size comes from Windows stack limits and
+VirtualQuery's reservation base. Scheduling fields represent the documented guest
+default profile; PS4 scheduling is not enforced. Host-owned threads have no runtime
+requested guard size. Other-thread snapshots return a no-such-thread error until
+a synchronized thread registry exists. Output handles retain their identity.
+
+All 18 Windows entry tests pass, including comparison against the actual Windows
+stack reservation, output isolation, invalid output handles and invalid thread
+identities. The validated USA 1.03 diagnostic now completes both native module
+initializers (libc and Fios2), each returning zero, and enters original game code
+at offset `0xa0`. It registers 1934 exit callbacks and creates the EOP queue before
+stopping at `_write` (`FxVZqBAA7ks`, caller offset `0x5b70427`, descriptor 1).
+This is original-entry execution with linked native libraries, not menu or gameplay
+compatibility. No GPU integration is enabled. Console output is the next blocker.
