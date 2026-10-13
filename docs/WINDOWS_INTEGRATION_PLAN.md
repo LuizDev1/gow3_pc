@@ -220,3 +220,22 @@ SDL API references: [portable substring matching](https://wiki.libsdl.org/SDL3/S
 [Win32 window property](https://wiki.libsdl.org/SDL3/SDL_PROP_WINDOW_WIN32_HWND_POINTER).
 Verification for this change was source review and `git diff --check`; neither a
 full renderer compile nor a native SDL/Vulkan surface test was performed.
+
+
+### Isolated renderer compile diagnostics (October 13, 2026)
+
+The `Windows renderer build diagnostic` workflow configures the full GPU sources
+with MSYS2 CLANG64 and builds only the static `bbgpu` target. It runs for renderer
+changes on this branch or by manual dispatch, with a 45-minute limit and two
+compile workers. No game files or GPU device are required and no runtime/window
+test is performed. Package/compiler versions, configure output and build output
+are preserved as `tlg-windows-renderer-build-logs`, including failed attempts.
+This is separate from the working CPU entry diagnostic and publishes no release.
+
+Windows dependency setup uses MSYS2 packages and pinned upstream source commits
+for magic_enum v0.9.7 and miniz 3.0.2 when system packages are absent. VMA uses
+MSYS2's header-only installation when its CMake package is absent. Original
+upstream licensing is retained by FetchContent. Linux package requirements remain
+unchanged. A successful static-library compile alone does not prove runtime
+callbacks link correctly or compute queues execute. The first run must establish
+actual configure/compile blockers before more integration changes are claimed.
