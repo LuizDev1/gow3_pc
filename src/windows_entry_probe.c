@@ -17,6 +17,7 @@
 #include "windows_tls.h"
 #include "windows_memory.h"
 #include "windows_thread.h"
+#include "windows_semaphore.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -478,7 +479,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         uintptr_t resolved = windows_equeue_resolve(name);
         if (!resolved) resolved = windows_mutex_resolve(name);
         if (!resolved) resolved = windows_memory_resolve(name);
-        return resolved ? resolved : windows_thread_resolve(name);
+        if (!resolved) resolved = windows_thread_resolve(name);
+        return resolved ? resolved : windows_semaphore_resolve(name);
     }
     return 0;
 }
@@ -585,6 +587,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();

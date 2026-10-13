@@ -330,3 +330,22 @@ unknown parameter rejection. USA 1.03 startup passes the language query and stop
 at `sceKernelCreateSema` (`188x57JYp0g`, caller offset `0xdd53a1`). Semaphore
 creation, wait, signal and lifecycle support are the next integration task.
 Graphics and menu remain unavailable.
+
+
+### Windows counted semaphores (October 13, 2026)
+
+The diagnostic now implements semaphore create/delete, counted wait/poll and
+signal with private 32-bit IDs, synchronized ownership and FIFO waiter ordering.
+Multi-token waits consume their entire requested count atomically. Signals cannot
+overflow the configured maximum. Timeouts use monotonic QPC deadlines with
+millisecond Windows waits rounded upward; remaining time is reported in guest
+microseconds. Deletion wakes blocked waiters and defers freeing the object until
+they return. Priority ordering (attribute 2), creation options and cancellation
+remain unsupported rather than approximated.
+
+All 25 Windows entry tests pass, including a real blocked worker receiving two
+separate signals, poll fairness, timeout, isolated counts, overflow, stale IDs and
+deletion waking a blocked worker. USA 1.03 creates a semaphore with initial count
+0 and maximum 2147483647, then stops at `scePlayGoInitialize` (`ts6GlZOKRrE`,
+libScePlayGo@1 / libScePlayGo@256, caller offset `0xdd542f`). PlayGo installation
+state handling is the next blocker. Graphics and menu remain unavailable.

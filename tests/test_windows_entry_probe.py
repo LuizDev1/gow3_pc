@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_semaphore_counted_wait_and_concurrent_deletion(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-semaphore'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('counted FIFO wait, timeout, isolation, overflow and deletion wake passed', result.stdout)
+
     def test_system_language_profile_and_invalid_requests(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-system-parameter'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
