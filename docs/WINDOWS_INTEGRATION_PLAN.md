@@ -443,3 +443,20 @@ A regression check verifies Git's indexed gitlink modes and commits against the
 source manifest, so checkout can retrieve the required dependency trees.
 CPU run 38473994772 passed. The corrected renderer configuration still needs CI
 validation; this change does not establish renderer runtime integration.
+
+### Windows renderer dependency audit (October 13, 2026)
+
+Renderer run 38475141121 completed successfully; CPU run 38475141137 also passed.
+Local initialization exposed another reproducibility issue: the nested FSR paths
+exceed Git for Windows' default path limit. Dependency setup now enables long paths
+for the checkout command, without changing global Git settings, and CI downloads
+only the selected renderer dependencies. The local incomplete FSR checkout was
+repaired and all five pinned dependency revisions and tracked files were verified.
+
+The new preflight checks manifest pins against the Git index, .gitmodules URLs,
+checked-out revisions and missing tracked files. CMake also fails early for absent
+submodule entry points, vendored SPIR-V headers, font or overlay ABI headers.
+System library requirements and remaining loader callbacks are documented in the
+Windows base README. No additional missing build dependency was observed in the
+successful full build. Runtime memory services and Windows fault recovery remain
+integration work; the static archive is not a linked TLG executable.

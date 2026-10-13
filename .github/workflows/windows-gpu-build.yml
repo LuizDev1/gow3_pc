@@ -9,6 +9,7 @@ on:
       - 'platform/windows/gow3-base/**'
       - 'gpu/shim/fsr_windows_headers.h'
       - '.gitmodules'
+      - 'tools/check_windows_renderer_dependencies.py'
       - 'tests/test_fsr_windows_headers.cpp'
       - 'tests/test_gpu_windows_host.cpp'
 
@@ -25,8 +26,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Prepare pinned Windows renderer dependencies
+        shell: pwsh
+        run: |
+          git -c core.longpaths=true submodule update --init --depth 1 -- platform/windows/gow3-base/gpu/third_party/fsr-vulkan platform/windows/gow3-base/gpu/third_party/imgui platform/windows/gow3-base/gpu/third_party/magic_enum platform/windows/gow3-base/gpu/third_party/miniz platform/windows/gow3-base/gpu/third_party/xbyak
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer dependency checkout failed' }
+          python tools/check_windows_renderer_dependencies.py
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer dependency verification failed' }
       - uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64

@@ -1,11 +1,16 @@
 from pathlib import Path
 import json
 import subprocess
+import sys
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 BASE=ROOT/'platform/windows/gow3-base'
 
 class WindowsRendererBaseTests(unittest.TestCase):
+    def test_dependency_metadata_preflight(self):
+        subprocess.run([sys.executable, str(ROOT/'tools/check_windows_renderer_dependencies.py'),
+                        '--index-only'],cwd=ROOT,check=True,capture_output=True,text=True)
+
     def test_submodule_pins_are_registered_in_git(self):
         provenance=json.loads((BASE/'SOURCE_MANIFEST.json').read_text())
         for name, dependency in provenance['submodules'].items():

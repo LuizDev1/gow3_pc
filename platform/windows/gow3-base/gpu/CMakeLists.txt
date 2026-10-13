@@ -2,6 +2,18 @@
 # drivers, adapted to the native_probe runtime through shims in shim/.
 cmake_minimum_required(VERSION 3.24)
 project(gow3gpu LANGUAGES C CXX)
+# Check source dependencies before reporting unrelated system-package failures.
+foreach(TLG_REQUIRED_FILE IN ITEMS
+        third_party/fsr-vulkan/CMakeLists.txt third_party/imgui/imgui.cpp
+        third_party/magic_enum/include/magic_enum/magic_enum.hpp
+        third_party/miniz/CMakeLists.txt third_party/xbyak/xbyak/xbyak.h
+        third_party/sirit/externals/SPIRV-Headers/CMakeLists.txt
+        third_party/fonts/DejaVuSans.ttf
+        ../src/actor_hook.h ../src/cheat_hook.h)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${TLG_REQUIRED_FILE}")
+        message(FATAL_ERROR "Missing renderer source dependency: ${TLG_REQUIRED_FILE}. See ../README.md for dependency setup and verification.")
+    endif()
+endforeach()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

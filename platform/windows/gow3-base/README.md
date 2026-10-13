@@ -17,3 +17,33 @@ TLG. Compilation is not runtime compatibility. This library is not yet linked to
 the TLG diagnostic; no game frame, menu or gameplay is claimed.
 
 Imported text whitespace is normalized; SOURCE_MANIFEST.json records the original bytes.
+
+## Source dependency setup
+
+From the repository root in PowerShell, fetch the five pinned dependencies with
+long-path support enabled for this command only:
+
+```powershell
+git -c core.longpaths=true submodule update --init --depth 1 -- platform/windows/gow3-base/gpu/third_party/fsr-vulkan platform/windows/gow3-base/gpu/third_party/imgui platform/windows/gow3-base/gpu/third_party/magic_enum platform/windows/gow3-base/gpu/third_party/miniz platform/windows/gow3-base/gpu/third_party/xbyak
+python tools/check_windows_renderer_dependencies.py
+```
+
+The check verifies Git pins, source URLs, checked-out revisions and tracked-file
+presence. `--index-only` checks metadata without downloading dependencies.
+Sirit, SPIR-V headers, GCN, half and the overlay font are already tracked in this
+snapshot. No game files are needed to compile the renderer library.
+
+The [Windows renderer workflow](../../../.github/workflows/windows-gpu-build.yml)
+records the MSYS2 CLANG64 compiler and required system packages: Vulkan headers,
+loader and allocator, SDL3, fmt, Boost, robin-map, xxhash, Zydis, glslang and FFmpeg,
+with CMake, Ninja and pkgconf. These packages are separate from Git submodules.
+Run 38475141121 successfully built the static library with these dependencies.
+
+## Remaining runtime dependencies
+
+A static archive does not resolve its loader callbacks. The imported shim still
+expects `runtime_memory_*` mapping/backing/protection services, clocks, errno,
+host-thread attachment, file translation and restart support. The Windows
+speculative-read path also expects `gow3_setjmp` and thread-local fault recovery.
+These require a reviewed bridge to the TLG loader before executable linking and
+execution. The original GoW3 loader is not a substitute for that bridge.
