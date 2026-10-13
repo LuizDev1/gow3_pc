@@ -132,3 +132,19 @@ The validated USA 1.03 native initialization now stops at `scePthreadSelf`
 (`aI+OeCz8xrQ`, caller offset `0x5b42963`), after mapping its 280 MiB flexible
 allocation. A guest thread identity must be integrated with the Windows TLS
 record before proceeding. Original game entry and the menu have not run.
+
+
+### Current-thread identity (October 13, 2026)
+
+`scePthreadSelf` now returns an opaque record owned by the current Windows TLS
+attachment. The TCB's thread field points to that same record, whose first field
+points back to the TCB. Repeated calls are stable; separate host threads have
+separate identities. Detach clears the TLS slot before freeing the record.
+The record is valid only during its attachment; joinable thread lifetime, thread
+creation, and a process-wide thread registry remain unimplemented.
+
+The 18 Windows entry tests cover self resolution, TCB agreement, cross-thread
+isolation and detach, alongside existing attributes and memory tests. Actual USA
+1.03 libc initialization passes `scePthreadSelf` and stops at `scePthreadAttrGet`
+(`x1X76arYMxU`, caller offset `0x5b4296f`). The next step is reporting validated
+attributes for the running thread. Original game entry and the menu have not run.

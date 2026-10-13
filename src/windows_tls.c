@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Windows static TLS and per-thread dynamic-module blocks via __tls_get_addr.
- * Guest thread records and complete direct-DTV access remain unimplemented.
+ * Opaque guest thread identities are stored in the TCB; direct-DTV access is incomplete.
  * TEB TLS slot addressing follows the existing GoW Windows runtime approach.
  */
 #define WIN32_LEAN_AND_MEAN
@@ -65,11 +65,22 @@ int windows_tls_attach(const void *data, uint64_t filesz, uint64_t memsz, uint64
     uint64_t *tcb = (uint64_t *)((unsigned char *)block + aligned);
     tcb[0] = (uintptr_t)tcb;
     tcb[1] = (uintptr_t)dtv;
-    /* tcb_thread and dynamic-module DTV entries remain unimplemented. */
+    /* Opaque record lifetime matches this TLS attachment. The first field is
+     * its TCB, matching the reference runtime; further layout is private. */
+    uint64_t *record=tcb+8;
+    record[0]=(uintptr_t)tcb;
+    record[1]=GetCurrentThreadId();
+    tcb[2]=(uintptr_t)record;
+    /* Dynamic-module DTV entries remain unimplemented. */
     if (!TlsSetValue(slot, tcb)) { _aligned_free(block); return -1; }
     allocation = block;
     main_size = memsz;
     return 0;
+}
+void *windows_tls_current_thread(void) {
+    if (!allocation) return NULL;
+    uint64_t *tcb=TlsGetValue(slot);
+    return tcb ? (void *)(uintptr_t)tcb[2] : NULL;
 }
 void windows_tls_detach(void) {
     if (!allocation) return;
@@ -81,7 +92,7 @@ void windows_tls_detach(void) {
     memset(dtv, 0, sizeof(dtv));
 }
 typedef void *(__attribute__((sysv_abi)) *ReadTcb)(void);
-typedef struct { ReadTcb read; void *main_tcb; int result; } Test;
+typedef struct { ReadTcb read; void *main_tcb; void *main_identity; int result; } Test;
 static DWORD WINAPI isolated_thread(void *argument) {
     Test *test = argument;
     uint64_t value = 77;
@@ -89,6 +100,9 @@ static DWORD WINAPI isolated_thread(void *argument) {
     unsigned char *tcb = test->read();
     test->result = !tcb || tcb == test->main_tcb || *(uint64_t *)tcb != (uintptr_t)tcb ||
                    *(uint64_t *)(tcb - 16) != value;
+    void *identity=windows_tls_current_thread();
+    if (!identity || identity!=windows_tls_current_thread() || identity==test->main_identity ||
+        (uintptr_t)identity!=((uint64_t *)tcb)[2] || *(uintptr_t *)identity!=(uintptr_t)tcb) test->result=1;
     uint64_t index[]={2,0};
     uint64_t *dynamic=windows_tls_get_addr(index);
     if (!dynamic || *dynamic != 99) test->result=1;
@@ -118,13 +132,17 @@ int windows_tls_selftest(void) {
     unsigned char *tcb = read();
     if (!tcb || *(uint64_t *)tcb != (uintptr_t)tcb || *(uint64_t *)(tcb - 16) != value ||
         *(uint64_t *)(tcb - 8) != 0 || windows_tls_attach(NULL, 0, 0, 16) == 0) return 1;
-    Test test = {read, tcb, 0};
+    void *identity=windows_tls_current_thread();
+    if (!identity || identity!=windows_tls_current_thread() || (uintptr_t)identity!=((uint64_t *)tcb)[2] ||
+        *(uintptr_t *)identity!=(uintptr_t)tcb) return 1;
+    Test test = {read, tcb, identity, 0};
     HANDLE thread = CreateThread(NULL, 0, isolated_thread, &test, 0, NULL);
     if (!thread || WaitForSingleObject(thread, 5000) != WAIT_OBJECT_0 || test.result || read() != tcb || *dynamic != 99) return 1;
     CloseHandle(thread);
     windows_tls_detach();
-    if (read() != NULL) return 1;
+    if (read() != NULL || windows_tls_current_thread() != NULL) return 1;
     VirtualFree(code, 0, MEM_RELEASE);
+    puts("Thread identity: stable self, TCB agreement, host-thread isolation and detach passed");
     puts("Windows TLS: actual GS slot read, template, zero-fill, thread isolation and detach passed");
     return 0;
 }

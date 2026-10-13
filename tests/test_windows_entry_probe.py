@@ -59,6 +59,7 @@ class WindowsEntryTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('actual GS slot read, template, zero-fill, thread isolation and detach passed', result.stdout)
+        self.assertIn('stable self, TCB agreement, host-thread isolation and detach passed', result.stdout)
 
     def test_canonical_imports_resolve_independent_of_local_suffix(self):
         code = (b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'

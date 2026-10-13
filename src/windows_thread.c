@@ -2,6 +2,7 @@
  * Attribute ABI/defaults adapted from compatibility-source/src/runtime_thread.c.
  * Settings are stored only: guest thread creation and scheduling are unresolved. */
 #include "windows_thread.h"
+#include "windows_tls.h"
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,8 +62,10 @@ static ABI int32_t set_priority(uint64_t *handle,const int *value) {
     if(a) a->priority=*value;
     ReleaseSRWLockExclusive(&lock);return a?0:INVALID;
 }
+static ABI void *thread_self(void) { return windows_tls_current_thread(); }
 uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
+    EXPORT("aI+OeCz8xrQ",thread_self);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
     EXPORT("UTXzJbWhhTE",set_stack);EXPORT("-Wreprtu0Qs",set_detach);
     EXPORT("4+h9EzwKF4I",set_policy);EXPORT("DzES9hQF4f4",set_priority);
@@ -76,6 +79,12 @@ uintptr_t windows_thread_resolve(const char *name) {
 int windows_thread_selftest(void) {
 #define CHECK(c) do {if(!(c)) {fprintf(stderr,"thread attribute check failed at %d\n",__LINE__);return 1;}}while(0)
     uint64_t a=0,b=0,size=0,mask=0;int value=0;
+    CHECK(thread_self()==NULL);
+    CHECK(!windows_tls_attach(NULL,0,16,16));
+    CHECK(thread_self()!=NULL && thread_self()==windows_tls_current_thread());
+    CHECK(windows_thread_resolve("aI+OeCz8xrQ#U#H")==(uintptr_t)thread_self);
+    CHECK(!windows_thread_resolve("aI+OeCz8xrQ#other"));
+    windows_tls_detach();CHECK(thread_self()==NULL);
     CHECK(attr_init(NULL)==INVALID);CHECK(!attr_init(&a));CHECK(!attr_init(&b));CHECK(a!=b);
     CHECK(!get_stack(&a,&size) && size==1024*1024);CHECK(!get_priority(&a,&value) && value==700);
     CHECK(set_stack(&a,16383)==INVALID);CHECK(!set_stack(&a,65536));CHECK(!get_stack(&a,&size) && size==65536);
