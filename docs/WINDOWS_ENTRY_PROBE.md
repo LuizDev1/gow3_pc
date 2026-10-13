@@ -8,8 +8,9 @@ creation/deletion and GPU event subscriptions. Subscriptions are stored and can
 be removed; an explicit completion hook can mark them pending. No renderer is
 connected to that hook, and waiting remains unresolved. This is not functioning
 GPU synchronization. Resolution
-also covers mutex attribute initialization, type selection and destruction;
-actual mutex creation and locking are not implemented yet. Resolution
+also covers mutex attributes, creation, locking, try-lock, ownership checks,
+recursive locking, unlocking and destruction. Static lazy initialization, timed
+locks, condition variables and priority scheduling remain unresolved. Resolution
 requires preparation evidence and the observed exact import scopes. The libc
 `_init_env` implementation was verified as exactly RET. Registered callbacks run
 in reverse order on normal guest termination; diagnostic failures skip them.

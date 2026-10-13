@@ -147,3 +147,16 @@ The local USA 1.03 executable passes attribute initialization/type selection,
 then stops at `cmo1RIYva9o#U#H` (`scePthreadMutexInit`), caller offset `0x1494542`.
 Ten native Windows tests now include attribute defaults, isolation, invalid type
 values and stale handles. No graphics or gameplay has been validated.
+
+## Windows mutex locking
+
+Mutexes now implement explicit initialization/destruction, ownership, lock,
+try-lock and unlock. Windows SRW locks and condition variables protect their
+state and block contending threads. Recursive attributes retain a depth count;
+error-checking self-locks report deadlock; busy or waited-on mutexes cannot be
+destroyed. Static lazy initialization and timed locks remain unresolved.
+
+The native mutex test covers two-thread contention, wrong-owner unlock, recursion,
+busy destruction and stale handles. The local USA 1.03 run now stops at
+`m5-2bsNfv7s#U#H` (`scePthreadCondattrInit`), caller offset `0x14946b4`, exit 20.
+No graphics or gameplay has been validated.

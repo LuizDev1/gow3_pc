@@ -25,6 +25,7 @@ class WindowsEntryTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('type validation, isolation and stale handles passed', result.stdout)
+        self.assertIn('ownership, recursion, contention, busy destruction and stale handles passed', result.stdout)
 
     def test_event_queue_lifecycle_and_invalid_handles(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-equeue'],
