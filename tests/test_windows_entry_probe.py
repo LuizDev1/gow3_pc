@@ -109,6 +109,7 @@ class WindowsEntryTests(unittest.TestCase):
         result = subprocess.run([str(EXE.resolve()), '--selftest-memory'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('shared aliases, low addresses and lifecycle passed', result.stdout)
+        self.assertIn('no-overwrite alias placement and GPU permission metadata passed', result.stdout)
         self.assertIn('zero-fill, isolation, budget, invalid requests and release passed', result.stdout)
         self.assertIn('initial budget, allocation debit and release credit passed', result.stdout)
 

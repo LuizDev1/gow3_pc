@@ -594,3 +594,23 @@ returns successfully, but startup still prints `Exit engine` and stops at unreso
 in cleanup-related code; implementing it does not establish that engine startup
 succeeded. The primary reason for entering cleanup still needs tracing. No
 additional graphics/menu progress is claimed.
+
+
+### Engine memory mapping and first VideoOut call (October 13, 2026)
+
+Tracing the engine's initialization branch identified rejected direct-memory maps:
+CPU read/write plus GPU permission bits (`0x33`), no-overwrite flag `0x80`, and
+2 MiB alignment. The backend now accepts this CPU storage contract, retains the
+requested protection metadata and uses non-replacing Windows section views.
+GPU permission bits do not provide GPU access, coherency or renderer integration.
+Address hints are aligned and searched within the supported low-address range;
+fixed replacement and partial-allocation views remain unsupported.
+
+All 29 Windows entry tests pass, including shared aliases using `0x33`/`0x80`
+without overwriting the first view. With both experimental profiles enabled,
+USA 1.03 successfully maps 100663296 bytes and 2952790016 bytes, avoiding the
+previous engine-exit path in this run. Startup now reaches `sceVideoOutOpen`
+(`Up36PTk687E`, libSceVideoOut@1 / libSceVideoOut@0, caller offset `0xc4fa53`).
+This is the first observed video-output initialization call, not a rendered frame.
+A Windows VideoOut implementation, window/surface and graphics integration are
+still needed. No image, menu or gameplay is available.

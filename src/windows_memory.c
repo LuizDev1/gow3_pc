@@ -17,7 +17,7 @@
 static uint64_t flexible_bytes;
 static SRWLOCK lock=SRWLOCK_INIT;
 typedef struct { uint64_t start,size; HANDLE section; } Block;
-typedef struct { void *address; uint64_t size; HANDLE section; } View;
+typedef struct { void *address; uint64_t size; HANDLE section; int protection; } View;
 static Block blocks[LIMIT];
 static View views[LIMIT];
 static int aligned(uint64_t n) { return n>=PAGE && !(n&(n-1)); }
@@ -43,10 +43,12 @@ static ABI int32_t allocate(int64_t low,int64_t high,uint64_t size,uint64_t alig
     blocks[slot]=(Block){start,size,section};*out=(int64_t)start;
     ReleaseSRWLockExclusive(&lock);return 0;
 }
-/* Initial contract: complete allocations, RW CPU mappings, no placement flags.
- * Subranges, GPU-only protections and fixed replacement remain unresolved. */
+/* Complete allocations, CPU RW storage with optional GPU permission metadata.
+ * GPU permissions do not implement GPU access. Fixed replacement is unresolved. */
 static ABI int32_t map(void **out,uint64_t size,int prot,int flags,int64_t physical,uint64_t alignment) {
-    if(!out || physical<0 || !size || size%PAGE || (alignment && !aligned(alignment)) || alignment>POOL || flags || prot!=3 || *out) return INVALID;
+    if(!out || physical<0 || !size || size%PAGE || (alignment && !aligned(alignment)) || alignment>POOL || (flags&~0x80) || (prot&~0x33) || (prot&3)!=3) {
+        fprintf(stderr,"Unsupported direct mapping: size=%llu protection=0x%x flags=0x%x\n",(unsigned long long)size,prot,flags);return INVALID;
+    }
     AcquireSRWLockExclusive(&lock);
     HANDLE section=NULL;int slot=-1;
     for(int i=0;i<LIMIT;i++) {
@@ -56,13 +58,17 @@ static ABI int32_t map(void **out,uint64_t size,int prot,int flags,int64_t physi
     if(!section || slot<0) {ReleaseSRWLockExclusive(&lock);return INVALID;}
     void *address=NULL;
     uint64_t step=alignment>65536?alignment:65536;
-    for(uint64_t candidate=UINT64_C(0x1000000000), attempts=0;candidate<UINT64_C(0xfc00000000)-size && attempts<4096;candidate+=step,attempts++) {
+    uint64_t start=(uintptr_t)*out;
+    if(start<UINT64_C(0x1000000000) || start>=UINT64_C(0xfc00000000)-size) start=UINT64_C(0x1000000000);
+    start=(start+step-1)&~(step-1);
+    for(uint64_t candidate=start, attempts=0;candidate<UINT64_C(0xfc00000000)-size && attempts<4096;candidate+=step,attempts++) {
         address=MapViewOfFileEx(section,FILE_MAP_READ|FILE_MAP_WRITE,0,0,(SIZE_T)size,(void *)(uintptr_t)candidate);
         if(address) break;
     }
     if(!address) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
-    views[slot]=(View){address,size,section};*out=address;
-    ReleaseSRWLockExclusive(&lock);return 0;
+    views[slot]=(View){address,size,section,prot};*out=address;
+    ReleaseSRWLockExclusive(&lock);
+    printf("Runtime: direct memory mapped (%llu bytes, protection 0x%x; GPU not connected)\n",(unsigned long long)size,prot);return 0;
 }
 static ABI int32_t unmap(void *address,uint64_t size) {
     AcquireSRWLockExclusive(&lock);
@@ -97,7 +103,7 @@ static ABI int32_t map_flexible(void **out,uint64_t size,int prot,int flags) {
         if(address) break;
     }
     if(!address) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
-    views[slot]=(View){address,size,NULL};flexible_bytes+=size;*out=address;
+    views[slot]=(View){address,size,NULL,prot};flexible_bytes+=size;*out=address;
     ReleaseSRWLockExclusive(&lock);
     printf("Runtime: flexible memory mapped (%llu bytes, protection 0x%x)\n",(unsigned long long)size,prot);
     return 0;
@@ -143,7 +149,7 @@ int windows_memory_selftest(void) {
 #define CHECK(c) do {if(!(c)) {fprintf(stderr,"memory check failed at %d\n",__LINE__);return 1;}}while(0)
     CHECK(direct_size()==POOL);CHECK(allocate(0,POOL,1,0,0,&a)==INVALID);
     CHECK(!allocate(0,POOL,PAGE,0,0,&a));CHECK(!allocate(0,POOL,PAGE,0,0,&b));CHECK(a!=b);
-    CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,3,0,a,0));
+    CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,0x33,0x80,a,0));
     *(volatile uint64_t *)x=UINT64_C(0x123456789abcdef0);CHECK(*(volatile uint64_t *)y==UINT64_C(0x123456789abcdef0));
     CHECK(release_flexible(x,PAGE)==INVALID);
     CHECK((uintptr_t)x<UINT64_C(0x10000000000));CHECK(release(a,PAGE)==BUSY);
@@ -164,5 +170,6 @@ int windows_memory_selftest(void) {
     CHECK(!release_flexible(fixed,PAGE));CHECK(!unmap(g,PAGE));CHECK(!flexible_bytes);CHECK(!available_flexible(&available) && available==FLEXIBLE);
     puts("Flexible availability: initial budget, allocation debit and release credit passed");
     puts("Flexible memory: zero-fill, isolation, budget, invalid requests and release passed");
+    puts("Direct mapping: no-overwrite alias placement and GPU permission metadata passed");
     puts("Direct memory: allocation isolation, shared aliases, low addresses and lifecycle passed");return 0;
 }
