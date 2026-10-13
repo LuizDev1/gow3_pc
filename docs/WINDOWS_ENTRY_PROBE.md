@@ -185,3 +185,25 @@ Windows access violation `0xc0000005`; the existing exception diagnostic does no
 produce a fault address for this case. The cause is not yet established. This
 must be investigated before claiming further startup progress. Graphics, menu and
 gameplay remain unavailable.
+
+
+### Local stack commitment diagnosis (October 13, 2026)
+
+The post-banner access violation was reproduced with the locally built Zig
+executable: its PE header reserved 16 MiB of stack but committed only 4096 bytes.
+Changing only the generated executable's stack commitment to 16 MiB lets the
+same prepared game image advance without that fault. Guest code makes large stack
+adjustments without Windows stack probes. No game instructions were patched.
+
+The GitHub Clang build already requested a 16 MiB reserve and commit. The new
+`tools/configure_probe_stack.py` normalizes those PE32+ fields after compilation,
+including local builds, and rejects malformed or non-AMD64 images. Run it on
+`out/tlg-entry-probe.exe` after rebuilding locally. Use only before binary signing;
+modifying PE headers invalidates any existing signature. Generated binaries remain
+untracked and no game executable should be passed to this tool.
+
+Validation: two PE-header tests and all 19 Windows entry tests pass. With the
+normalized local build the target prints its startup banner and stops normally
+at unresolved `sceKernelReadTsc` (`-2IRUCO--PM`, caller offset `0xd16a4a`), with
+exit code 20. The prior raw access violation is no longer observed in this run.
+Timing APIs are the next blocker; graphics and menu remain unavailable.

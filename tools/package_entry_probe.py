@@ -20,6 +20,7 @@ def package():
              'src/windows_memory.c', 'src/windows_memory.h',
              'src/windows_thread.c', 'src/windows_thread.h',
              'tools/inspect_target.py', 'tools/package_entry_probe.py',
+             'tools/configure_probe_stack.py',
              'tests/paths.py', 'tests/test_windows_entry_probe.py']
     files.extend(p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'scripts').glob('*.py')))
     for name in files:

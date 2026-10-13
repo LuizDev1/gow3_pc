@@ -11,6 +11,8 @@ on:
       - 'src/windows_tls.*'
       - 'src/windows_memory.*'
       - 'src/windows_thread.*'
+      - 'tools/configure_probe_stack.py'
+      - 'tests/test_probe_stack.py'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/audit_runtime.py'
@@ -26,6 +28,8 @@ on:
       - 'src/windows_tls.*'
       - 'src/windows_memory.*'
       - 'src/windows_thread.*'
+      - 'tools/configure_probe_stack.py'
+      - 'tests/test_probe_stack.py'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/audit_runtime.py'
@@ -70,6 +74,10 @@ jobs:
           python -m unittest discover -s tests -p test_link_modules.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_game_check.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/configure_probe_stack.py out/tlg-entry-probe.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_probe_stack.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_windows_entry_probe.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
