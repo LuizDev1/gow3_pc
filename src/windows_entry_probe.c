@@ -678,6 +678,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
@@ -863,7 +864,7 @@ int main(int argc, char **argv) {
     CloseHandle(timer);
     if (linked) {
         process_parameter=image+procparam;
-        if (windows_tls_attach(image+main_tls[0],main_tls[1],main_tls[2],main_tls[3]?main_tls[3]:16))
+        if (windows_tls_configure_main(image+main_tls[0],main_tls[1],main_tls[2],main_tls[3]?main_tls[3]:16) || windows_tls_attach_main())
             fail("main Windows TLS initialization failed");
         for (uint64_t i=0;i<native_count;++i) {
             NativeModule *m=&native_modules[i];

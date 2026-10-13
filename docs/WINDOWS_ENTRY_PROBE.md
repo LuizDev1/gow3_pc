@@ -455,3 +455,28 @@ PlayGo assumption and mutex fallback enabled, USA 1.03 Fios2 creates five affect
 mutexes and reaches `scePthreadCreate` (`6UgtwV+0zb4`, caller offset `0x5c4a892`).
 Guest thread creation with correct TLS, stack and lifetime is the next blocker.
 This remains conditional startup progress; graphics and menu are unavailable.
+
+
+### Joinable Windows guest workers (October 13, 2026)
+
+`scePthreadCreate` now creates suspended Windows workers, publishes their opaque
+records, then resumes them. Each worker attaches a private copy of the configured
+main TLS template and binds its thread record into the TCB before invoking the
+SysV guest entry. Normal return records the result and releases TLS. Join waits
+for host completion, returns the guest result and closes the host handle; a bounded
+record tombstone prevents pointer-handle reuse. Self and equality use the same
+identity. Windows receives the requested committed stack size (16 KiB-64 MiB).
+There is a lifetime limit of 256 created worker records.
+
+Only joinable threads returning normally are implemented. Detached threads,
+custom guard sizes, explicit guest pthread exit, cancellation and PS4 scheduling/
+affinity enforcement remain unsupported. Main-template configuration must occur
+before publishing workers; dynamic module templates remain immutable thereafter.
+
+All 28 Windows entry tests pass, including a real SysV worker, TLS template copy
+and isolation, TCB/thread identity, result propagation and stale join rejection.
+With both experimental profiles enabled, actual USA 1.03 Fios2 workers execute and
+concurrently reach `scePthreadCondWait` (`WKAXJ4XBPQ4`, caller offset `0x5c49ef4`)
+and `scePthreadCondBroadcast` (`JGgj7Uvrl+A`). Stop messages may interleave across
+threads. Condition waiting/broadcast with atomic mutex release/reacquisition is
+the next blocker. Graphics and menu remain unavailable.

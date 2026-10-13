@@ -77,6 +77,21 @@ int windows_tls_attach(const void *data, uint64_t filesz, uint64_t memsz, uint64
     main_size = memsz;
     return 0;
 }
+static struct { const void *data; uint64_t filesz,memsz,alignment; int configured; } main_template;
+int windows_tls_configure_main(const void *data,uint64_t filesz,uint64_t memsz,uint64_t alignment) {
+    if(main_template.configured || filesz>memsz || memsz>1024*1024 || (filesz && !data) ||
+        !alignment || (alignment&(alignment-1)) || alignment>65536) return -1;
+    main_template.data=data;main_template.filesz=filesz;main_template.memsz=memsz;
+    main_template.alignment=alignment;main_template.configured=1;return 0;
+}
+int windows_tls_attach_main(void) {
+    return !main_template.configured?-1:windows_tls_attach(main_template.data,main_template.filesz,main_template.memsz,main_template.alignment);
+}
+int windows_tls_bind_thread(void *record) {
+    if(!allocation || !record) return -1;
+    uint64_t *tcb=TlsGetValue(slot);if(!tcb) return -1;
+    *(uintptr_t *)record=(uintptr_t)tcb;tcb[2]=(uintptr_t)record;return 0;
+}
 void *windows_tls_current_thread(void) {
     if (!allocation) return NULL;
     uint64_t *tcb=TlsGetValue(slot);

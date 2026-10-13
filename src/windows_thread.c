@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Attribute ABI/defaults adapted from compatibility-source/src/runtime_thread.c.
- * Settings are stored only: guest thread creation and scheduling are unresolved. */
+ * Joinable guest threads use Windows workers; PS4 scheduling remains unresolved. */
 #include "windows_thread.h"
 #include "windows_tls.h"
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #define ABI __attribute__((sysv_abi))
 #define INVALID ((int32_t)0x80020016)
 #define NO_THREAD ((int32_t)0x80020003)
@@ -64,6 +65,7 @@ static ABI int32_t set_priority(uint64_t *handle,const int *value) {
     ReleaseSRWLockExclusive(&lock);return a?0:INVALID;
 }
 static ABI void *thread_self(void) { return windows_tls_current_thread(); }
+static ABI int thread_equal(void *a,void *b) { return a && a==b; }
 static ABI int32_t attr_get(void *thread,uint64_t *out) {
     if(!thread || !out) return INVALID;
     /* No arbitrary handle dereference. Other-thread snapshots require a future
@@ -83,8 +85,78 @@ static ABI int32_t attr_get(void *thread,uint64_t *out) {
     ReleaseSRWLockExclusive(&lock);return 0;
 }
 
+typedef void *(ABI *GuestEntry)(void *);
+typedef struct Thread { void *tcb; HANDLE host; GuestEntry entry; void *argument,*result;
+    Attr attr; int finished,joining,joined; struct Thread *next; } Thread;
+static Thread *threads;
+static unsigned thread_count;
+static Thread *find_thread(void *handle) {
+    for(Thread *t=threads;t;t=t->next) if(t==handle) return t;return NULL;
+}
+static DWORD WINAPI run_guest_thread(void *argument) {
+    Thread *t=argument;
+    if(windows_tls_attach_main() || windows_tls_bind_thread(t)) {
+        fputs("STOP: guest worker TLS initialization failed\n",stderr);ExitProcess(21);
+    }
+    void *result=t->entry(t->argument);
+    windows_tls_detach();
+    AcquireSRWLockExclusive(&lock);t->tcb=NULL;t->result=result;t->finished=1;
+    ReleaseSRWLockExclusive(&lock);return 0;
+}
+static ABI int32_t thread_create(Thread **out,uint64_t *attribute,GuestEntry entry,void *argument,const char *name) {
+    (void)name;
+    if(!out || !entry) return INVALID;
+    AcquireSRWLockExclusive(&lock);Attr *a=attribute?find(attribute):NULL;
+    if(attribute && !a) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+    Attr selected=a?*a:(Attr){.stack=1024*1024,.guard=4096,.affinity=0x7f,.policy=1,.priority=700,.inherit=4};
+    if(selected.detach || selected.guard!=4096) {ReleaseSRWLockExclusive(&lock);return (int32_t)0x8002002d;}
+    if(selected.stack<16384 || selected.stack>64*1024*1024 || thread_count>=256) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
+    Thread *t=calloc(1,sizeof(*t));if(!t) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
+    t->entry=entry;t->argument=argument;t->attr=selected;
+    t->host=CreateThread(NULL,(SIZE_T)selected.stack,run_guest_thread,t,CREATE_SUSPENDED,NULL);
+    if(!t->host) {free(t);ReleaseSRWLockExclusive(&lock);return NOMEM;}
+    t->next=threads;threads=t;++thread_count;*out=t;
+    HANDLE host=t->host;
+    ReleaseSRWLockExclusive(&lock);
+    if(ResumeThread(host)==(DWORD)-1) {fputs("STOP: cannot resume guest worker\n",stderr);ExitProcess(21);}
+    return 0;
+}
+static ABI int32_t thread_join(void *handle,void **result) {
+    AcquireSRWLockExclusive(&lock);Thread *t=find_thread(handle);
+    if(!t || t->joined) {ReleaseSRWLockExclusive(&lock);return NO_THREAD;}
+    if(handle==thread_self()) {ReleaseSRWLockExclusive(&lock);return (int32_t)0x8002000b;}
+    if(t->joining) {ReleaseSRWLockExclusive(&lock);return INVALID;}
+    t->joining=1;HANDLE host=t->host;ReleaseSRWLockExclusive(&lock);
+    if(WaitForSingleObject(host,INFINITE)!=WAIT_OBJECT_0) ExitProcess(21);
+    AcquireSRWLockExclusive(&lock);
+    if(result) *result=t->result;
+    CloseHandle(t->host);t->host=NULL;t->joined=1;
+    /* Retain a bounded tombstone so pointer handles cannot acquire new meaning. */
+    ReleaseSRWLockExclusive(&lock);return 0;
+}
+static void *test_main_identity;
+static ABI void *synthetic_worker(void *argument) {
+    uint64_t index[2]={1,0};uint64_t *value=windows_tls_get_addr(index);
+    Thread *self=thread_self();
+    if(!self || self==(Thread *)test_main_identity || !self->tcb || !value || *value!=42) return NULL;
+    *value=99;return argument;
+}
+int windows_thread_create_selftest(void) {
+    static const uint64_t data=42;
+    if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
+    test_main_identity=thread_self();if(!thread_equal(test_main_identity,thread_self()) || thread_equal(NULL,NULL)) return 1;Thread *worker=NULL;void *result=NULL;
+    if(thread_create(NULL,NULL,synthetic_worker,NULL,NULL)!=INVALID ||
+        thread_create(&worker,NULL,NULL,NULL,NULL)!=INVALID ||
+        thread_create(&worker,NULL,synthetic_worker,(void *)(uintptr_t)123,"test") ||
+        thread_join(worker,&result) || result!=(void *)(uintptr_t)123 || thread_join(worker,NULL)!=NO_THREAD) return 1;
+    uint64_t index[2]={1,0};uint64_t *value=windows_tls_get_addr(index);
+    if(!value || *value!=42 || thread_self()!=test_main_identity) return 1;
+    windows_tls_detach();puts("Guest threads: SysV entry, private TLS, stable identity, join result and stale join passed");return 0;
+}
 uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
+    EXPORT("3PtV6p3QNX4",thread_equal);
+    EXPORT("6UgtwV+0zb4",thread_create);EXPORT("onNY9Byn-W8",thread_join);
     EXPORT("aI+OeCz8xrQ",thread_self);EXPORT("x1X76arYMxU",attr_get);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
     EXPORT("UTXzJbWhhTE",set_stack);EXPORT("-Wreprtu0Qs",set_detach);
