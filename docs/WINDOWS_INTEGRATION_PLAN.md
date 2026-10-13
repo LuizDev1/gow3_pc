@@ -279,3 +279,13 @@ regression exercises lock_guard, placement construction/destruction and log2 in
 addition to CRT formatting. The CPU diagnostic run for the same commit succeeded.
 The next full-renderer CI run remains responsible for confirming this fix and
 identifying further portability blockers; no renderer success is claimed yet.
+
+
+### Sirit standard-library include (October 13, 2026)
+
+Renderer run 38464931313 advanced past the previous FidelityFX failures and
+stopped compiling Sirit: stream.h calls std::abort without directly including
+cstdlib. The header now includes its declaring standard-library header, preserving
+the vendored BSD license and behavior. This is a source dependency correction;
+full validation awaits the next renderer build. The CPU diagnostic run for the
+same commit succeeded. No rendering or runtime graphics integration is claimed.
