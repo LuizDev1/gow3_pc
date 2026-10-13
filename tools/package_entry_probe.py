@@ -15,6 +15,7 @@ def package():
              'docs/UPSTREAM_README.md',
              'src/windows_entry_probe.c', 'src/import_names.inc',
              'src/windows_equeue.c', 'src/windows_equeue.h',
+             'src/windows_mutex.c', 'src/windows_mutex.h',
              'tools/inspect_target.py', 'tools/package_entry_probe.py',
              'tests/paths.py', 'tests/test_windows_entry_probe.py']
     files.extend(p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'scripts').glob('*.py')))

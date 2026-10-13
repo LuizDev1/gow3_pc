@@ -12,6 +12,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "windows_equeue.h"
+#include "windows_mutex.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -97,7 +98,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)guest_atexit;
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
-    if (!is_data && (capabilities & 1)) return windows_equeue_resolve(name);
+    if (!is_data && (capabilities & 1)) {
+        uintptr_t resolved = windows_equeue_resolve(name);
+        return resolved ? resolved : windows_mutex_resolve(name);
+    }
     return 0;
 }
 
@@ -181,6 +185,7 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc == 2 && !strcmp(argv[1], "--selftest-atexit")) return selftest_atexit();
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
     if (argc != 2) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;

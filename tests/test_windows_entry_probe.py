@@ -20,6 +20,12 @@ def package(code, relocs=(), imports=(), flags=5, capabilities=0):
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_mutex_attribute_lifecycle_and_invalid_handles(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-mutex'],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('type validation, isolation and stale handles passed', result.stdout)
+
     def test_event_queue_lifecycle_and_invalid_handles(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-equeue'],
                                 capture_output=True, text=True, timeout=15)

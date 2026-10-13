@@ -7,6 +7,7 @@ on:
       - '.github/workflows/windows-entry-probe.yml'
       - 'src/windows_entry_probe.c'
       - 'src/windows_equeue.*'
+      - 'src/windows_mutex.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/package_entry_probe.py'
@@ -17,6 +18,7 @@ on:
       - '.github/workflows/windows-entry-probe.yml'
       - 'src/windows_entry_probe.c'
       - 'src/windows_equeue.*'
+      - 'src/windows_mutex.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
       - 'tools/package_entry_probe.py'
@@ -49,7 +51,7 @@ jobs:
           mkdir -p out
           clang -std=c11 -O2 -Wall -Wextra -Werror -static \
             -Wl,--disable-high-entropy-va -Xlinker --stack -Xlinker '16777216,16777216' \
-            src/windows_entry_probe.c src/windows_equeue.c -lbcrypt -o out/tlg-entry-probe.exe
+            src/windows_entry_probe.c src/windows_equeue.c src/windows_mutex.c -lbcrypt -o out/tlg-entry-probe.exe
       - name: Test preparation and native entry diagnostics (synthetic inputs)
         shell: pwsh
         run: |

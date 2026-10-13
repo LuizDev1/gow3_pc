@@ -135,3 +135,15 @@ The native queue test verifies these behaviors, including cleanup on deletion.
 The local USA 1.03 run subscribes event `0x40` on `EOP QUEUE`, then stops at
 `F8bUHwAG284#U#H` (`scePthreadMutexattrInit`), caller offset `0x149451f`, exit 20.
 This advances CPU startup only; no graphics or GPU execution is validated.
+
+## Mutex attributes
+
+The Windows diagnostic now allocates mutex attributes, validates type values
+1 through 4, and destroys attributes while rejecting unknown or destroyed
+handles. A locked registry prevents dereferencing arbitrary opaque handles.
+Actual mutex creation, locking and priority scheduling remain unresolved.
+
+The local USA 1.03 executable passes attribute initialization/type selection,
+then stops at `cmo1RIYva9o#U#H` (`scePthreadMutexInit`), caller offset `0x1494542`.
+Ten native Windows tests now include attribute defaults, isolation, invalid type
+values and stale handles. No graphics or gameplay has been validated.
