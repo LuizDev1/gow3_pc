@@ -200,6 +200,7 @@ static ABI int32_t mutex_unlock(Mutex **handle) {
     AcquireSRWLockExclusive(&attr_lock);
     Mutex *m = *find_mutex(*handle);
     int32_t result = !m ? INVALID : m->owner != GetCurrentThreadId() ? NOT_OWNER : 0;
+    if(result && getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Mutex unlock failed: handle=%p owner=%lu caller=%lu result=%x\n",handle?(void *)*handle:NULL,m?(unsigned long)m->owner:0,(unsigned long)GetCurrentThreadId(),(unsigned)result);
     if (!result && !--m->depth) {
         m->owner = 0;
         WakeConditionVariable(&m->changed);

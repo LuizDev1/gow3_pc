@@ -65,7 +65,13 @@ static ABI int32_t set_priority(uint64_t *handle,const int *value) {
     ReleaseSRWLockExclusive(&lock);return a?0:INVALID;
 }
 static ABI void *thread_self(void) { return windows_tls_current_thread(); }
-static ABI int thread_equal(void *a,void *b) { return a && a==b; }
+static ABI int thread_equal(void *a,void *b) {
+    /* Compare opaque values, including equal sentinel values, as the reference
+     * runtime does. Equality does not validate that a handle is live. */
+    int result=a==b;
+    if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Thread equality: a=%p b=%p result=%d host=%lu\n",a,b,result,(unsigned long)GetCurrentThreadId());
+    return result;
+}
 static ABI int32_t attr_get(void *thread,uint64_t *out) {
     if(!thread || !out) return INVALID;
     /* No arbitrary handle dereference. Other-thread snapshots require a future
@@ -144,7 +150,7 @@ static ABI void *synthetic_worker(void *argument) {
 int windows_thread_create_selftest(void) {
     static const uint64_t data=42;
     if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
-    test_main_identity=thread_self();if(!thread_equal(test_main_identity,thread_self()) || thread_equal(NULL,NULL)) return 1;Thread *worker=NULL;void *result=NULL;
+    test_main_identity=thread_self();if(!thread_equal(test_main_identity,thread_self()) || !thread_equal(NULL,NULL) || thread_equal(test_main_identity,NULL)) return 1;Thread *worker=NULL;void *result=NULL;
     if(thread_create(NULL,NULL,synthetic_worker,NULL,NULL)!=INVALID ||
         thread_create(&worker,NULL,NULL,NULL,NULL)!=INVALID ||
         thread_create(&worker,NULL,synthetic_worker,(void *)(uintptr_t)123,"test") ||

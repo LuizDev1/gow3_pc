@@ -499,3 +499,20 @@ condition imports, then Fios2 executes UD2 at guest offset `0x5c4a339` (exceptio
 comparison and a synchronization call; which condition failed is not yet known.
 Do not treat this as completed Fios2 startup. Thread ownership/identity integration
 is the next investigation. Graphics and menu remain unavailable.
+
+
+### Fios2 sentinel equality fix (October 13, 2026)
+
+Optional `TLG_TRACE_SYNC` diagnostics exposed the failure at `0x5c4a339`: Fios2
+passed two null sentinel values to `scePthreadEqual`, and our implementation
+incorrectly returned unequal. The reference runtime compares opaque values
+directly (`a == b`), including sentinels. Windows dispatch now does the same.
+Equality does not certify that either handle names a live thread. No Fios2
+instructions or assertions were patched. Optional tracing also reports rejected
+mutex unlock ownership checks.
+
+All 28 entry tests pass; the worker identity test now explicitly covers equal
+null sentinels and distinct null/live values. With both experimental profiles
+enabled, the prior Fios2 assertion no longer occurs and startup reaches
+`sceKernelStat` (`eV9wAD2riIA`, caller offset `0x5c1a556`). File metadata translation
+is the next blocker. Complete Fios2 functionality, graphics and menu are not claimed.
