@@ -14,8 +14,9 @@
 #include <atomic>
 #include <mutex>
 #include <unordered_set>
-#include <sys/mman.h>
+#ifndef _WIN32
 #include <ucontext.h>
+#endif
 #include <map>
 #include <tuple>
 #include <string>
@@ -1398,11 +1399,15 @@ std::atomic<u64> layer_trap_faults{0};
 u32 layer_trap_shift = 16;
 
 bool LayerTrapsOn() {
+#ifdef _WIN32
+    return false; // Fault dispatch for mirror traps is not integrated on Windows.
+#else
     static const bool on = [] {
         const char* env = std::getenv("BB_LAYER_WRITE_TRAPS");
         return !(env && env[0] == '0');
     }();
     return on;
+#endif
 }
 
 void LayerUnprotect(u64 block) {
@@ -1412,6 +1417,9 @@ void LayerUnprotect(u64 block) {
 }
 
 bool LayerTrapHandler(void* context, void* fault_address) {
+#ifdef _WIN32
+    (void)context;(void)fault_address;return false;
+#else
     if (!Common::IsWriteError(context)) {
         return false;
     }
@@ -1428,6 +1436,7 @@ bool LayerTrapHandler(void* context, void* fault_address) {
     layer_trap_faults.fetch_add(1, std::memory_order_relaxed);
     layer_trap_pending.store(true, std::memory_order_release);
     return true;
+#endif
 }
 } // namespace
 

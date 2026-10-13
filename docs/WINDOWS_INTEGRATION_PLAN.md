@@ -328,3 +328,20 @@ it does not implement the loader's missing GPU memory fault tracking.
 The updated host-helper test compiles locally for Windows and checks native thread
 identity and const atomic reads in CI. The complete renderer still requires the
 next build result; GPU execution, window presentation and menu remain unverified.
+
+
+### Buffer-cache platform diagnostics (October 13, 2026)
+
+Run 38467397706 advanced to buffer-cache compilation, then failed on dlfcn/mman
+headers. Page-protection helpers now translate to VirtualProtect on Windows and
+mprotect on Linux. Linux context inspection and dladdr symbolization are guarded;
+Windows diagnostic addresses are reported without a fabricated module offset.
+VRAM access traps and mirror write traps remain disabled on Windows until the
+loader's exception-dispatch contract is integrated. This does not establish GPU
+memory coherency or validate in-place VRAM/mirror modes for TLG.
+
+The host-helper regression now protects a page, verifies that diagnostic reading
+fails, restores access and verifies data. Local Windows object compilation passed;
+CI executes the check and rebuilds the full renderer. Conditional source blocks
+were checked for balance and git diff --check passed. No renderer success or
+frame presentation is claimed.

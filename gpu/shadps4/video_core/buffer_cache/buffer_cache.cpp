@@ -35,11 +35,13 @@
 #include <pthread.h>
 #include <x86intrin.h>
 #include <cstring>
+#ifndef _WIN32
 #include <dlfcn.h>
+#include <ucontext.h>
+#endif
+#include "bbport_host_memory.h"
 #include <string>
 #include <fmt/format.h>
-#include <sys/mman.h>
-#include <ucontext.h>
 #include "common/signal_context.h"
 #include "core/signals.h"
 #include <vk_mem_alloc.h>
@@ -2699,11 +2701,18 @@ std::array<SiteCount, 128> vram_trap_sites;
 std::vector<u64> vram_rearm;
 
 bool VramTrapsEnabled() {
+#ifdef _WIN32
+    return false; // No loader callback contract for these diagnostic traps yet.
+#else
     static const bool enabled = std::getenv("BB_VRAM_ACCESS_TRAP") != nullptr;
     return enabled;
+#endif
 }
 
 bool VramTrapHandler(void* context, void* fault_address) {
+#ifdef _WIN32
+    (void)context;(void)fault_address;return false;
+#else
     const u64 address = reinterpret_cast<u64>(fault_address);
     const u64 block = vram_trap_block_size ? address & ~(vram_trap_block_size - 1) : 0;
     {
@@ -2750,20 +2759,25 @@ bool VramTrapHandler(void* context, void* fault_address) {
             trap.address = address;
         }
     }
-    mprotect(reinterpret_cast<void*>(block), vram_trap_block_size, PROT_READ | PROT_WRITE);
+    BbHost::ProtectMemory(reinterpret_cast<void*>(block),vram_trap_block_size,true);
     return true;
+#endif
 }
 
 std::string VramTrapSiteName(u64 rip) {
     if (!(rip >> 63)) {
         return fmt::format("+{:#x}", rip);
     }
+#ifdef _WIN32
+    return fmt::format("host {:#x}",rip & ~(1ull<<63));
+#else
     Dl_info info{};
     const u64 address = rip & ~(1ull << 63);
     dladdr(reinterpret_cast<void*>(address), &info);
     const char* name = info.dli_fname ? std::strrchr(info.dli_fname, '/') : nullptr;
     return fmt::format("host {}+{:#x}", name ? name + 1 : "?",
                        address - reinterpret_cast<u64>(info.dli_fbase));
+#endif
 }
 
 void ReportVramTraps() {
@@ -2778,7 +2792,7 @@ void ReportVramTraps() {
             }
         }
         for (const u64 block : blocks) {
-            mprotect(reinterpret_cast<void*>(block), vram_trap_block_size, PROT_NONE);
+            BbHost::ProtectMemory(reinterpret_cast<void*>(block),vram_trap_block_size,false);
         }
         static auto last = std::chrono::steady_clock::now();
         if (std::chrono::steady_clock::now() - last < std::chrono::seconds(3)) {
@@ -2950,7 +2964,7 @@ void BufferCache::QueuePromotions(u64 submitted) {
             vram_trap_block_size = block_size;
             std::scoped_lock lk{vram_trapped_mutex};
             vram_trapped[address] = block_size;
-            mprotect(reinterpret_cast<void*>(address), block_size, PROT_NONE);
+            BbHost::ProtectMemory(reinterpret_cast<void*>(address),block_size,false);
         }
     }
     if (moved == 0) {
