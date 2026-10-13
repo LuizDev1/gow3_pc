@@ -557,3 +557,23 @@ is module loading: MESSAGE_DIALOG is rejected with `0x805a1000`. The game prints
 That cleanup import is not the primary startup blocker. Message-dialog module
 support and required APIs need investigation before further startup claims.
 Archive payload loading, graphics and menu are still not established.
+
+
+### Limited message-dialog lifecycle (October 13, 2026)
+
+MESSAGE_DIALOG module ID `0xa4` now selects a narrow lifecycle provider with
+reference counting and final-unload reset. CommonDialog initialization and
+MsgDialog initialization/status/termination track state with the existing
+runtime's error/status conventions. No dialog open, rendering, button result or
+fake completed response is implemented. Status remains initialized, not finished.
+Canonical dispatch requires exact library/module names and versions.
+
+Module ID reference: [OpenOrbis system module definitions](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/blob/master/include/orbis/_types/sysmodule.h).
+
+All 29 Windows entry tests pass, including load references, initialization order,
+duplicate initialization, termination and unload reset. With both experimental
+profiles enabled, USA 1.03 passes the earlier MESSAGE_DIALOG load failure and next
+stops at unresolved libkernel NID `aNz11fnnzi4` (caller offset `0xdd3c36`). Its name
+is not yet identified in this repository; no behavior is guessed. 2349 exit
+callbacks are registered. The next step is identifying that ABI. Graphics/menu
+remain unavailable, and no functional dialog UI is claimed.

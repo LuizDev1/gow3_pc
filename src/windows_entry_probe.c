@@ -397,7 +397,53 @@ static unsigned content_refs,content_initialized;
 #define MODULE_UNLOADED ((int32_t)0x805a1001)
 #define CONTENT_PARAMETER ((int32_t)0x80d90002)
 #define CONTENT_BUSY ((int32_t)0x80d90003)
+/* Limited dialog provider: lifecycle only, no UI/open/result implementation.
+ * Error/status conventions follow src/runtime_services.c. */
+static unsigned dialog_refs,common_initialized,message_initialized;
+#define DIALOG_NOT_INITIALIZED ((int32_t)0x80b80003)
+#define DIALOG_ALREADY_INITIALIZED ((int32_t)0x80b80004)
+static int32_t dialog_module(int action) {
+    AcquireSRWLockExclusive(&content_lock);int32_t result=0;
+    if(action==1) {if(dialog_refs==UINT_MAX) result=CONTENT_BUSY;else ++dialog_refs;}
+    else if(!dialog_refs) result=MODULE_UNLOADED;
+    else if(action==-1 && !--dialog_refs) message_initialized=0;
+    ReleaseSRWLockExclusive(&content_lock);return result;
+}
+static ABI int32_t guest_common_dialog_init(void) {
+    AcquireSRWLockExclusive(&content_lock);
+    int32_t result=common_initialized?DIALOG_ALREADY_INITIALIZED:0;
+    if(!result) common_initialized=1;
+    ReleaseSRWLockExclusive(&content_lock);return result;
+}
+static ABI int32_t guest_message_dialog_init(void) {
+    AcquireSRWLockExclusive(&content_lock);
+    int32_t result=!dialog_refs?MODULE_UNLOADED:!common_initialized?DIALOG_NOT_INITIALIZED:
+        message_initialized?DIALOG_ALREADY_INITIALIZED:0;
+    if(!result) message_initialized=1;
+    ReleaseSRWLockExclusive(&content_lock);return result;
+}
+static ABI int32_t guest_message_dialog_status(void) {
+    AcquireSRWLockShared(&content_lock);int32_t result=message_initialized?1:0;
+    ReleaseSRWLockShared(&content_lock);return result;
+}
+static ABI int32_t guest_message_dialog_term(void) {
+    AcquireSRWLockExclusive(&content_lock);int32_t result=message_initialized?0:DIALOG_NOT_INITIALIZED;
+    if(!result) message_initialized=0;
+    ReleaseSRWLockExclusive(&content_lock);return result;
+}
+static int selftest_dialog(void) {
+    if(guest_message_dialog_init()!=MODULE_UNLOADED || dialog_module(0)!=MODULE_UNLOADED ||
+       dialog_module(1) || guest_message_dialog_init()!=DIALOG_NOT_INITIALIZED ||
+       guest_common_dialog_init() || guest_common_dialog_init()!=DIALOG_ALREADY_INITIALIZED ||
+       guest_message_dialog_init() || guest_message_dialog_init()!=DIALOG_ALREADY_INITIALIZED ||
+       guest_message_dialog_status()!=1 || guest_message_dialog_term() || guest_message_dialog_status()!=0 ||
+       guest_message_dialog_term()!=DIALOG_NOT_INITIALIZED || dialog_module(1) || dialog_module(-1) ||
+       dialog_module(0) || guest_message_dialog_init() || dialog_module(-1) || guest_message_dialog_status()!=0 ||
+       dialog_module(-1)!=MODULE_UNLOADED) return 1;
+    puts("Dialogs: load references, initialization order, duplicate init and final unload reset passed");return 0;
+}
 static ABI int32_t guest_module_load(uint16_t id) {
+    if(id==0xa4) {puts("Runtime: limited MESSAGE_DIALOG lifecycle provider loaded (no UI)");return dialog_module(1);}
     if(id!=0xb4) return MODULE_INVALID;
     AcquireSRWLockExclusive(&content_lock);
     if(content_refs==UINT_MAX) {ReleaseSRWLockExclusive(&content_lock);return CONTENT_BUSY;}
@@ -405,11 +451,13 @@ static ABI int32_t guest_module_load(uint16_t id) {
     puts("Runtime: limited AppContent host provider loaded");return 0;
 }
 static ABI int32_t guest_module_loaded(uint16_t id) {
+    if(id==0xa4) return dialog_module(0);
     if(id!=0xb4) return MODULE_INVALID;
     AcquireSRWLockShared(&content_lock);int32_t result=content_refs?0:MODULE_UNLOADED;
     ReleaseSRWLockShared(&content_lock);return result;
 }
 static ABI int32_t guest_module_unload(uint16_t id) {
+    if(id==0xa4) return dialog_module(-1);
     if(id!=0xb4) return MODULE_INVALID;
     AcquireSRWLockExclusive(&content_lock);
     if(!content_refs) {ReleaseSRWLockExclusive(&content_lock);return MODULE_UNLOADED;}
@@ -597,6 +645,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
+        if (!strcmp(name,"uoUpLGNkygk#commondialog")) return (uintptr_t)guest_common_dialog_init;
+        if (!strcmp(name,"lDqxaY1UbEo#msgdialog")) return (uintptr_t)guest_message_dialog_init;
+        if (!strcmp(name,"6fIC3XKt2k0#msgdialog")) return (uintptr_t)guest_message_dialog_status;
+        if (!strcmp(name,"ePw-kqZmelo#msgdialog")) return (uintptr_t)guest_message_dialog_term;
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
         if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
         if (!strcmp(name,"eR2bZFAAU0Q#sysmodule")) return (uintptr_t)guest_module_unload;
@@ -633,6 +685,8 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
         else if (!strcmp(id->library, "libSceSystemService") && !strcmp(id->module, "libSceSystemService")) scope = "systemservice";
+        else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
+        else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
         else if (!strcmp(id->library, "libSceAppContent") && !strcmp(id->module, "libSceAppContentUtil")) scope = "appcontent";
         else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
@@ -727,6 +781,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-dialog")) return selftest_dialog();
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
