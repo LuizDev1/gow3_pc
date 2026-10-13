@@ -10,6 +10,7 @@ on:
       - 'src/windows_mutex.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
+      - 'tools/audit_runtime.py'
       - 'tools/package_entry_probe.py'
       - 'tests/**'
       - 'docs/WINDOWS_ENTRY_PROBE.md'
@@ -21,6 +22,7 @@ on:
       - 'src/windows_mutex.*'
       - 'scripts/**'
       - 'tools/inspect_target.py'
+      - 'tools/audit_runtime.py'
       - 'tools/package_entry_probe.py'
       - 'tests/**'
       - 'docs/WINDOWS_ENTRY_PROBE.md'
@@ -62,6 +64,8 @@ jobs:
           python -m unittest discover -s tests -p test_game_check.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_windows_entry_probe.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_audit_runtime.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package diagnostic and corresponding source
         shell: pwsh

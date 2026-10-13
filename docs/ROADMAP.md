@@ -12,6 +12,11 @@ has been validated. See [target inspection](TARGET_INSPECTION.md) for evidence.
 
 ## Initial priorities
 
+The [Windows integration plan](WINDOWS_INTEGRATION_PLAN.md) supersedes isolated
+per-function startup work: canonical import identities, Windows native-module/TLS
+loading, then generic runtime and minimal Vulkan integration. Static audit counts
+identify candidates, not compatibility.
+
 1. **Characterize the target executable.** Identify the edition, version, metadata,
    modules, and imports from your own The Last Guardian dump before defining
    supported IDs and hashes.
