@@ -365,3 +365,19 @@ the loader still does not dispatch guest faults into a linked renderer.
 Source conditionals and git diff --check were verified. The next CI run must
 validate the dependency update and page-manager build; no full renderer success
 or game graphics is claimed. CPU CI for the prior commit succeeded.
+
+
+### Image-watcher host allocation (October 13, 2026)
+
+Run 38469406423 reached the image-watcher table and failed on a remaining Linux
+mmap call. Host-owned zero-initialized allocation now uses VirtualAlloc on Windows
+and retains anonymous MAP_NORESERVE mappings on Linux. The image-watcher table
+uses this helper without substituting guest-memory mappings. Windows commits the
+allocation budget up front (resident pages remain demand-paged), so commitment
+requirements differ from Linux MAP_NORESERVE. Allocation failure remains explicit.
+The existing image-watcher lifetime is unchanged.
+
+The host regression checks zero-size rejection, zero-fill across multiple pages,
+writable endpoints and host release. Local Windows C++ object compilation passed;
+CI runs the test before the full renderer. No renderer link or GPU execution is
+claimed until subsequent validation succeeds.

@@ -9,6 +9,25 @@
 #include <unistd.h>
 #endif
 namespace BbHost {
+// Host-owned bookkeeping memory; never substitutes for guest/GPU mappings.
+inline void* AllocateZeroed(std::size_t size) {
+    if(!size) return nullptr;
+#ifdef _WIN32
+    return VirtualAlloc(nullptr,size,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+#else
+    void* address=mmap(nullptr,size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
+    return address==MAP_FAILED?nullptr:address;
+#endif
+}
+inline bool FreeZeroed(void* address,std::size_t size) {
+    if(!address || !size) return false;
+#ifdef _WIN32
+    return VirtualFree(address,0,MEM_RELEASE)!=0;
+#else
+    return munmap(address,size)==0;
+#endif
+}
+
 inline bool ProtectMemory(void* address,std::size_t size,bool writable) {
 #ifdef _WIN32
     DWORD previous=0;

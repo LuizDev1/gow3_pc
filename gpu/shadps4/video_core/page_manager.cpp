@@ -494,9 +494,8 @@ struct PageManager::Impl {
     template <bool track>
     void UpdateImageTraps(VAddr addr, u64 size) {
         std::call_once(image_watchers_once, [this] {
-            void* mem = mmap(nullptr, NUM_ADDRESS_PAGES * sizeof(u16), PROT_READ | PROT_WRITE,
-                             MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-            ASSERT_MSG(mem != MAP_FAILED, "image watcher table");
+            void* mem = BbHost::AllocateZeroed(NUM_ADDRESS_PAGES * sizeof(u16));
+            ASSERT_MSG(mem, "image watcher table");
             image_watchers = static_cast<u16*>(mem);
         });
         size_t page = addr >> PM_PAGE_BITS;
