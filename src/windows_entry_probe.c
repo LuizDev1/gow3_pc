@@ -436,6 +436,57 @@ static int selftest_system_parameter(void) {
        guest_system_parameter(1,NULL)!=SYSTEM_PARAMETER || guest_system_parameter(1,&value) || value!=1) return 1;
     puts("System parameters: explicit language profile and invalid-output preservation passed");return 0;
 }
+/* ABI and errors: shadPS4 playgo_types.h, GPL-2.0-or-later,
+ * Copyright 2024 shadPS4 Emulator Project. Metadata availability is not proof
+ * that every installation chunk is present; locus/progress remain unresolved. */
+typedef struct { const void *buffer; uint32_t size,reserved; } PlayGoInit;
+_Static_assert(sizeof(PlayGoInit)==16,"PlayGo initialization ABI");
+#define PLAYGO_ERROR(n) ((int32_t)(0x80b20000u|(n)))
+static SRWLOCK playgo_lock=SRWLOCK_INIT;
+static unsigned playgo_initialized,playgo_opened,playgo_chunks;
+static ABI int32_t guest_playgo_init(const PlayGoInit *params) {
+    if(!params || !params->buffer) return PLAYGO_ERROR(10);
+    if(params->size<0x200000) return PLAYGO_ERROR(11);
+    if(params->reserved) return PLAYGO_ERROR(4);
+    AcquireSRWLockExclusive(&playgo_lock);
+    if(playgo_initialized) {ReleaseSRWLockExclusive(&playgo_lock);return PLAYGO_ERROR(6);}
+    int64_t fd=guest_file_open("/app0/sce_sys/playgo-chunk.dat",0,0);
+    unsigned char header[20];int valid=0;
+    if(fd>=3) {
+        int64_t length=guest_file_seek((int)fd,0,2);
+        if(guest_file_seek((int)fd,0,0)==0 && guest_file_read((int)fd,header,sizeof(header))==sizeof(header)) {
+            uint32_t declared;memcpy(&declared,header+16,4);
+            unsigned count=(unsigned)header[10]|((unsigned)header[11]<<8);
+            valid=!memcmp(header,"plgo",4) && length==declared && count>0;
+            if(valid) playgo_chunks=count;
+        }
+        guest_file_close((int)fd);
+    }
+    if(!valid) {ReleaseSRWLockExclusive(&playgo_lock);return PLAYGO_ERROR(4);}
+    playgo_initialized=1;ReleaseSRWLockExclusive(&playgo_lock);
+    printf("Runtime: PlayGo metadata initialized (%u declared chunks; availability unverified)\n",playgo_chunks);return 0;
+}
+static ABI int32_t guest_playgo_open(uint32_t *out,const void *params) {
+    if(!out) return PLAYGO_ERROR(10);
+    if(params) return PLAYGO_ERROR(4);
+    AcquireSRWLockExclusive(&playgo_lock);
+    if(!playgo_initialized) {ReleaseSRWLockExclusive(&playgo_lock);return PLAYGO_ERROR(5);}
+    if(playgo_opened) {ReleaseSRWLockExclusive(&playgo_lock);return PLAYGO_ERROR(7);}
+    playgo_opened=1;*out=1;ReleaseSRWLockExclusive(&playgo_lock);return 0;
+}
+static int selftest_playgo(void) {
+    uint32_t handle=123;PlayGoInit params={0};
+    if(guest_playgo_open(&handle,NULL)!=PLAYGO_ERROR(5) || handle!=123 ||
+        guest_playgo_init(NULL)!=PLAYGO_ERROR(10) || guest_playgo_init(&params)!=PLAYGO_ERROR(10)) return 1;
+    void *buffer=calloc(1,0x200000);if(!buffer) return 1;params.buffer=buffer;params.size=1;
+    if(guest_playgo_init(&params)!=PLAYGO_ERROR(11)) return 1;
+    params.size=0x200000;params.reserved=1;if(guest_playgo_init(&params)!=PLAYGO_ERROR(4)) return 1;
+    params.reserved=0;
+    if(guest_playgo_init(&params) || guest_playgo_init(&params)!=PLAYGO_ERROR(6) ||
+        guest_playgo_open(NULL,NULL)!=PLAYGO_ERROR(10) || guest_playgo_open(&handle,buffer)!=PLAYGO_ERROR(4) ||
+        guest_playgo_open(&handle,NULL) || handle!=1 || guest_playgo_open(&handle,NULL)!=PLAYGO_ERROR(7)) return 1;
+    free(buffer);puts("PlayGo: metadata initialization, ABI validation and open lifecycle passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -460,6 +511,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
+        if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
         if (!strcmp(name,"g8cM39EUZ6o#sysmodule")) return (uintptr_t)guest_module_load;
         if (!strcmp(name,"fMP5NHUOaMk#sysmodule")) return (uintptr_t)guest_module_loaded;
@@ -500,6 +553,8 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
         else if (!strcmp(id->library, "libSceLibcInternalExt") && !strcmp(id->module, "libSceLibcInternal")) scope = "heap-trace";
     }
+    if (id->library_version==1 && id->module_version==256 &&
+        !strcmp(id->library,"libScePlayGo") && !strcmp(id->module,"libScePlayGo")) scope="playgo";
     if (!scope) return 0;
     char dispatch[128];
     snprintf(dispatch, sizeof(dispatch), "%s#%s", id->nid, scope);
@@ -587,6 +642,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();

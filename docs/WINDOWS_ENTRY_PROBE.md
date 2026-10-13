@@ -349,3 +349,25 @@ deletion waking a blocked worker. USA 1.03 creates a semaphore with initial coun
 0 and maximum 2147483647, then stops at `scePlayGoInitialize` (`ts6GlZOKRrE`,
 libScePlayGo@1 / libScePlayGo@256, caller offset `0xdd542f`). PlayGo installation
 state handling is the next blocker. Graphics and menu remain unavailable.
+
+
+### PlayGo metadata initialization (October 13, 2026)
+
+PlayGo initialization now validates its explicit 16-byte input ABI, non-null
+workspace, minimum 2 MiB workspace size and zero reserved field. It reads the
+local `/app0/sce_sys/playgo-chunk.dat` header, checks its magic, declared file size
+and nonzero chunk count, then records initialized state. Open validates pointers,
+parameters and lifecycle. Canonical resolution requires libScePlayGo@1 /
+libScePlayGo@256. Initialization does not claim that declared chunks are installed;
+workspace management, full metadata parsing and availability queries remain incomplete.
+
+ABI/error references: [shadPS4 PlayGo types](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/playgo/playgo_types.h)
+and [implementation](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/playgo/playgo.cpp),
+GPL-2.0-or-later, Copyright 2024 shadPS4 Emulator Project.
+
+All 26 Windows entry tests pass, including initialization validation, malformed
+metadata rejection and open lifecycle. The USA 1.03 target reads its actual
+1632-byte PlayGo metadata file declaring 27 chunks, initializes and opens PlayGo,
+then stops at `scePlayGoGetLocus` (`uWIYLFkkwqk`, caller offset `0xdd54a4`).
+Determining actual local chunk availability is the next blocker. No graphics or
+menu are available.

@@ -27,6 +27,22 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_playgo_initialization_validates_metadata_and_abi(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = Path(root)/'sce_sys'
+            directory.mkdir()
+            data = bytearray(20)
+            data[:4] = b'plgo'
+            struct.pack_into('<H', data, 10, 27)
+            struct.pack_into('<I', data, 16, 20)
+            (directory/'playgo-chunk.dat').write_bytes(data)
+            result = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root), capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('metadata initialization, ABI validation and open lifecycle passed', result.stdout)
+            (directory/'playgo-chunk.dat').write_bytes(b'bad metadata')
+            rejected = subprocess.run([str(EXE.resolve()), '--selftest-playgo'], env=dict(os.environ, TLG_GAME_ROOT=root), capture_output=True, text=True, timeout=15)
+            self.assertNotEqual(rejected.returncode, 0)
+
     def test_semaphore_counted_wait_and_concurrent_deletion(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-semaphore'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
