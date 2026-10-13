@@ -537,3 +537,23 @@ With both experimental profiles enabled, USA 1.03 now queries
 at guest offset `0x5c4a55f`. Archive reads or loading are not established by these
 metadata queries. The new Fios2 assertion is the next investigation; graphics
 and menu remain unavailable.
+
+
+### Zero-initialized rwlock support (October 13, 2026)
+
+Tracing identified the Fios2 assertion at `0x5c4a55f`: write-lock acquisition
+received a zero-initialized rwlock slot that had no explicit initializer call.
+Read/write/try acquisition now creates a default owned lock for a zero slot while
+holding the registry lock. This serializes first use and retains non-reused IDs;
+unknown nonzero handles still fail. Static mutex/condition initialization is not
+implied by this change. Optional synchronization tracing reports invalid rwlock
+slots and rejected ownership transitions.
+
+All 28 Windows entry tests pass, including independent lazily created read/write
+locks. With both experimental profiles enabled, the previous assertion disappears
+and startup queries additional base and patch PSARC files. The actual next failure
+is module loading: MESSAGE_DIALOG is rejected with `0x805a1000`. The game prints
+`Exit engine` and reaches unresolved `sceSaveDataTerminate` during cleanup.
+That cleanup import is not the primary startup blocker. Message-dialog module
+support and required APIs need investigation before further startup claims.
+Archive payload loading, graphics and menu are still not established.

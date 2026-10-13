@@ -293,14 +293,19 @@ static Rwlock *find_rw(const uint64_t *handle) {
     if(handle && *handle) for(unsigned i=0;i<128;i++) if(rwlocks[i].id==*handle) return &rwlocks[i];
     return NULL;
 }
-static ABI int32_t rw_init(uint64_t *out,const void *attr,const char *name) {
-    (void)name;if(!out) return INVALID;if(attr) return (int32_t)0x8002002d;
-    AcquireSRWLockExclusive(&rw_lock);
+static Rwlock *new_rw_locked(uint64_t *out) {
     for(unsigned i=0;i<128;i++) if(!rwlocks[i].id && next_rwlock) {
         rwlocks[i]=(Rwlock){.id=next_rwlock++};InitializeConditionVariable(&rwlocks[i].changed);
-        *out=rwlocks[i].id;ReleaseSRWLockExclusive(&rw_lock);return 0;
+        *out=rwlocks[i].id;
+        if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Rwlock initialized: slot=%p value=%llu\n",(void *)out,(unsigned long long)*out);
+        return &rwlocks[i];
     }
-    ReleaseSRWLockExclusive(&rw_lock);return NO_MEMORY;
+    return NULL;
+}
+static ABI int32_t rw_init(uint64_t *out,const void *attr,const char *name) {
+    (void)name;if(!out) return INVALID;if(attr) return (int32_t)0x8002002d;
+    AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=new_rw_locked(out);
+    ReleaseSRWLockExclusive(&rw_lock);return rw?0:NO_MEMORY;
 }
 static Reader *reader(Rwlock *rw,DWORD thread) {
     for(unsigned i=0;i<64;i++) if(rw->owners[i].thread==thread && rw->owners[i].count) return &rw->owners[i];
@@ -308,9 +313,16 @@ static Reader *reader(Rwlock *rw,DWORD thread) {
 }
 static int32_t rw_acquire(uint64_t *handle,int write,int try_only) {
     AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);DWORD self=GetCurrentThreadId();
-    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    if(handle && !*handle) {
+        rw=new_rw_locked(handle);
+        if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return NO_MEMORY;}
+    }
+    if(!rw) {if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Invalid rwlock: slot=%p value=%llx\n",(void *)handle,(unsigned long long)(handle?*handle:0));ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
     Reader *own=reader(rw,self);
-    if(rw->writer==self || (write && own)) {ReleaseSRWLockExclusive(&rw_lock);return DEADLOCK;}
+    if(rw->writer==self || (write && own)) {
+        if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Rwlock acquisition rejected: id=%llu writer=%lu caller=%lu reader_depth=%u write=%d\n",(unsigned long long)rw->id,(unsigned long)rw->writer,(unsigned long)self,own?own->count:0,write);
+        ReleaseSRWLockExclusive(&rw_lock);return DEADLOCK;
+    }
     unsigned *waiting=write?&rw->waiting_writers:&rw->waiting_readers;
     while(rw->writer || (write?rw->readers:(!own && rw->waiting_writers))) {
         if(try_only) {ReleaseSRWLockExclusive(&rw_lock);return BUSY;}
@@ -332,7 +344,7 @@ static ABI int32_t rw_tryread(uint64_t *h) {return rw_acquire(h,0,1);}
 static ABI int32_t rw_trywrite(uint64_t *h) {return rw_acquire(h,1,1);}
 static ABI int32_t rw_unlock(uint64_t *handle) {
     AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);DWORD self=GetCurrentThreadId();
-    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    if(!rw) {if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Invalid rwlock: slot=%p value=%llx\n",(void *)handle,(unsigned long long)(handle?*handle:0));ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
     if(rw->writer==self) rw->writer=0;
     else {Reader *own=reader(rw,self);if(!own) {ReleaseSRWLockExclusive(&rw_lock);return NOT_OWNER;}
         if(!--own->count) own->thread=0;--rw->readers;}
@@ -340,7 +352,7 @@ static ABI int32_t rw_unlock(uint64_t *handle) {
 }
 static ABI int32_t rw_destroy(uint64_t *handle) {
     AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);
-    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    if(!rw) {if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,"Invalid rwlock: slot=%p value=%llx\n",(void *)handle,(unsigned long long)(handle?*handle:0));ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
     if(rw->writer || rw->readers || rw->waiting_readers || rw->waiting_writers) {ReleaseSRWLockExclusive(&rw_lock);return BUSY;}
     *rw=(Rwlock){0};*handle=0;ReleaseSRWLockExclusive(&rw_lock);return 0;
 }
@@ -354,6 +366,10 @@ static DWORD WINAPI rw_worker(void *argument) {
     return 0;
 }
 static int selftest_rwlocks(void) {
+    uint64_t lazy=0,lazy_other=0;
+    if(rw_read(&lazy) || !lazy || rw_unlock(&lazy) || rw_write(&lazy_other) ||
+        lazy==lazy_other || rw_unlock(&lazy_other) || rw_destroy(&lazy) || rw_destroy(&lazy_other)) return 1;
+    puts("rwlock static initialization: zero slots create independent owned locks");
     uint64_t h=0,other=0;
     if(rw_init(NULL,NULL,NULL)!=INVALID || rw_init(&h,NULL,"test") || rw_init(&other,NULL,"other") ||
        rw_read(&h) || rw_read(&h) || rw_trywrite(&h)!=DEADLOCK || rw_destroy(&h)!=BUSY) return 1;

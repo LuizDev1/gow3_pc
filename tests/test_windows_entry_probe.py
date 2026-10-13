@@ -163,6 +163,7 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('type validation, isolation and stale handles passed', result.stdout)
         self.assertIn('concurrent readers, exclusive writer, ownership, recursion and stale handles passed', result.stdout)
+        self.assertIn('zero slots create independent owned locks', result.stdout)
         self.assertIn('NONE supported, priority protocols explicitly rejected and handles validated', result.stdout)
         self.assertIn('ownership, recursion, contention, busy destruction and stale handles passed', result.stdout)
         self.assertIn('condition lifecycle: attributes, defaults, isolation and stale handles passed', result.stdout)
