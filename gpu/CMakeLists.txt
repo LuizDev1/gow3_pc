@@ -79,7 +79,7 @@ if(NOT miniz_FOUND AND WIN32)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(bb_miniz
         GIT_REPOSITORY https://github.com/richgel999/miniz.git
-        GIT_TAG 293d4db1b7d0ffee9756d035b9ac6f7431ef8492) # 3.0.2
+        GIT_TAG 77d0dce8627735138c51770d1799a1ef48f2117d) # 3.1.2
     FetchContent_MakeAvailable(bb_miniz)
     if(NOT TARGET miniz::miniz)
         add_library(miniz::miniz ALIAS miniz)

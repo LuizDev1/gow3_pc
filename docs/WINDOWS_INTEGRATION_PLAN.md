@@ -345,3 +345,23 @@ fails, restores access and verifies data. Local Windows object compilation passe
 CI executes the check and rebuilds the full renderer. Conditional source blocks
 were checked for balance and git diff --check passed. No renderer success or
 frame presentation is claimed.
+
+
+### Cache dependency and page-fault context adaptation (October 13, 2026)
+
+Run 38468449642 passed host regression checks and advanced to cache/page-manager
+sources. The pinned miniz 3.0.2 lacked MZ_ZIP_FLAG_READ_ALLOW_WRITING; the Windows
+fallback now pins miniz 3.1.2 at commit 77d0dce8627735138c51770d1799a1ef48f2117d,
+whose upstream header declares that flag. No flag is aliased to a different mode.
+
+Page-manager diagnostics now read Windows CONTEXT registers on Windows, preserve
+Linux context access on Linux and use the safe host-memory reader for stack/frame
+inspection. Host symbol names remain unavailable on Windows, reported as absolute
+addresses. Diagnostic stack scanning now requires a completely readable sample;
+partial readable samples are skipped. Fault handling uses the existing generic
+instruction-pointer accessor for GPU memory callbacks. This prepares compilation;
+the loader still does not dispatch guest faults into a linked renderer.
+
+Source conditionals and git diff --check were verified. The next CI run must
+validate the dependency update and page-manager build; no full renderer success
+or game graphics is claimed. CPU CI for the prior commit succeeded.
