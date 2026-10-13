@@ -6,7 +6,6 @@
 #include "bbport_settings.h"
 #include "game_profile.h"
 #include "bbport_copy.h"
-#include <sys/resource.h>
 #include "bbport_free_check.h"
 #include "bbport_toggles.h"
 #include <algorithm>

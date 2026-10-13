@@ -9,6 +9,7 @@ on:
       - 'gpu/**'
       - '.gitmodules'
       - 'tests/test_fsr_windows_headers.cpp'
+      - 'tests/test_gpu_windows_host.cpp'
 
 permissions:
   contents: read
@@ -61,6 +62,14 @@ jobs:
           clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_fsr_windows_headers.cpp \
             -o out/fsr-windows-headers-test.exe 2>&1 | tee out/gpu-build-logs/fsr-headers.log
           ./out/fsr-windows-headers-test.exe
+      - name: Test Windows renderer host helpers
+        shell: msys2 {0}
+        run: |
+          set -o pipefail
+          clang++ -std=c++23 -Wall -Wextra -Werror -DNOMINMAX -DWIN32_LEAN_AND_MEAN -I. \
+            tests/test_gpu_windows_host.cpp -o out/gpu-windows-host-test.exe \
+            2>&1 | tee out/gpu-build-logs/host-helpers.log
+          ./out/gpu-windows-host-test.exe
       - name: Configure experimental renderer
         shell: msys2 {0}
         run: |

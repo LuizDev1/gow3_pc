@@ -289,3 +289,22 @@ cstdlib. The header now includes its declaring standard-library header, preservi
 the vendored BSD license and behavior. This is a source dependency correction;
 full validation awaits the next renderer build. The CPU diagnostic run for the
 same commit succeeded. No rendering or runtime graphics integration is claimed.
+
+
+### Renderer host portability (October 13, 2026)
+
+Run 38465676807 advanced through FSR/Sirit and failed in the GPU sources on
+Linux-only sys/resource.h and the Windows `near` macro collision. Unused resource
+headers are removed. Command-buffer diagnostic reads now use ReadProcessMemory
+on Windows and retain process_vm_readv on Linux. Helper thread availability uses
+the Windows process affinity mask (current processor group) with hardware-count
+fallback; background work requests THREAD_PRIORITY_LOWEST as a best-effort host
+policy, not SCHED_IDLE or PS4 scheduling. Linux thread-CPU-clock instrumentation
+is omitted on Windows rather than returning fabricated profiling values.
+The PM4 self-test lambda was renamed to avoid the Windows macro.
+
+A dedicated Windows helper check covers successful and invalid-address reads,
+nonzero processor count and background-priority setup. Local Windows C++ object
+compilation passed; the GPU CI runs the executable before attempting the complete
+renderer. Additional platform failures are still possible. No successful renderer
+link, compute execution, frame or menu is claimed.
