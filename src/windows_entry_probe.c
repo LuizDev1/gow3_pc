@@ -674,6 +674,27 @@ static int selftest_video(void) {
     if(reopened<=handle || guest_video_resolution(handle,&value)!=VIDEO_BAD_HANDLE || guest_video_close(reopened)) return 1;
     puts("VideoOut: logical lifecycle, resolution ABI, duplicate open and stale handles passed");return 0;
 }
+/* Retail behavior from bundled shadPS4 gnmdriver.cpp/gnm_error.h:
+ * debug resource registration is unavailable, not successful GPU setup. */
+#define GNM_REGISTRATION_UNAVAILABLE ((int32_t)0x8eee00ff)
+static ABI int32_t guest_gnm_register_owner(void *out,const char *name) {
+    (void)out;(void)name;
+    puts("Runtime: GNM debug owner registration unavailable in retail profile");
+    return GNM_REGISTRATION_UNAVAILABLE;
+}
+static ABI int32_t guest_gnm_register_resource(void *out,void *owner,const void *address,
+    uint64_t size,const char *name,int type,uint64_t user_data) {
+    (void)out;(void)owner;(void)address;(void)size;(void)name;(void)type;(void)user_data;
+    return GNM_REGISTRATION_UNAVAILABLE;
+}
+static int selftest_gnm_registration(void) {
+    uint64_t output[2]={UINT64_C(0x123456789abcdef0),UINT64_C(0xfedcba9876543210)};
+    if(guest_gnm_register_owner(output,"test")!=GNM_REGISTRATION_UNAVAILABLE ||
+       guest_gnm_register_owner(NULL,NULL)!=GNM_REGISTRATION_UNAVAILABLE ||
+       guest_gnm_register_resource(output,NULL,NULL,0,NULL,0,0)!=GNM_REGISTRATION_UNAVAILABLE ||
+       output[0]!=UINT64_C(0x123456789abcdef0) || output[1]!=UINT64_C(0xfedcba9876543210)) return 1;
+    puts("GNM registration: retail failure code and unchanged output passed");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -707,6 +728,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"6fIC3XKt2k0#msgdialog")) return (uintptr_t)guest_message_dialog_status;
         if (!strcmp(name,"ePw-kqZmelo#msgdialog")) return (uintptr_t)guest_message_dialog_term;
         if (!strcmp(name,"kGVLc3htQE8#videoout")) return (uintptr_t)guest_video_capabilities;
+        if (!strcmp(name,"ZFqKFl23aMc#E#F")) return (uintptr_t)guest_gnm_register_owner;
+        if (!strcmp(name,"nvEwfYAImTs#E#F")) return (uintptr_t)guest_gnm_register_resource;
         if (!strcmp(name,"Up36PTk687E#videoout")) return (uintptr_t)guest_video_open;
         if (!strcmp(name,"uquVH4-Du78#videoout")) return (uintptr_t)guest_video_close;
         if (!strcmp(name,"6kPnj51T62Y#videoout")) return (uintptr_t)guest_video_resolution;
@@ -844,6 +867,7 @@ static DWORD WINAPI watchdog(void *unused) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-gnm-registration")) return selftest_gnm_registration();
     if (argc == 2 && !strcmp(argv[1], "--selftest-video")) return selftest_video();
     if (argc == 2 && !strcmp(argv[1], "--selftest-dialog")) return selftest_dialog();
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();

@@ -653,3 +653,22 @@ The symbol is confirmed by the bundled GNM driver's registration table and added
 to diagnostic names. GNM resource registration and renderer integration are the
 next work area. GPU command processing, a window, rendered frames and the menu
 remain unavailable.
+
+
+### Retail GNM registration and compute-queue blocker (October 13, 2026)
+
+The bundled shadPS4 GNM implementation marks debug owner/resource registration
+unavailable on retail firmware and returns `0x8eee00ff`. The diagnostic now
+reproduces that behavior for `sceGnmRegisterOwner` and `sceGnmRegisterResource`,
+preserving outputs. This is not successful resource registration or renderer
+integration. ABI and error references are `gpu/shadps4/core/libraries/gnmdriver/`
+`gnmdriver.cpp` and `gnm_error.h` (GPL-2.0-or-later).
+
+All 31 Windows entry tests pass, including the retail failure code and unchanged
+registration output. Under both experimental profiles, USA 1.03 tolerates the
+retail registration response, prints its 96 MiB allocator statistics and reaches
+`sceGnmMapComputeQueueWithPriority` (`A+uGq+3KFtQ`, caller offset `0x1472d4d`).
+This call requires real compute-queue state and eventual GPU command execution;
+a fabricated successful queue would hide a missing renderer contract. The next
+step is connecting a Windows-compatible GNM/Vulkan backend rather than claiming
+queue completion. No window, rendered frame or menu is available.

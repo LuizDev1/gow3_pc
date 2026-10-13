@@ -27,6 +27,11 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_gnm_debug_registration_returns_retail_error(self):
+        result = subprocess.run([str(EXE.resolve()), '--selftest-gnm-registration'], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('retail failure code and unchanged output passed', result.stdout)
+
     def test_logical_video_port_lifecycle_and_resolution(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-video'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
