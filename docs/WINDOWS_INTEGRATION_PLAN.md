@@ -145,3 +145,29 @@ Fourteen native probe tests and two module-preparation tests cover this work.
 Next: complete dynamic TLS and the linked Windows image reader, then run module
 initializers with controlled diagnostics. The game still stops at `strlen` in
 the existing entry diagnostic; no additional execution milestone is claimed.
+
+## Native-module Windows loading connected
+
+`TLGWIN02` now carries canonical identities, module metadata, native bindings,
+main/module TLS metadata and pattern patch offsets. The loader validates bounds,
+executable initialization/export addresses, function/data kinds and expected TLS
+bytes. It allocates a Windows TLS slot, configures static/dynamic module templates,
+prefers explicit host contracts over native exports, and calls native initializers.
+The intermediate `TLGPRP01` and Linux formats remain rejected.
+
+Synthetic integration tests initialize a module and call its native export, and
+reject a mismatched binding kind before execution. Dynamic TLS tests verify
+isolated module blocks on separate Windows threads. Fourteen probe tests and
+four module-preparation/integration tests pass locally.
+
+On the actual USA 1.03 files, native libc initialization starts at `0x5b10000`,
+passes `sceKernelGetProcParam`, and registers the application heap API. It then
+stops at `NWtTN10cJzE`, identity `libSceLibcInternalExt@1 / libSceLibcInternal@257`,
+caller offset `0x5b6b8e1`, exit 20. This realizes the internal-libc gap previously
+identified by the audit; no success stub is installed for that unknown contract.
+The initializer has not completed, and Fios2/game entry have not run in this mode.
+
+Next: identify that internal libc contract, then complete library initialization
+with the generic Windows runtime. Guest thread records, direct DTV access,
+instruction-boundary validation of TLS rewrite candidates and GPU integration
+remain unfinished. The unlinked regression path still reaches `strlen`.

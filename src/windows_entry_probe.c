@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
- * Windows x86-64 entry diagnostic. Minimal startup contracts; no native modules,
- * GPU or game patches.
- * Accepts unlinked BBPROBE2/TLGWIN01 images, never Linux FS-to-GS linked images.
+ * Windows x86-64 diagnostic with native-module startup and minimal contracts.
+ * Accepts BBPROBE2/TLGWIN01 and linked TLGWIN02, never Linux linked images.
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -31,6 +30,17 @@ typedef struct {
 } ImportIdentity;
 _Static_assert(sizeof(ImportIdentity) == 152, "canonical identity layout");
 static ImportIdentity *identities;
+typedef struct { uint64_t base,size,init,tls_address,tls_memsz,tls_filesz,tls_module; } NativeModule;
+static NativeModule native_modules[15];
+static uint64_t native_count;
+static void *process_parameter;
+static void **application_heap_api;
+static void __attribute__((sysv_abi)) register_application_heap(void **api) {
+    application_heap_api=api;
+    printf("Runtime: application heap API registered at %p\n",(void *)application_heap_api);
+}
+static int entered_game;
+static void * __attribute__((sysv_abi)) get_process_parameter(void) { return process_parameter; }
 static size_t page_size;
 static uint64_t init_env_calls;
 static uint64_t stack_canary;
@@ -127,6 +137,12 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)guest_atexit;
     if (!is_data && (capabilities & 1) && !strcmp(name, "tsvEmnenz48#V#V"))
         return (uintptr_t)guest_cxa_atexit;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "vNe1w4diLCs#U#H"))
+        return (uintptr_t)windows_tls_get_addr;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "959qrazPIrg#U#H"))
+        return (uintptr_t)get_process_parameter;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "p5EcQeEeJAE#U#H"))
+        return (uintptr_t)register_application_heap;
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
@@ -194,7 +210,8 @@ static ABI __attribute__((noreturn)) void unsupported(uint32_t id, uintptr_t fir
            (uintptr_t)__builtin_return_address(0) - (uintptr_t)image, first_arg);
     printf("Verified _init_env calls: %" PRIu64 "\n", init_env_calls);
     printf("Registered atexit callbacks: %zu\n", exit_count);
-    puts("Original entry reached an unsupported import; game initialization is incomplete.");
+    puts(entered_game ? "Original entry reached an unsupported import; game initialization is incomplete." :
+                       "Native module initialization is incomplete; original game entry has not run.");
     fflush(NULL);
     ExitProcess(20);
 }
@@ -245,15 +262,49 @@ int main(int argc, char **argv) {
     FILE *f = fopen(argv[1], "rb");
     if (!f) fail("cannot open boot file");
     char magic[8];
-    if (fread(magic, 1, 8, f) != 8 || (memcmp(magic, "BBPROBE2", 8) && memcmp(magic, "TLGWIN01", 8)))
-        fail("expected BBPROBE2 or TLGWIN01; Linux linked images are not supported");
+    if (fread(magic, 1, 8, f) != 8 || (memcmp(magic, "BBPROBE2", 8) && memcmp(magic, "TLGWIN01", 8) && memcmp(magic,"TLGWIN02",8)))
+        fail("expected BBPROBE2, TLGWIN01 or TLGWIN02; Linux linked images are not supported");
     image_size = read64(f);
     uint64_t entry = read64(f), ns = read64(f), nr = read64(f);
     import_count = read64(f);
     uint64_t capabilities = read64(f);
+    int linked=!memcmp(magic,"TLGWIN02",8);
     if (!image_size || image_size > 512 * 1024 * 1024 || entry >= image_size ||
         !ns || ns > 64 || nr > 1000000 || import_count > 100000 || capabilities > 1)
         fail("boot file limits exceeded");
+    uint64_t main_tls[4]={0}, procparam=0, site_count=0, *sites=NULL;
+    uint64_t *bindings=calloc((size_t)(import_count?import_count:1),sizeof(*bindings));
+    uint64_t *binding_kinds=calloc((size_t)(import_count?import_count:1),sizeof(*binding_kinds));
+    if (!bindings || !binding_kinds) fail("binding allocation failed");
+    if (linked) {
+        if (!(capabilities&1)) fail("native modules require preparation evidence");
+        procparam=read64(f);
+        for (unsigned i=0;i<4;++i) main_tls[i]=read64(f);
+        native_count=read64(f);
+        if (native_count>15) fail("too many native modules");
+        for (uint64_t i=0;i<native_count;++i) {
+            NativeModule *m=&native_modules[i];
+            m->base=read64(f); m->size=read64(f); m->init=read64(f);
+            m->tls_address=read64(f); m->tls_memsz=read64(f);
+            m->tls_filesz=read64(f); m->tls_module=read64(f);
+            if (m->base>=image_size || m->size>image_size-m->base || m->init<m->base ||
+                m->init-m->base>=m->size || m->tls_filesz>m->tls_memsz || m->tls_memsz>1024*1024 ||
+                (m->tls_module && (m->tls_module<2 || m->tls_module>=16))) fail("invalid native module");
+        }
+        uint64_t count=read64(f);
+        if (count>import_count) fail("too many native bindings");
+        for (uint64_t i=0;i<count;++i) {
+            uint64_t index=read64(f),address=read64(f),kind=read64(f);
+            if (index>=import_count || !address || address>=image_size || bindings[index] ||
+                (kind!=1 && kind!=2)) fail("invalid native binding");
+            bindings[index]=address; binding_kinds[index]=kind;
+        }
+        site_count=read64(f);
+        if (site_count>1000000) fail("too many TLS sites");
+        sites=calloc((size_t)(site_count?site_count:1),sizeof(*sites));
+        if (!sites) fail("TLS site allocation failed");
+        for (uint64_t i=0;i<site_count;++i) sites[i]=read64(f);
+    }
     if (BCryptGenRandom(NULL, (PUCHAR)&stack_canary, sizeof(stack_canary),
                         BCRYPT_USE_SYSTEM_PREFERRED_RNG) < 0) fail("stack canary generation failed");
     stack_canary &= ~UINT64_C(255);
@@ -276,7 +327,7 @@ int main(int argc, char **argv) {
     if (fread(names, 128, (size_t)import_count, f) != import_count) fail("truncated imports");
     for (uint64_t i = 0; i < import_count; ++i)
         if (!memchr(names[i], 0, 128)) fail("unterminated import");
-    if (!memcmp(magic, "TLGWIN01", 8)) {
+    if (!memcmp(magic, "TLGWIN01", 8) || linked) {
         identities = calloc((size_t)(import_count ? import_count : 1), sizeof(*identities));
         if (!identities || fread(identities, sizeof(*identities), (size_t)import_count, f) != import_count)
             fail("truncated canonical identities");
@@ -302,6 +353,42 @@ int main(int argc, char **argv) {
     image = allocate(rounded((size_t)image_size));
     if (fread(image, 1, (size_t)image_size, f) != image_size || fgetc(f) != EOF) fail("incorrect image size");
     fclose(f);
+    if (linked) {
+        if (main_tls[1]>main_tls[2] || main_tls[2]>1024*1024 || !mapped(segments,ns,procparam,64) ||
+            (main_tls[2] && !mapped(segments,ns,main_tls[0],main_tls[2]))) fail("invalid main TLS metadata");
+        for (uint64_t i=0;i<native_count;++i) {
+            NativeModule *m=&native_modules[i];
+            int executable=0;
+            for (uint64_t s=0;s<ns;++s)
+                if ((segments[s].flags&1) && m->init>=segments[s].address &&
+                    m->init-segments[s].address<segments[s].size) executable=1;
+            if (!executable || (m->tls_module && !mapped(segments,ns,m->tls_address,m->tls_memsz)))
+                fail("unmapped module initializer or TLS");
+        }
+        for (uint64_t i=0;i<import_count;++i) if (bindings[i]) {
+            if (!mapped(segments,ns,bindings[i],1) || identities[i].kind!=(binding_kinds[i]==2?1u:2u))
+                fail("invalid native binding identity");
+            if (binding_kinds[i]==1) {
+                int executable=0;
+                for (uint64_t s=0;s<ns;++s)
+                    if ((segments[s].flags&1) && bindings[i]>=segments[s].address &&
+                        bindings[i]-segments[s].address<segments[s].size) executable=1;
+                if (!executable) fail("native function is not executable");
+            }
+        }
+        uint32_t offset;
+        if (windows_tls_slot_offset(&offset)) fail("Windows TLS slot unavailable");
+        const unsigned char expected[]={0x64,0x48,0x8b,0x04,0x25,0,0,0,0};
+        for (uint64_t i=0;i<site_count;++i) {
+            uint64_t at=sites[i]; int executable=0;
+            for (uint64_t s=0;s<ns;++s)
+                if ((segments[s].flags&1) && at>=segments[s].address && segments[s].size>=9 &&
+                    at-segments[s].address<=segments[s].size-9) executable=1;
+            if (!executable || at>image_size-9 || memcmp(image+at,expected,9)) fail("invalid Windows TLS patch site");
+            image[at]=0x65;
+            memcpy(image+at+5,&offset,4);
+        }
+    }
     unsigned char *traps = allocate(rounded((size_t)(import_count + 1) * 32));
     data_traps = allocate((size_t)(import_count + 1) * page_size);
     protect(data_traps, (size_t)(import_count + 1) * page_size, 0);
@@ -322,6 +409,7 @@ int main(int argc, char **argv) {
         if (r->kind) {
             uintptr_t resolved = resolve_identity(r->value, r->kind == 2, capabilities);
             if (resolved) value = resolved + r->addend;
+            else if (bindings[r->value]) value=(uintptr_t)image+bindings[r->value]+r->addend;
         }
         memcpy(image + r->target, &value, 8);
     }
@@ -333,9 +421,28 @@ int main(int argc, char **argv) {
     HANDLE timer = CreateThread(NULL, 0, watchdog, NULL, 0, NULL);
     if (!timer) fail("watchdog unavailable");
     CloseHandle(timer);
+    if (linked) {
+        process_parameter=image+procparam;
+        if (windows_tls_attach(image+main_tls[0],main_tls[1],main_tls[2],main_tls[3]?main_tls[3]:16))
+            fail("main Windows TLS initialization failed");
+        for (uint64_t i=0;i<native_count;++i) {
+            NativeModule *m=&native_modules[i];
+            if (m->tls_module && windows_tls_set_module(m->tls_module,image+m->tls_address,m->tls_filesz,m->tls_memsz))
+                fail("native module TLS configuration failed");
+        }
+        for (uint64_t i=0;i<native_count;++i) {
+            printf("Starting native module %" PRIu64 " at guest offset 0x%" PRIx64 "\n",i,native_modules[i].init);
+            typedef int (ABI *Initialize)(uint64_t,void *,void *);
+            int result=((Initialize)(image+native_modules[i].init))(0,NULL,NULL);
+            printf("Native module %" PRIu64 " returned %d\n",i,result);
+            if (result) fail("native module initializer failed");
+        }
+    }
     printf("Windows entry diagnostic: mapped %" PRIu64 " bytes; %" PRIu64 " relocations\n", image_size, nr);
-    puts("Startup contracts: _init_env, atexit, stack canary, equeue lifecycle; no GPU or TLS rewrite.");
+    puts(linked ? "Windows native modules and TLS enabled; no GPU integration." :
+                  "Startup contracts enabled; no native modules, GPU or TLS rewrite.");
     printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
+    entered_game=1;
     struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
     typedef void (ABI *Entry)(void *, void (ABI *)(void));
     ((Entry)(image + entry))(&params, guest_exit);

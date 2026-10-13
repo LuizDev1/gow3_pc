@@ -13,7 +13,7 @@ from pathlib import Path
 from prepare import prepare, sfo, span
 from link_modules import link, module
 from import_manifest import build_manifest
-from windows_boot import encode_boot
+from windows_boot import encode_boot, encode_linked
 
 TITLE = 'CUSA03627'
 VERSION = '01.03'
@@ -101,6 +101,9 @@ def build(game, out):
     windows_native.mkdir(parents=True, exist_ok=True)
     (windows_native / 'boot.bin').write_bytes((out / 'boot.bin').read_bytes())
     link(game, windows_native, tls_mode='windows-prepare')
+    native_report = json.loads((windows_native / 'link.json').read_text())
+    (out / 'boot-windows-linked.bin').write_bytes(encode_linked(
+        (windows_native / 'boot-linked.bin').read_bytes(), native_report))
     print('Experimental TLG image ready for host-runtime development; not ready to play.')
 
 
