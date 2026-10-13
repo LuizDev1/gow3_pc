@@ -171,3 +171,24 @@ Next: identify that internal libc contract, then complete library initialization
 with the generic Windows runtime. Guest thread records, direct DTV access,
 instruction-boundary validation of TLS rewrite candidates and GPU integration
 remain unfinished. The unlinked regression path still reaches `strlen`.
+
+## Heap trace contract and base-console profile
+
+`NWtTN10cJzE` was identified as `sceLibcHeapGetTraceInfo`; its NID also matches
+the locally computed name hash. The ABI and shared structures follow the
+[shadPS4 implementation](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/libc_internal/libc_internal_memory.cpp):
+a 32-byte info record exposes a writable mask and 64-entry state table, disables
+segment-info queries, and preserves input size/flag fields. This is shared state,
+not an unconditional success stub. Attribution remains in the adapted source.
+
+`WslcK1FQcGI` was identified as `sceKernelIsNeoMode` in shadPS4's
+[symbol table](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/aerolib/aerolib.inl).
+The diagnostic explicitly models a base PS4, so this query reports false; it
+does not inspect the host GPU or claim PS4 Pro support. A guest-code test checks
+the returned value. Heap tests check ABI preservation and shared writable storage.
+
+The local USA 1.03 libc initializer passes these calls and next stops at
+`pO96TwzOm5E#U#H` (`sceKernelGetDirectMemorySize`), caller offset `0x207d00`, exit 20.
+Sixteen probe tests pass locally. The initializer has not completed; Fios2 and
+game entry have not run in linked mode. Next is generic Windows memory backend
+integration (reservations, mappings and aliasing), not a guessed size-only answer.

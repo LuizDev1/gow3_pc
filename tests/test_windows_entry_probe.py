@@ -27,6 +27,22 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_console_profile_reports_base_ps4_to_guest(self):
+        code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0\x48\x83\xc4\x08'
+              b'\x85\xc0\x75\x06\xff\x25\x10\0\0\0\x0f\x0b')
+        names=['WslcK1FQcGI#U#H','after-neo#U#H']
+        data=canonical(package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1),names,
+                       library='libkernel',module='libkernel')
+        result=self.run_image(data)
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-neo',result.stdout)
+
+    def test_heap_trace_exposes_shared_storage_without_overwriting_input_fields(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-heap-trace'],
+                              capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('ABI fields, shared writable mask and 64-entry table passed',result.stdout)
+
     def test_windows_tls_uses_real_slot_and_isolates_host_threads(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-tls'],
                                 capture_output=True, text=True, timeout=15)

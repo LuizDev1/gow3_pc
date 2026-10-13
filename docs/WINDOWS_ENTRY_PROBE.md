@@ -68,7 +68,8 @@ It configures per-thread module TLS and invokes initializers in dependency order
 Pattern matching is inherited; complete instruction-boundary analysis is pending.
 
 The observed USA 1.03 libc initializer starts, obtains process parameters and
-registers its application heap interface, then stops at unresolved import
-`NWtTN10cJzE` from `libSceLibcInternalExt`. It has not returned successfully;
+registers its application heap interface, queries shared heap-trace structures
+and the explicit base-PS4 profile, then stops at `sceKernelGetDirectMemorySize`.
+It has not returned successfully;
 Fios2 initialization and the game entry have not run in this mode.
 The unlinked mode still reaches `strlen`. Neither result proves gameplay support.

@@ -35,11 +35,44 @@ static NativeModule native_modules[15];
 static uint64_t native_count;
 static void *process_parameter;
 static void **application_heap_api;
+/* Heap trace ABI adapted from shadPS4's GPL-2.0-or-later implementation:
+ * src/core/libraries/libc_internal/libc_internal_memory.cpp
+ * Copyright 2024 shadPS4 Emulator Project. Keep shared storage: libc writes it.
+ */
+typedef struct {
+    uint64_t size;
+    uint32_t flag, get_segment_info;
+    uint64_t *atomic_mask, *state_table;
+} HeapTraceInfo;
+_Static_assert(sizeof(HeapTraceInfo)==32,"heap trace ABI");
+static uint64_t heap_trace_mask, heap_trace_states[64];
+static void __attribute__((sysv_abi)) heap_get_trace_info(HeapTraceInfo *info) {
+    if (!info || info->size<sizeof(*info)) {
+        fputs("STOP: invalid heap trace info buffer\n",stderr);
+        ExitProcess(21);
+    }
+    info->atomic_mask=&heap_trace_mask;
+    info->state_table=heap_trace_states;
+    info->get_segment_info=0;
+}
+static int selftest_heap_trace(void) {
+    HeapTraceInfo a={.size=sizeof(a),.flag=7,.get_segment_info=123}, b={.size=sizeof(b)};
+    heap_get_trace_info(&a); heap_get_trace_info(&b);
+    if (a.size!=32 || a.flag!=7 || a.get_segment_info || !a.atomic_mask || !a.state_table ||
+        a.atomic_mask!=b.atomic_mask || a.state_table!=b.state_table) return 1;
+    *a.atomic_mask=8; a.state_table[63]=42;
+    if (*b.atomic_mask!=8 || b.state_table[63]!=42) return 1;
+    *a.atomic_mask=0; a.state_table[63]=0;
+    puts("heap trace: ABI fields, shared writable mask and 64-entry table passed");
+    return 0;
+}
 static void __attribute__((sysv_abi)) register_application_heap(void **api) {
     application_heap_api=api;
     printf("Runtime: application heap API registered at %p\n",(void *)application_heap_api);
 }
 static int entered_game;
+/* The diagnostic models a base PS4, independent of the host GPU/CPU model. */
+static int __attribute__((sysv_abi)) is_neo_mode(void) { return 0; }
 static void * __attribute__((sysv_abi)) get_process_parameter(void) { return process_parameter; }
 static size_t page_size;
 static uint64_t init_env_calls;
@@ -143,6 +176,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)get_process_parameter;
     if (!is_data && (capabilities & 1) && !strcmp(name, "p5EcQeEeJAE#U#H"))
         return (uintptr_t)register_application_heap;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "WslcK1FQcGI#U#H"))
+        return (uintptr_t)is_neo_mode;
+    if (!is_data && (capabilities & 1) && !strcmp(name, "NWtTN10cJzE#heap-trace"))
+        return (uintptr_t)heap_get_trace_info;
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
@@ -162,6 +199,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
         else if (!strcmp(id->library, "libSceGnmDriver") && !strcmp(id->module, "libSceGnmDriver")) scope = "E#F";
+        else if (!strcmp(id->library, "libSceLibcInternalExt") && !strcmp(id->module, "libSceLibcInternal")) scope = "heap-trace";
     }
     if (!scope) return 0;
     char dispatch[128];
@@ -254,6 +292,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-equeue")) return windows_equeue_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-mutex")) return windows_mutex_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-tls")) return windows_tls_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-heap-trace")) return selftest_heap_trace();
     if (argc != 2) {
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
         return 1;
