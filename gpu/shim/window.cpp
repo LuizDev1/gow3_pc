@@ -1,4 +1,4 @@
-// bbport: SDL3 window for the Vulkan swapchain (X11 or Wayland).
+// bbport: SDL3 window for the Vulkan swapchain (Win32, X11 or Wayland).
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,7 +31,7 @@ SDL_DisplayID ChooseDisplay() {
         } else {
             for (int i = 0; i < count && !chosen; ++i) {
                 const char* name = SDL_GetDisplayName(ids[i]);
-                if (name && strcasestr(name, wanted)) {
+                if (name && SDL_strcasestr(name, wanted)) {
                     chosen = ids[i];
                 }
             }
@@ -77,6 +77,13 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
 
     const char* driver = SDL_GetCurrentVideoDriver();
     const SDL_PropertiesID wp = SDL_GetWindowProperties(window);
+#ifdef _WIN32
+    if (driver && !std::strcmp(driver, "windows")) {
+        window_info.type = WindowSystemType::Windows;
+        window_info.render_surface = SDL_GetPointerProperty(wp, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        ASSERT_MSG(window_info.render_surface, "SDL did not provide a Win32 window handle");
+    } else
+#endif
     if (driver && !std::strcmp(driver, "x11")) {
         window_info.type = WindowSystemType::X11;
         window_info.display_connection = SDL_GetPointerProperty(wp, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);

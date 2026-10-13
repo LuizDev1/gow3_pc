@@ -192,3 +192,31 @@ The local USA 1.03 libc initializer passes these calls and next stops at
 Sixteen probe tests pass locally. The initializer has not completed; Fios2 and
 game entry have not run in linked mode. Next is generic Windows memory backend
 integration (reservations, mappings and aliasing), not a guessed size-only answer.
+
+
+### Renderer platform groundwork (October 13, 2026)
+
+The conditional startup path now reaches `sceGnmMapComputeQueueWithPriority`.
+The CPU diagnostic must not fabricate queue completion to advance past it.
+Initial renderer portability changes remove the unconditional X11 package/link
+requirement on Windows, select a static `bbgpu` target there, avoid ELF-only TLS
+and undefined-shared-symbol flags, and link the Windows Vulkan loader. SDL window
+selection now exposes the Win32 HWND to the existing Vulkan Win32 surface path;
+monitor-name matching uses SDL's portable case-insensitive substring routine.
+Internal bbport names and game profiles remain unchanged.
+
+These are source-level platform preparations, not a validated Windows renderer
+build. Local CMake, SDL3/Vulkan development packages and the renderer's full C++
+dependency set are not available in the diagnostic toolchain. Existing CPU CI
+still builds only the diagnostic. Remaining work includes Windows compatibility
+for POSIX calls and runtime callbacks, an isolated full-renderer build, auditing
+Bloodborne hooks, connecting the loader memory/event interfaces and dispatching
+compute queues through the real backend. No window or GPU execution has been
+observed from this branch. The diagnostic remains blocked at compute-queue mapping.
+
+
+SDL API references: [portable substring matching](https://wiki.libsdl.org/SDL3/SDL_strcasestr)
+(requires SDL 3.2.0, now declared by CMake) and
+[Win32 window property](https://wiki.libsdl.org/SDL3/SDL_PROP_WINDOW_WIN32_HWND_POINTER).
+Verification for this change was source review and `git diff --check`; neither a
+full renderer compile nor a native SDL/Vulkan surface test was performed.
