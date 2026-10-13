@@ -414,3 +414,25 @@ With the explicit assumption enabled, USA 1.03 requests all 27 chunks, proceeds
 to the Fios2 SDK banner, then stops at `scePthreadRwlockInit` (`6ULAa0fq4jA`, caller
 offset `0x5c4a4c1`). This is conditional startup progress; validated PlayGo
 availability remains unfinished. Graphics and menu remain unavailable.
+
+
+### Reader/writer synchronization (October 13, 2026)
+
+The Windows mutex backend now provides explicit rwlock initialization/destruction,
+read/write lock, try-read/try-write and unlock. A synchronized registry uses
+non-reused opaque IDs, counts readers per host thread, excludes writers, detects
+writer recursion/read-to-write upgrades and rejects foreign unlocks. Existing
+readers may recursively lock; waiting writers receive preference over new readers.
+Destruction is rejected while owned or while threads are waiting. Limits are 128
+objects and 64 simultaneous reader owners per object. Timed locks and custom
+attributes remain unsupported.
+
+All 26 Windows entry tests pass, with added concurrency coverage for overlapping
+readers, a blocked writer, independent objects, ownership, recursion, busy
+destruction and stale handles. With the explicit offline PlayGo assumption enabled,
+USA 1.03 Fios2 passes rwlock initialization, then requests mutex priority protocol
+1 (inheritance). The backend returns ENOTSUP and Fios2 executes an illegal
+instruction at guest offset `0x5c4a2f5`; the diagnostic reports exception
+`0xc000001d`. This failure is attributable to a required synchronization contract,
+not a missing rwlock export. Priority inheritance needs a coherent implementation
+or a separately documented approximation before proceeding. No graphics/menu.

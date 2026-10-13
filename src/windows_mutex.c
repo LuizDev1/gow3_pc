@@ -209,7 +209,101 @@ static ABI int32_t mutex_destroy(Mutex **handle) {
     if (!result) free(m);
     return result;
 }
+/* Counted readers and exclusive writers; handles never reuse an ID. Timed
+ * operations and custom attributes remain unresolved. Writer preference is
+ * used except that an existing reader may recursively acquire a read lock. */
+typedef struct { DWORD thread; uint32_t count; } Reader;
+typedef struct { uint64_t id; DWORD writer; unsigned readers,waiting_readers,waiting_writers; Reader owners[64]; CONDITION_VARIABLE changed; } Rwlock;
+static Rwlock rwlocks[128];
+static uint64_t next_rwlock=1;
+static SRWLOCK rw_lock=SRWLOCK_INIT;
+static Rwlock *find_rw(const uint64_t *handle) {
+    if(handle && *handle) for(unsigned i=0;i<128;i++) if(rwlocks[i].id==*handle) return &rwlocks[i];
+    return NULL;
+}
+static ABI int32_t rw_init(uint64_t *out,const void *attr,const char *name) {
+    (void)name;if(!out) return INVALID;if(attr) return (int32_t)0x8002002d;
+    AcquireSRWLockExclusive(&rw_lock);
+    for(unsigned i=0;i<128;i++) if(!rwlocks[i].id && next_rwlock) {
+        rwlocks[i]=(Rwlock){.id=next_rwlock++};InitializeConditionVariable(&rwlocks[i].changed);
+        *out=rwlocks[i].id;ReleaseSRWLockExclusive(&rw_lock);return 0;
+    }
+    ReleaseSRWLockExclusive(&rw_lock);return NO_MEMORY;
+}
+static Reader *reader(Rwlock *rw,DWORD thread) {
+    for(unsigned i=0;i<64;i++) if(rw->owners[i].thread==thread && rw->owners[i].count) return &rw->owners[i];
+    return NULL;
+}
+static int32_t rw_acquire(uint64_t *handle,int write,int try_only) {
+    AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);DWORD self=GetCurrentThreadId();
+    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    Reader *own=reader(rw,self);
+    if(rw->writer==self || (write && own)) {ReleaseSRWLockExclusive(&rw_lock);return DEADLOCK;}
+    unsigned *waiting=write?&rw->waiting_writers:&rw->waiting_readers;
+    while(rw->writer || (write?rw->readers:(!own && rw->waiting_writers))) {
+        if(try_only) {ReleaseSRWLockExclusive(&rw_lock);return BUSY;}
+        ++*waiting;
+        if(!SleepConditionVariableSRW(&rw->changed,&rw_lock,INFINITE,0)) ExitProcess(21);
+        --*waiting;
+    }
+    if(write) rw->writer=self;
+    else {
+        if(!own) for(unsigned i=0;i<64;i++) if(!rw->owners[i].count) {own=&rw->owners[i];break;}
+        if(!own || own->count==UINT32_MAX || rw->readers==UINT32_MAX) {ReleaseSRWLockExclusive(&rw_lock);return AGAIN;}
+        own->thread=self;++own->count;++rw->readers;
+    }
+    ReleaseSRWLockExclusive(&rw_lock);return 0;
+}
+static ABI int32_t rw_read(uint64_t *h) {return rw_acquire(h,0,0);}
+static ABI int32_t rw_write(uint64_t *h) {return rw_acquire(h,1,0);}
+static ABI int32_t rw_tryread(uint64_t *h) {return rw_acquire(h,0,1);}
+static ABI int32_t rw_trywrite(uint64_t *h) {return rw_acquire(h,1,1);}
+static ABI int32_t rw_unlock(uint64_t *handle) {
+    AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);DWORD self=GetCurrentThreadId();
+    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    if(rw->writer==self) rw->writer=0;
+    else {Reader *own=reader(rw,self);if(!own) {ReleaseSRWLockExclusive(&rw_lock);return NOT_OWNER;}
+        if(!--own->count) own->thread=0;--rw->readers;}
+    WakeAllConditionVariable(&rw->changed);ReleaseSRWLockExclusive(&rw_lock);return 0;
+}
+static ABI int32_t rw_destroy(uint64_t *handle) {
+    AcquireSRWLockExclusive(&rw_lock);Rwlock *rw=find_rw(handle);
+    if(!rw) {ReleaseSRWLockExclusive(&rw_lock);return INVALID;}
+    if(rw->writer || rw->readers || rw->waiting_readers || rw->waiting_writers) {ReleaseSRWLockExclusive(&rw_lock);return BUSY;}
+    *rw=(Rwlock){0};*handle=0;ReleaseSRWLockExclusive(&rw_lock);return 0;
+}
+typedef struct {uint64_t *handle;HANDLE ready;int result;} RwTest;
+static DWORD WINAPI rw_worker(void *argument) {
+    RwTest *test=argument;
+    test->result=rw_unlock(test->handle)!=NOT_OWNER || rw_trywrite(test->handle)!=BUSY ||
+        rw_tryread(test->handle) || rw_unlock(test->handle);
+    SetEvent(test->ready);
+    if(rw_write(test->handle) || rw_unlock(test->handle)) test->result=1;
+    return 0;
+}
+static int selftest_rwlocks(void) {
+    uint64_t h=0,other=0;
+    if(rw_init(NULL,NULL,NULL)!=INVALID || rw_init(&h,NULL,"test") || rw_init(&other,NULL,"other") ||
+       rw_read(&h) || rw_read(&h) || rw_trywrite(&h)!=DEADLOCK || rw_destroy(&h)!=BUSY) return 1;
+    HANDLE ready=CreateEventW(NULL,TRUE,FALSE,NULL);RwTest test={&h,ready,0};
+    HANDLE thread=CreateThread(NULL,0,rw_worker,&test,0,NULL);
+    if(!ready || !thread || WaitForSingleObject(ready,5000)!=WAIT_OBJECT_0 || test.result ||
+       WaitForSingleObject(thread,0)!=WAIT_TIMEOUT || rw_write(&other) || rw_unlock(&other) ||
+       rw_unlock(&h) || rw_unlock(&h) || WaitForSingleObject(thread,5000)!=WAIT_OBJECT_0 || test.result) return 1;
+    CloseHandle(thread);CloseHandle(ready);
+    if(rw_write(&h) || rw_tryread(&h)!=DEADLOCK || rw_destroy(&h)!=BUSY || rw_unlock(&h)) return 1;
+    uint64_t stale=h;if(rw_destroy(&h) || rw_init(&h,NULL,NULL) || rw_read(&stale)!=INVALID ||
+        rw_unlock(&h)!=NOT_OWNER || rw_destroy(&h) || rw_destroy(&other)) return 1;
+    puts("rwlocks: concurrent readers, exclusive writer, ownership, recursion and stale handles passed");return 0;
+}
 uintptr_t windows_mutex_resolve(const char *name) {
+    if (!strcmp(name,"6ULAa0fq4jA#U#H")) return (uintptr_t)rw_init;
+    if (!strcmp(name,"BB+kb08Tl9A#U#H")) return (uintptr_t)rw_destroy;
+    if (!strcmp(name,"Ox9i0c7L5w0#U#H")) return (uintptr_t)rw_read;
+    if (!strcmp(name,"mqdNorrB+gI#U#H")) return (uintptr_t)rw_write;
+    if (!strcmp(name,"XD3mDeybCnk#U#H")) return (uintptr_t)rw_tryread;
+    if (!strcmp(name,"bIHoZCTomsI#U#H")) return (uintptr_t)rw_trywrite;
+    if (!strcmp(name,"+L98PIbGttk#U#H")) return (uintptr_t)rw_unlock;
     if (!strcmp(name, "1FGvU0i9saQ#U#H")) return (uintptr_t)attr_protocol;
     if (!strcmp(name, "m5-2bsNfv7s#U#H")) return (uintptr_t)condattr_init;
     if (!strcmp(name, "waPcxYiR3WA#U#H")) return (uintptr_t)condattr_destroy;
@@ -234,6 +328,7 @@ static DWORD WINAPI contention_worker(void *arg) {
     return 0;
 }
 int windows_mutex_selftest(void) {
+    if (selftest_rwlocks()) return 1;
     Attr *a = NULL, *b = NULL;
     if (attr_init(NULL) != INVALID || attr_init(&a) || attr_init(&b) || a == b || a->type != 1) return 1;
     if (attr_type(&a, 2) || a->type != 2 || b->type != 1 ||
