@@ -809,3 +809,31 @@ attribute snapshots, restoration of the main thread's original host priority,
 live worker updates and stale worker rejection. All 39 local entry tests passed;
 renderer CI also runs the scheduling test. The next GPU package still needs a
 target-game run to validate this change.
+
+### Continued startup: POSIX synchronization and compiler reuse
+
+CPU run 38558151163 and renderer run 38558151313 passed for b6f92ec. The
+checksum-verified package advanced beyond priority setup and requested font
+and interface texture files. A normal run stopped with an access violation in
+the host acquire_mutex registry traversal (host RVA 0xfea0, read address 0x22).
+A separate debug run instead stopped at pthread_mutexattr_init, canonical
+libScePosix@1 / libkernel@257. These timing-dependent results do not establish
+a rendered frame or a fix for the registry corruption.
+
+POSIX variants for the mutex and thread functions present in the validated
+import metadata now reuse the existing kernel providers through correctly
+shaped SysV wrappers. Their errors are positive FreeBSD errno values, following
+the reference GoW3 runtime_mutex.c and runtime_thread.c. Resolution accepts only
+the observed POSIX library/module/version identity. File operations outside this
+subset and detached thread execution remain unsupported. Tests cover recursive
+mutex ownership, lifecycle, positive errors, named worker TLS/join and rejection
+of incorrect canonical identities. All 40 local entry tests and four renderer
+integration tests passed. Target-game validation and the registry fault audit
+still require the next package.
+
+The renderer workflow also adds ccache and [GitHub compiler-result caching](https://github.com/actions/cache).
+Cache compatibility is tied to the complete MSYS2 package-version fingerprint;
+ccache additionally checks compiler content and source/header inputs. Storage is
+limited to 512 MiB. Every run still links, executes its runtime tests and packages
+the result. The first cache must be populated before reuse can be measured;
+no speedup is claimed yet.

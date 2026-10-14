@@ -870,6 +870,11 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
         uintptr_t pad=windows_pad_resolve(name);if(pad) return pad;
+        const char *tag=strchr(name,'#');
+        if(tag && !strcmp(tag,"#posix")) {
+            uintptr_t posix=windows_mutex_resolve(name);
+            return posix?posix:windows_thread_resolve(name);
+        }
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
         if (!strcmp(name,"yKDy8S5yLA0#savedata")) return (uintptr_t)guest_save_term;
         if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
@@ -941,6 +946,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library,"libSceUserService") && !strcmp(id->module,"libSceUserService")) scope="userservice";
         else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
         else if (!strcmp(id->library,"libSceSaveData") && !strcmp(id->module,"libSceSaveData")) scope="savedata";
+        else if (!strcmp(id->library,"libScePosix") && !strcmp(id->module,"libkernel")) scope="posix";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";

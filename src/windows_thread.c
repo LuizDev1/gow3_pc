@@ -287,6 +287,16 @@ static ABI int32_t thread_join(void *handle,void **result) {
     /* Retain a bounded tombstone so pointer handles cannot acquire new meaning. */
     ReleaseSRWLockExclusive(&lock);return 0;
 }
+/* Named POSIX variants from the reference GoW3 runtime_thread.c. */
+static int32_t posix_result(int32_t result) {return result?(int32_t)((uint32_t)result&0xffff):0;}
+static ABI int32_t posix_attr_init(uint64_t *a) {return posix_result(attr_init(a));}
+static ABI int32_t posix_attr_destroy(uint64_t *a) {return posix_result(attr_destroy(a));}
+static ABI int32_t posix_stack(uint64_t *a,uint64_t size) {return posix_result(set_stack(a,size));}
+static ABI int32_t posix_detach(uint64_t *a,int state) {return posix_result(set_detach(a,state));}
+static ABI int32_t posix_create_name(Thread **out,uint64_t *a,GuestEntry entry,void *argument,const char *name) {
+    return posix_result(thread_create(out,a,entry,argument,name));
+}
+static ABI int32_t posix_join(void *thread,void **out) {return posix_result(thread_join(thread,out));}
 static void *test_main_identity;
 static ABI void *synthetic_worker(void *argument) {
     uint64_t index[2]={1,0};uint64_t *value=windows_tls_get_addr(index);
@@ -393,6 +403,14 @@ int windows_thread_create_selftest(void) {
     static const uint64_t data=42;
     if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
     test_main_identity=thread_self();if(!thread_equal(test_main_identity,thread_self()) || !thread_equal(NULL,NULL) || thread_equal(test_main_identity,NULL)) return 1;Thread *worker=NULL;void *result=NULL;
+    uint64_t posix_attr=0;
+    if(posix_attr_init(NULL)!=22 || posix_attr_init(&posix_attr) ||
+       posix_stack(&posix_attr,1)!=22 || posix_stack(&posix_attr,131072) ||
+       posix_detach(&posix_attr,2)!=22 || posix_detach(&posix_attr,0) ||
+       posix_create_name(&worker,&posix_attr,synthetic_worker,(void *)(uintptr_t)123,"posix") ||
+       posix_attr_destroy(&posix_attr) || posix_join(worker,&result) || result!=(void *)(uintptr_t)123 ||
+       posix_join(worker,NULL)!=3 || posix_attr_destroy(&posix_attr)!=22) return 1;
+    puts("POSIX threads: named worker, private TLS, join result and positive errno passed");
     if(thread_create(NULL,NULL,synthetic_worker,NULL,NULL)!=INVALID ||
         thread_create(&worker,NULL,NULL,NULL,NULL)!=INVALID ||
         thread_create(&worker,NULL,synthetic_worker,(void *)(uintptr_t)123,"test") ||
@@ -408,6 +426,12 @@ int windows_thread_create_selftest(void) {
     puts("Guest threads: SysV entry, private TLS, stable identity, join result and stale join passed");return 0;
 }
 uintptr_t windows_thread_resolve(const char *name) {
+#define POSIX(n,f) if(!strcmp(name,n "#posix")) return (uintptr_t)f
+    POSIX("wtkt-teR1so",posix_attr_init);POSIX("zHchY8ft5pk",posix_attr_destroy);
+    POSIX("2Q0z6rnBrTE",posix_stack);POSIX("E+tyo3lp5Lw",posix_detach);
+    POSIX("Jmi+9w9u0E4",posix_create_name);POSIX("h9CcP3J0oVM",posix_join);
+    POSIX("EotR8a3ASf4",thread_self);
+#undef POSIX
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
     EXPORT("3PtV6p3QNX4",thread_equal);
     EXPORT("bt3CTBKmGyI",thread_set_affinity);

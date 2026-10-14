@@ -384,7 +384,24 @@ static int selftest_rwlocks(void) {
         rw_unlock(&h)!=NOT_OWNER || rw_destroy(&h) || rw_destroy(&other)) return 1;
     puts("rwlocks: concurrent readers, exclusive writer, ownership, recursion and stale handles passed");return 0;
 }
+/* POSIX variants share kernel objects but return positive FreeBSD errno.
+ * Adapted from the reference GoW3 runtime_mutex.c wrappers. */
+static int32_t posix_result(int32_t result) {return result?(int32_t)((uint32_t)result&0xffff):0;}
+static ABI int32_t posix_attr_init(Attr **a) {return posix_result(attr_init(a));}
+static ABI int32_t posix_attr_type(Attr **a,int type) {return posix_result(attr_type(a,type));}
+static ABI int32_t posix_attr_destroy(Attr **a) {return posix_result(attr_destroy(a));}
+static ABI int32_t posix_mutex_init(Mutex **m,Attr **a) {return posix_result(mutex_init(m,a,NULL));}
+static ABI int32_t posix_mutex_lock(Mutex **m) {return posix_result(mutex_lock(m));}
+static ABI int32_t posix_mutex_trylock(Mutex **m) {return posix_result(mutex_trylock(m));}
+static ABI int32_t posix_mutex_unlock(Mutex **m) {return posix_result(mutex_unlock(m));}
+static ABI int32_t posix_mutex_destroy(Mutex **m) {return posix_result(mutex_destroy(m));}
 uintptr_t windows_mutex_resolve(const char *name) {
+#define POSIX(n,f) if(!strcmp(name,n "#posix")) return (uintptr_t)f
+    POSIX("dQHWEsJtoE4",posix_attr_init);POSIX("mDmgMOGVUqg",posix_attr_type);
+    POSIX("HF7lK46xzjY",posix_attr_destroy);POSIX("ttHNfU+qDBU",posix_mutex_init);
+    POSIX("7H0iTOciTLo",posix_mutex_lock);POSIX("K-jXhbt2gn4",posix_mutex_trylock);
+    POSIX("2Z+PpY6CaJg",posix_mutex_unlock);POSIX("ltCfaGr2JGE",posix_mutex_destroy);
+#undef POSIX
     if (!strcmp(name,"WKAXJ4XBPQ4#U#H")) return (uintptr_t)cond_wait;
     if (!strcmp(name,"kDh-NfxgMtE#U#H")) return (uintptr_t)cond_signal;
     if (!strcmp(name,"JGgj7Uvrl+A#U#H")) return (uintptr_t)cond_broadcast;
@@ -420,6 +437,14 @@ static DWORD WINAPI contention_worker(void *arg) {
 }
 int windows_mutex_selftest(void) {
     if (selftest_rwlocks() || selftest_condition_wait()) return 1;
+    Attr *pa=NULL;Mutex *pm=NULL;
+    if(posix_attr_init(NULL)!=22 || posix_attr_init(&pa) || posix_attr_type(&pa,0)!=22 ||
+       posix_attr_type(&pa,2) || posix_mutex_init(&pm,&pa) || posix_attr_destroy(&pa) ||
+       posix_mutex_lock(&pm) || posix_mutex_lock(&pm) || posix_mutex_destroy(&pm)!=16 ||
+       posix_mutex_unlock(&pm) || posix_mutex_unlock(&pm) || posix_mutex_unlock(&pm)!=1 ||
+       posix_mutex_destroy(&pm) || posix_mutex_lock(&pm)!=22 || posix_attr_destroy(&pa)!=22) return 1;
+    if(!windows_mutex_resolve("dQHWEsJtoE4#posix") || windows_mutex_resolve("dQHWEsJtoE4#other")) return 1;
+    puts("POSIX mutexes: shared kernel objects, recursive ownership and positive errno passed");
     Attr *a = NULL, *b = NULL;
     if (attr_init(NULL) != INVALID || attr_init(&a) || attr_init(&b) || a == b || a->type != 1) return 1;
     if (attr_type(&a, 2) || a->type != 2 || b->type != 1 ||

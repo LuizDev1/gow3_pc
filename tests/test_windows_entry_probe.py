@@ -27,6 +27,21 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_posix_wrappers_return_errno_and_require_canonical_scope(self):
+        code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0\x48\x83\xc4\x08'
+              b'\x83\xf8\x16\x75\x06\xff\x25\x15\0\0\0\x0f\x0b')
+        valid=dict(library='libScePosix',module='libkernel')
+        for nid in ('dQHWEsJtoE4','wtkt-teR1so'):
+            names=[nid+'#G#H','after-posix']
+            raw=package(code,[(32,1,0,0),(48,1,1,0)],names,capabilities=1)
+            result=self.run_image(canonical(raw,names,**valid))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: after-posix',result.stdout)
+            for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+                result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+                self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+                self.assertIn('first unsupported PS4 import: '+nid,result.stdout)
+
     def test_save_initialization_lifecycle_without_persistence_claim(self):
         result=subprocess.run([str(EXE.resolve()),'--selftest-save-lifecycle'],capture_output=True,text=True,timeout=15)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -124,6 +139,7 @@ class WindowsEntryTests(unittest.TestCase):
         result = subprocess.run([str(EXE.resolve()), '--selftest-thread-create'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('SysV entry, private TLS, stable identity, join result and stale join passed', result.stdout)
+        self.assertIn('POSIX threads: named worker, private TLS, join result and positive errno passed',result.stdout)
         self.assertIn('actual stack and Windows bounds, TLS, fault recovery, overlap rejection and reuse passed', result.stdout)
 
     def test_playgo_initialization_validates_metadata_and_abi(self):
@@ -260,6 +276,7 @@ class WindowsEntryTests(unittest.TestCase):
                                 env=dict(os.environ, TLG_MUTEX_PRIORITY_FALLBACK='0'),
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('POSIX mutexes: shared kernel objects, recursive ownership and positive errno passed',result.stdout)
         self.assertIn('type validation, isolation and stale handles passed', result.stdout)
         self.assertIn('concurrent readers, exclusive writer, ownership, recursion and stale handles passed', result.stdout)
         self.assertIn('zero slots create independent owned locks', result.stdout)
