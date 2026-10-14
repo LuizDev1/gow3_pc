@@ -91,12 +91,12 @@ class WindowsEntryTests(unittest.TestCase):
     def test_thread_name_canonical_identity_gate(self):
         code=(b'\x31\xff\x31\xf6\x48\x83\xec\x08\xff\x15\x12\0\0\0'
               b'\x48\x83\xc4\x08\xff\x25\x10\0\0\0')
-        names=['How7B8Oet6k#U#H','after-thread-name']
+        names=['How7B8Oet6k#U#H','after-name']
         raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
         valid=dict(library='libkernel',module='libkernel')
         result=self.run_image(canonical(raw,names,**valid))
         self.assertEqual(result.returncode,20,result.stdout+result.stderr)
-        self.assertIn('first unsupported PS4 import: after-thread-name',result.stdout)
+        self.assertIn('first unsupported PS4 import: after-name',result.stdout)
         for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
             result=self.run_image(canonical(raw,names,**(valid|mismatch)))
             self.assertEqual(result.returncode,20,result.stdout+result.stderr)
