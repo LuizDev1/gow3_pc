@@ -742,3 +742,24 @@ buffer semantics, disconnect/reconnect, stale handles and vibration failures.
 CPU and renderer build lists and CPU source packaging include the new module.
 The next CI build and target-game run still need to validate this integration;
 physical input, a rendered frame and menu navigation remain unconfirmed.
+
+### Pad startup validated; SaveData initialization checkpoint
+
+Renderer run 38496246555 passed for 2a818b1, including SDL virtual-controller
+and Pad lifecycle tests. The downloaded archive matched the published SHA-256.
+An unchanged-package, normal local GPU run initialized UserService and Pad and
+then stopped at TywrFKCoLGY#L#M, libSceSaveData@1 / libSceSaveData@257, caller
+0xdd3f09, exit 20. NID hashing and the public shadPS4 registration identify it
+as sceSaveDataInitialize3. This validates Pad startup in TLG, not physical input
+or menu navigation. No rendered frame is established.
+
+The next change exposes only Initialize3(NULL) and termination, using locked
+service state and the reference GoW3 runtime_savedata.c lifecycle/error contract.
+Repeated initialization is idempotent; unsupported opaque non-NULL parameters
+are rejected without changing state. Termination clears state and reports the
+not-initialized error when appropriate. No save file, directory mount, read,
+write or completed dialog is fabricated: those imports remain unsupported.
+Canonical resolution requires the observed library/module/version and function
+kind. Tests cover lifecycle and rejection of wrong identities; all 39 local
+Windows entry tests passed. Renderer CI also checks this lifecycle without GPU
+startup. A new CI package is required to validate the change against the game.

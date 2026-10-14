@@ -649,6 +649,33 @@ static int selftest_playgo(void) {
     puts("PlayGo locus: explicit profile, invalid IDs and unchanged error outputs passed");
     free(buffer);puts("PlayGo: metadata initialization, ABI validation and open lifecycle passed");return 0;
 }
+/* SaveData lifecycle adapted from the reference GoW3 runtime_savedata.c.
+ * Only the observed Initialize3(NULL) contract and termination are exposed.
+ * Mounts, file persistence and save-dialog completion remain unsupported. */
+#define SAVE_PARAMETER ((int32_t)0x809f0000)
+#define SAVE_NOT_INITIALIZED ((int32_t)0x809f0001)
+static SRWLOCK save_lock=SRWLOCK_INIT;
+static int save_initialized;
+static ABI int32_t guest_save_init3(const void *params) {
+    if(params) return SAVE_PARAMETER;
+    AcquireSRWLockExclusive(&save_lock);save_initialized=1;ReleaseSRWLockExclusive(&save_lock);
+    puts("Runtime: SaveData lifecycle initialized (mount/read/write not implemented)");return 0;
+}
+static ABI int32_t guest_save_term(void) {
+    AcquireSRWLockExclusive(&save_lock);
+    if(!save_initialized) {ReleaseSRWLockExclusive(&save_lock);return SAVE_NOT_INITIALIZED;}
+    save_initialized=0;ReleaseSRWLockExclusive(&save_lock);return 0;
+}
+static int selftest_save_lifecycle(void) {
+    int opaque=123;
+    if(guest_save_term()!=SAVE_NOT_INITIALIZED ||
+       guest_save_init3(&opaque)!=SAVE_PARAMETER || save_initialized || opaque!=123 ||
+       guest_save_init3(NULL) || !save_initialized ||
+       guest_save_init3(&opaque)!=SAVE_PARAMETER || !save_initialized ||
+       guest_save_init3(NULL) || guest_save_term() || save_initialized ||
+       guest_save_term()!=SAVE_NOT_INITIALIZED || guest_save_init3(NULL) || guest_save_term()) return 1;
+    puts("SaveData lifecycle: NULL initialization, idempotency, opaque parameter rejection and termination passed");return 0;
+}
 /* Offline local UserService profile: one local user, not a Windows/PSN login.
  * ABI follows the bundled shadPS4 system/userservice.h; error values follow
  * shadPS4 system/userservice_error.h (GPL-2.0-or-later). No online account or
@@ -843,6 +870,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
         uintptr_t pad=windows_pad_resolve(name);if(pad) return pad;
+        if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
+        if (!strcmp(name,"yKDy8S5yLA0#savedata")) return (uintptr_t)guest_save_term;
         if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
@@ -911,6 +940,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library, "libSceSystemService") && !strcmp(id->module, "libSceSystemService")) scope = "systemservice";
         else if (!strcmp(id->library,"libSceUserService") && !strcmp(id->module,"libSceUserService")) scope="userservice";
         else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
+        else if (!strcmp(id->library,"libSceSaveData") && !strcmp(id->module,"libSceSaveData")) scope="savedata";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
@@ -1040,6 +1070,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-save-lifecycle")) return selftest_save_lifecycle();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
