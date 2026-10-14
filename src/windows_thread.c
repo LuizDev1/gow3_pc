@@ -19,6 +19,12 @@
 typedef struct { uint64_t id,stack,guard,affinity; void *stack_address; int detach,policy,priority,inherit; } Attr;
 static _Thread_local const Attr *active_guest_attr;
 static _Thread_local int current_priority=700;
+/* Yield to an eligible Windows worker; no guest FIFO ordering is promised.
+ * SwitchToThread returning false means no eligible peer, not an API failure. */
+static ABI int32_t thread_yield(void) {
+    if(!SwitchToThread()) Sleep(0);
+    return 0;
+}
 /* FreeBSD/Orbis 128-bit sigset ABI, as in the reference runtime_kernel.c.
  * This tracks guest masks only; Windows exceptions are not guest signals. */
 typedef struct {uint32_t bits[4];} GuestSigset;
@@ -473,6 +479,7 @@ uintptr_t windows_thread_resolve(const char *name) {
     POSIX("EotR8a3ASf4",thread_self);
 #undef POSIX
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
+    EXPORT("T72hz6ffq08",thread_yield);
     EXPORT("6xVpy0Fdq+I",guest_sigprocmask);
     EXPORT("3PtV6p3QNX4",thread_equal);
     EXPORT("bt3CTBKmGyI",thread_set_affinity);
@@ -496,6 +503,10 @@ int windows_thread_selftest(void) {
     CHECK(thread_self()==NULL);
     CHECK(!windows_tls_attach(NULL,0,16,16));
     CHECK(thread_self()!=NULL && thread_self()==windows_tls_current_thread());
+    void *yield_identity=thread_self();
+    CHECK(!thread_yield() && thread_self()==yield_identity);
+    CHECK(windows_thread_resolve("T72hz6ffq08#U#H")== (uintptr_t)thread_yield &&
+          !windows_thread_resolve("T72hz6ffq08#other"));
     GROUP_AFFINITY original={0},changed={0};DWORD_PTR allowed=0,system=0;
     CHECK(GetThreadGroupAffinity(GetCurrentThread(),&original));
     CHECK(GetProcessAffinityMask(GetCurrentProcess(),&allowed,&system));
