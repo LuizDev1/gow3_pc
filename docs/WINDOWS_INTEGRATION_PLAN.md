@@ -882,6 +882,28 @@ synthetic TRP header binding, malformed headers, stale IDs, cleanup and
 canonical library/module/version rejection. The next GPU package must validate
 the context/handle boundary against the real game.
 
+Renderer run 38605641614 passed for aeb855e. The full staged-content execution
+passed module loading and created a header-bound trophy context and handle,
+then requested `game/trophy/trophy00.dat`. It subsequently rejected a
+GetSaveDataMemory2 request with a non-NULL parameter record (icons NULL) and
+stopped in linked libc strlcpy, guest offset 0x5b7c6b5, with a null/low source
+pointer. A private exception capture identifies the game caller at 0xe20424.
+The requested trophy data (987 bytes) was staged privately; a repeat still
+reproduced the text-copy fault. No guest instruction or exception is skipped.
+
+The memory-only backend now supports the observed 1328-byte parameter record
+(title/subtitle/detail, userParam, timestamp and reserved storage). It stores
+that record separately in `CUSA03627-user1-slot0.params`, initializes fresh local
+storage with empty strings, parameter zero and a real UTC creation timestamp,
+validates stored sizes/terminated strings, and flushes updates before success.
+Metadata-only requests are supported and user/slot/lifecycle checks also cover
+empty requests. This is a local raw record, not a PSF or complete PS4 save
+container. Icons, mount operations, save events and multi-descriptor writes
+remain unsupported. The two-process test now checks metadata defaults,
+write/reload persistence and wrong-user rejection as well as memory bytes.
+All 48 local entry tests passed. The next GPU package must validate the real
+metadata request and determine whether the text-copy fault is independent.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,

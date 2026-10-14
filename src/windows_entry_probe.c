@@ -719,6 +719,9 @@ typedef struct {int32_t user;uint32_t pad;SaveMemoryData *data;void *param,*icon
     uint32_t slot;unsigned char reserved[28];} SaveMemoryGet;
 typedef struct {int32_t user;uint32_t pad;const SaveMemoryData *data;const void *param,*icon;
     uint32_t count,slot;unsigned char reserved[32];} SaveMemorySet;
+typedef struct {char title[128],subtitle[128],detail[1024];uint32_t user_param,pad;
+    int64_t mtime;unsigned char reserved[32];} SaveMemoryParam;
+_Static_assert(sizeof(SaveMemoryParam)==1328,"save metadata ABI");
 _Static_assert(sizeof(SaveMemorySetup)==64 && sizeof(SaveMemoryResult)==24 &&
     sizeof(SaveMemoryData)==64 && sizeof(SaveMemoryGet)==64 && sizeof(SaveMemorySet)==72,"save memory ABI");
 static int all_zero(const void *data,size_t size) {
@@ -777,21 +780,69 @@ static int32_t save_memory_io(int32_t user,uint32_t slot,const SaveMemoryData *d
     }
     ReleaseSRWLockExclusive(&save_lock);return result;
 }
+static int32_t save_memory_metadata(int32_t user,uint32_t slot,SaveMemoryParam *param,int writing) {
+    if(!param || (writing && (!memchr(param->title,0,sizeof(param->title)) ||
+        !memchr(param->subtitle,0,sizeof(param->subtitle)) || !memchr(param->detail,0,sizeof(param->detail))))) return SAVE_PARAMETER;
+    AcquireSRWLockExclusive(&save_lock);int32_t result=0;
+    if(!save_initialized) result=SAVE_NOT_INITIALIZED;
+    else if(user!=1 || slot) result=SAVE_PARAMETER;
+    else if(save_memory_file==INVALID_HANDLE_VALUE) result=SAVE_MEMORY_NOT_READY;
+    if(result) {ReleaseSRWLockExclusive(&save_lock);return result;}
+    const char *root=getenv("TLG_SAVE_ROOT");char path[2048];
+    if(!root || !*root || strlen(root)>1900) {ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;}
+    snprintf(path,sizeof(path),"%s/CUSA03627-user1-slot0.params",root);
+    HANDLE h=CreateFileA(path,GENERIC_READ|GENERIC_WRITE,0,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+    LARGE_INTEGER size;SaveMemoryParam value={0};DWORD done=0;
+    if(h==INVALID_HANDLE_VALUE || !GetFileSizeEx(h,&size) || (size.QuadPart!=0 && size.QuadPart!=sizeof(value))) {
+        if(h!=INVALID_HANDLE_VALUE) CloseHandle(h);
+        ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;
+    }
+    if(writing || !size.QuadPart) {
+        if(writing) {
+            memcpy(value.title,param->title,sizeof(value.title));
+            memcpy(value.subtitle,param->subtitle,sizeof(value.subtitle));
+            memcpy(value.detail,param->detail,sizeof(value.detail));value.user_param=param->user_param;
+        }
+        FILETIME now;GetSystemTimeAsFileTime(&now);LARGE_INTEGER ticks;
+        ticks.LowPart=now.dwLowDateTime;ticks.HighPart=(LONG)now.dwHighDateTime;
+        value.mtime=stat_time(ticks).seconds;
+        if(!WriteFile(h,&value,sizeof(value),&done,NULL) || done!=sizeof(value) || !FlushFileBuffers(h)) result=SAVE_INTERNAL;
+    } else {
+        if(!ReadFile(h,&value,sizeof(value),&done,NULL) || done!=sizeof(value) ||
+            !memchr(value.title,0,sizeof(value.title)) || !memchr(value.subtitle,0,sizeof(value.subtitle)) ||
+            !memchr(value.detail,0,sizeof(value.detail))) result=SAVE_INTERNAL;
+    }
+    if(!CloseHandle(h)) result=SAVE_INTERNAL;
+    if(!result && !writing) *param=value;
+    ReleaseSRWLockExclusive(&save_lock);return result;
+}
+static int32_t save_memory_status(int32_t user,uint32_t slot) {
+    AcquireSRWLockShared(&save_lock);
+    int32_t result=!save_initialized?SAVE_NOT_INITIALIZED:user!=1 || slot?SAVE_PARAMETER:
+        save_memory_file==INVALID_HANDLE_VALUE?SAVE_MEMORY_NOT_READY:0;
+    ReleaseSRWLockShared(&save_lock);return result;
+}
 static ABI int32_t guest_save_memory_get(const SaveMemoryGet *get) {
-    if(!get || get->pad || get->param || get->icon || !all_zero(get->reserved,sizeof(get->reserved))) {
+    if(!get || get->pad || get->icon || !all_zero(get->reserved,sizeof(get->reserved))) {
         fprintf(stderr,"Unsupported save-memory get profile: parameter present=%d metadata=%d icon=%d\n",
             get!=NULL,get && get->param!=NULL,get && get->icon!=NULL);return SAVE_PARAMETER;
     }
-    return save_memory_io(get->user,get->slot,get->data,0);
+    int32_t result=save_memory_status(get->user,get->slot);
+    if(!result && get->data) result=save_memory_io(get->user,get->slot,get->data,0);
+    if(!result && get->param) result=save_memory_metadata(get->user,get->slot,get->param,0);
+    return result;
 }
 static ABI int32_t guest_save_memory_set(const SaveMemorySet *set) {
     /* SDK 4.x uses one data descriptor with dataNum left zero; 1 is also
      * accepted. Multi-descriptor requests remain outside this profile. */
-    if(!set || set->pad || set->param || set->icon || set->count>1 || !all_zero(set->reserved,sizeof(set->reserved))) {
+    if(!set || set->pad || set->icon || set->count>1 || !all_zero(set->reserved,sizeof(set->reserved))) {
         fprintf(stderr,"Unsupported save-memory set profile: parameter present=%d metadata=%d icon=%d\n",
             set!=NULL,set && set->param!=NULL,set && set->icon!=NULL);return SAVE_PARAMETER;
     }
-    return save_memory_io(set->user,set->slot,set->data,1);
+    int32_t result=save_memory_status(set->user,set->slot);
+    if(!result && set->data) result=save_memory_io(set->user,set->slot,set->data,1);
+    if(!result && set->param) result=save_memory_metadata(set->user,set->slot,(SaveMemoryParam *)set->param,1);
+    return result;
 }
 static ABI int32_t guest_save_init3(const void *params) {
     if(params) return SAVE_PARAMETER;
@@ -826,6 +877,17 @@ static int selftest_save_memory(int writing) {
     if(guest_save_memory_setup(&setup,&result)!=SAVE_PARAMETER || memcmp(&before,&result,sizeof(result))) return 1;
     setup.user=1;
     if(guest_save_memory_setup(&setup,&result) || result.existed_size!=(writing?16u:64u)) return 1;
+    SaveMemoryParam metadata;memset(&metadata,0x55,sizeof(metadata));
+    SaveMemoryGet metadata_get={.user=1,.param=&metadata};
+    if(guest_save_memory_get(&metadata_get) || metadata.mtime<=0 ||
+        (writing?metadata.title[0]!=0:strcmp(metadata.title,"Fixture title") || metadata.user_param!=7)) return 1;
+    if(writing) {
+        metadata=(SaveMemoryParam){.title="Fixture title",.subtitle="Subtitle",.detail="Detail",.user_param=7};
+        SaveMemorySet metadata_set={.user=1,.param=&metadata};
+        if(guest_save_memory_set(&metadata_set)) return 1;
+        metadata_get.user=2;
+        if(guest_save_memory_get(&metadata_get)!=SAVE_PARAMETER) return 1;
+    }
     unsigned char bytes[64];memset(bytes,0x55,sizeof(bytes));
     SaveMemoryData data={.buffer=bytes,.size=64};SaveMemoryGet get={.user=1,.data=&data};
     if(guest_save_memory_get(&get) || memcmp(bytes,"KEEP",4)) return 1;
