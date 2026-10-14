@@ -1073,6 +1073,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-eventflag")) return windows_eventflag_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();

@@ -27,6 +27,25 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_eventflag_waiter_lifetime_and_bit_consumption(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-eventflag'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('cancellation and deletion wake passed',result.stdout)
+
+    def test_eventflag_canonical_identity_gate(self):
+        code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0\x48\x83\xc4\x08'
+              b'\x3d\x16\0\x02\x80\x75\x06\xff\x25\x13\0\0\0\x0f\x0b')
+        names=['BpFoboUJoZU#U#H','after-flag']
+        raw=package(code,[(32,1,0,0),(48,1,1,0)],names,capabilities=1)
+        valid=dict(library='libkernel',module='libkernel')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-flag',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: BpFoboUJoZU',result.stdout)
+
     def test_posix_wrappers_return_errno_and_require_canonical_scope(self):
         code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0\x48\x83\xc4\x08'
               b'\x83\xf8\x16\x75\x06\xff\x25\x15\0\0\0\x0f\x0b')

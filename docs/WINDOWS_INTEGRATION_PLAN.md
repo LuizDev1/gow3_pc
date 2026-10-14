@@ -837,3 +837,29 @@ ccache additionally checks compiler content and source/header inputs. Storage is
 limited to 512 MiB. Every run still links, executes its runtime tests and packages
 the result. The first cache must be populated before reuse can be measured;
 no speedup is claimed yet.
+
+### Event-flag boundary after POSIX initialization
+
+CPU run 38560992327 and renderer run 38560992273 passed for 6260d07. The
+renderer package SHA256 is
+`15f4923a8fb4d4d99b75ac0c580158d5cb1670362111eb1f65079a388fca4d45`.
+A normal local GPU execution advanced through POSIX initialization and created
+22 semaphores, then stopped at `sceKernelCreateEventFlag`, canonical
+libkernel@1 / libkernel@257, caller offset `0xcfaa86`, exit 20. The original
+call supplies a five-argument ABI with attributes `0x21` (FIFO, multiple waiters),
+initial bits zero and NULL options. This run did not reproduce the previous
+mutex fault; one execution does not establish that the timing-dependent fault
+is fixed. No rendered game image or menu is confirmed.
+
+The Windows synchronization provider now implements numeric event-flag handles,
+AND/OR waits, FIFO consumption among matching waiters, clear-all/clear-pattern
+wait modes, the clear API's keep-mask semantics, cancellation, polling, timeout
+updates and deletion wakeups. Deleted objects stay allocated until every
+awakened waiter has finished using them. Priority-ordered flags, non-NULL options
+and named open/close remain unsupported. ABI/mode/NID reference:
+[shadPS4 event flags](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/kernel/threads/event_flag.cpp)
+(GPL-2.0-or-later, 2024-2026 contributors); the Windows implementation is
+independent and retains attribution. Local tests exercise actual blocking
+threads, FIFO bit consumption, cancellation/deletion lifetimes and canonical
+library/module/version rejection. The next GPU package must validate this
+implementation against the game.

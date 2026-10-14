@@ -1,6 +1,13 @@
 /* NID -> symbol name for eboot and linked libc imports (diagnostics only).
  * Names from public PS4 symbol lists (as collected in shadPS4 aerolib). */
 {"TywrFKCoLGY#savedata","sceSaveDataInitialize3"},
+{"BpFoboUJoZU#U#H","sceKernelCreateEventFlag"},
+{"8mql9OcQnd4#U#H","sceKernelDeleteEventFlag"},
+{"JTvBflhYazQ#U#H","sceKernelWaitEventFlag"},
+{"9lvj5DjHZiA#U#H","sceKernelPollEventFlag"},
+{"IOnSvHzqu6A#U#H","sceKernelSetEventFlag"},
+{"7uhBFWRAS60#U#H","sceKernelClearEventFlag"},
+{"PZku4ZrXJqg#U#H","sceKernelCancelEventFlag"},
 {"F+yfmduIBB8#U#H","scePthreadAttrSetstackaddr"},
 {"Ru36fiTtJzA#U#H","scePthreadAttrGetstackaddr"},
 {"bzQExy189ZI#q#q","_init_env"},
