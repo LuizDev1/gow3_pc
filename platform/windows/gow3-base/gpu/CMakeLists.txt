@@ -233,5 +233,7 @@ if(WIN32)
     # Resolve the complete renderer archive, including dormant GPU paths. This
     # prevents a small diagnostic entry point hiding missing loader callbacks.
     target_link_libraries(tlg-renderer-probe PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,gow3gpu>")
-    target_link_options(tlg-renderer-probe PRIVATE -Wl,--stack,33554432)
+    # Guest code does not emit Windows stack probes before large adjustments.
+    # Reserve and commit the full main stack, as in the reference GoW3 build.
+    target_link_options(tlg-renderer-probe PRIVATE "SHELL:-Xlinker --stack -Xlinker 33554432,33554432")
 endif()

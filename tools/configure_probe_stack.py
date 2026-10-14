@@ -7,8 +7,7 @@ import struct
 import sys
 
 
-def configure(data):
-    result = bytearray(data)
+def stack_header(result):
     if len(result) < 64 or result[:2] != b'MZ':
         raise ValueError('Not a PE image')
     pe = struct.unpack_from('<I', result, 60)[0]
@@ -21,6 +20,18 @@ def configure(data):
         raise ValueError('Expected complete AMD64 optional header')
     if struct.unpack_from('<H', result, opt)[0] != 0x20b:
         raise ValueError('Expected PE32+')
+    return opt
+
+
+def require_guest_stack(data):
+    reserve, commit = struct.unpack_from('<QQ', data, stack_header(data)+72)
+    if reserve < 16*1024*1024 or commit != reserve:
+        raise ValueError('Guest diagnostic requires a fully committed stack of at least 16 MiB')
+
+
+def configure(data):
+    result = bytearray(data)
+    opt = stack_header(result)
     struct.pack_into('<QQ', result, opt+72, 16*1024*1024, 16*1024*1024)
     return result
 

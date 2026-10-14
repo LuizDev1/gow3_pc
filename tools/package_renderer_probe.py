@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import os
+from configure_probe_stack import require_guest_stack
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -34,6 +35,7 @@ def main():
     parser.add_argument('--dll-dir',type=Path,required=True)
     parser.add_argument('--reader',default='llvm-readobj')
     args=parser.parse_args()
+    require_guest_stack(args.binary.read_bytes())
     def imports(path):
         output=subprocess.check_output([args.reader,'--coff-imports',str(path)],text=True)
         return re.findall(r'^\s+Name:\s+(\S+\.dll)\s*$',output,re.M|re.I)

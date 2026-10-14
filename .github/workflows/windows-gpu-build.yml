@@ -11,9 +11,11 @@ on:
       - '.gitmodules'
       - 'tools/check_windows_renderer_dependencies.py'
       - 'tools/package_renderer_probe.py'
+      - 'tools/configure_probe_stack.py'
       - 'tools/prepare_content_parameters.py'
       - 'tests/test_content_parameters.py'
       - 'tests/test_package_renderer_probe.py'
+      - 'tests/test_probe_stack.py'
       - 'src/windows*'
       - 'tests/test_fsr_windows_headers.cpp'
       - 'tests/test_gpu_windows_host.cpp'
@@ -40,6 +42,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Renderer dependency verification failed' }
           python -m unittest discover -s tests -p test_package_renderer_probe.py
           if ($LASTEXITCODE -ne 0) { throw 'Renderer package tests failed' }
+          python -m unittest discover -s tests -p test_probe_stack.py
+          if ($LASTEXITCODE -ne 0) { throw 'Guest stack tests failed' }
       - uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64

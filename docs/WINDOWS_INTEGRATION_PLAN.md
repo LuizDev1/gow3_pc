@@ -633,3 +633,34 @@ and [stack query implementation](https://github.com/wine-mirror/wine/blob/master
 The committed worker test verifies the actual API's bounds on the caller stack;
 worker cleanup verifies restoration of the original bounds. A separate local
 API probe and all 33 entry tests passed with this correction.
+
+### GPU run: main-stack commitment mismatch
+
+CPU run 38490607416 and renderer run 38490607460 passed for 62c79d2. The
+checksum-verified renderer package's caller-stack selftest passed locally. A
+normal GPU run advanced beyond the previous stack-address import and reached
+sceGnmInsertWaitFlipDone, then terminated with access violation 0xc0000005.
+
+An external debugger captured the actual failure at guest offset 0xc872fb. The
+faulting stack pointer was below the Windows committed stack limit; this was
+not the caller-owned stack range. Inspection of the packaged PE header found
+32 MiB reserved but only 4 KiB initially committed. Guest code can skip the
+Windows growth guard because it has no Windows stack probes. The reference
+GoW3 CMake project explicitly sets both reserve and commit, while the imported
+TLG target had set only reserve. The selected target now requests both values
+as 32 MiB. Packaging rejects partial-commit stacks or stacks below 16 MiB,
+using a shared validated PE parser; regression tests reject the observed
+32 MiB/4 KiB combination.
+
+Before publishing, a separate copy of the generated diagnostic was configured
+with the existing fully committed 16 MiB diagnostic-stack utility. Its normal
+GPU run passed the failing instructions and stopped cleanly at
+sceUserServiceInitialize (j3YMu1MVNNo#M#N), caller 0xdd3eea, exit 20. This is
+evidence for the main-stack diagnosis, not a full validation of the next CI
+package's 32 MiB linker settings. A second generated local copy with exactly
+32 MiB reserved and committed reached the same clean UserService stop. The
+package guard accepts this copy and rejects the original partial-commit image.
+No game files or guest instructions changed.
+The run also printed missing shader-cache file requests; their impact remains
+unresolved. No rendered game frame or menu is established. Local stack-header,
+package and renderer-base checks passed (3, 2 and 4 tests respectively).

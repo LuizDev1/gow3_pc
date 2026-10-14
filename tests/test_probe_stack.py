@@ -33,3 +33,15 @@ class ProbeStackTests(unittest.TestCase):
         for data in (b'', b'MZ', self.image()[:100], wrong):
             with self.assertRaises(ValueError):
                 module.configure(data)
+
+    def test_packaging_rejects_reserved_but_uncommitted_guest_stack(self):
+        data = self.image()
+        struct.pack_into('<QQ',data,160,33554432,4096)
+        with self.assertRaisesRegex(ValueError,'fully committed'):
+            module.require_guest_stack(data)
+        struct.pack_into('<QQ',data,160,33554432,33554432)
+        module.require_guest_stack(data)
+        module.require_guest_stack(module.configure(self.image()))
+        struct.pack_into('<QQ',data,160,4096,4096)
+        with self.assertRaisesRegex(ValueError,'at least 16 MiB'):
+            module.require_guest_stack(data)

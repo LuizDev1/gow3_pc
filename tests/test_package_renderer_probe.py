@@ -2,6 +2,9 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import sys
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 
 spec=importlib.util.spec_from_file_location('renderer_package',Path(__file__).resolve().parents[1]/'tools/package_renderer_probe.py')
 module=importlib.util.module_from_spec(spec)
