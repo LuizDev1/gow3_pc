@@ -1085,3 +1085,33 @@ Sequential reads/seek/close cannot observe the temporary cursor. Tests cover
 exact offset bytes, EOF/partial reads, preserved cursor and invalid parameters.
 The next renderer package must validate the actual shader read; no game image
 or menu is confirmed.
+
+### Save-title size corruption and process-counter frequency (2026-10-14)
+
+Private debugger captures of ab05511 established that the 821-byte save-title
+file initially matches its staged source, including the 24-record TSDL header.
+However, its file-manager size query returned -1 before allocation. The original
+caller truncates that value to UINT32_MAX for allocation and reading. A hardware
+write watch subsequently caught linked libc's allocator writing a chunk header
+over the title table at guest offset 0x5b69682. The later strlcpy fault at
+0x5b7c6b5 is therefore downstream of an invalid size/allocation path; accepting
+save metadata does not repair it. No guest instructions were patched.
+
+The size query binds to native sceFiosFHGetSize. A separate capture before file
+close observed handle 0x7fff8000 and a null native handle-record lookup, leading
+to the -1 result. The reason this handle cannot be looked up is still unresolved.
+These captures and game data remain private in ignored out/; they are not part
+of the repository or distribution.
+
+Debugging also exposed a concurrent stop at sceKernelGetProcessTimeCounterFrequency.
+Commit 39bcda4 supplies that export and the CPU process-counter export with an
+explicit matched unit: nanosecond ticks and 1,000,000,000 ticks per second. This
+matches runtime_process_time_counter already used by the selected renderer,
+while hardware RDTSC retains its independently calibrated frequency. Native
+elapsed-time tests and synthetic wrong-library/module/version tests pass.
+
+All 49 local entry tests passed. CPU run 38611947973 and renderer run 38611948017
+passed. The checksum-verified renderer package reached a different concurrent
+stop at sceSystemServiceGetStatus, caller 0xdd4634, exit 20. The FIOS size defect
+remained observable, so this run does not establish that memory corruption is
+fixed. The frame-capture trigger remained unconsumed; no image or menu was seen.
