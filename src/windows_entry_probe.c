@@ -257,6 +257,10 @@ static ABI int guest_clock_gettime(uint32_t id,GuestTimespec *out) {
     }
     *out=result;return 0;
 }
+static ABI int32_t guest_kernel_clock_gettime(uint32_t id,GuestTimespec *out) {
+    if(!guest_clock_gettime(id,out)) return 0;
+    return (int32_t)(0x80020000u|(uint32_t)console_errno);
+}
 static int selftest_timespec(void) {
     GuestTimespec wall={0},seconds={0},a={0},b={0},unchanged={123,456};
     if(guest_clock_gettime(0,&wall) || wall.seconds<0 || wall.nanoseconds<0 || wall.nanoseconds>=1000000000 ||
@@ -268,6 +272,10 @@ static int selftest_timespec(void) {
     if(guest_clock_gettime(UINT32_MAX,&unchanged)!=-1 || console_errno!=22 ||
         unchanged.seconds!=123 || unchanged.nanoseconds!=456 ||
         guest_clock_gettime(0,NULL)!=-1 || console_errno!=14) return 1;
+    if(guest_kernel_clock_gettime(4,&a) ||
+       guest_kernel_clock_gettime(UINT32_MAX,&unchanged)!=(int32_t)0x80020016 ||
+       unchanged.seconds!=123 || unchanged.nanoseconds!=456 ||
+       guest_kernel_clock_gettime(0,NULL)!=(int32_t)0x8002000e) return 1;
     static const uint32_t aliases[]={5,7,8,9,10,11,12};
     for(unsigned i=0;i<sizeof(aliases)/sizeof(aliases[0]);i++)
         if(guest_clock_gettime(aliases[i],&a) || a.nanoseconds<0 || a.nanoseconds>=1000000000) return 1;
@@ -1324,6 +1332,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"oib76F-12fk#U#H")) return (uintptr_t)guest_file_seek;
         if (!strcmp(name,"UK2Tl2DWUns#U#H")) return (uintptr_t)guest_file_close;
         if (!strcmp(name,"lLMT9vJAck0#U#H")) return (uintptr_t)guest_clock_gettime;
+        if (!strcmp(name,"QBi7HCK03hw#U#H")) return (uintptr_t)guest_kernel_clock_gettime;
         if (!strcmp(name,"-2IRUCO--PM#U#H")) return (uintptr_t)guest_read_tsc;
         if (!strcmp(name,"1j3S3n-tTW4#U#H")) return (uintptr_t)guest_tsc_frequency;
         if (!strcmp(name,"4J2sUJmuHZQ#U#H")) return (uintptr_t)guest_process_time;
