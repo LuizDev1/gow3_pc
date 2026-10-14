@@ -18,6 +18,7 @@
 #define LIMIT 256
 typedef struct { uint64_t id,stack,guard,affinity; void *stack_address; int detach,policy,priority,inherit; } Attr;
 static _Thread_local const Attr *active_guest_attr;
+static _Thread_local int current_priority=700;
 static Attr attrs[LIMIT];
 static uint64_t next_id=1;
 static SRWLOCK lock=SRWLOCK_INIT;
@@ -98,7 +99,8 @@ static ABI int32_t attr_get(void *thread,uint64_t *out) {
     uint64_t id=a->id;
     /* These scheduling fields describe the guest's default profile, not an
      * emulated PS4 scheduler. Host-owned threads have no runtime guard request. */
-    *a=(Attr){.id=id,.stack=stack,.stack_address=stack_address,.affinity=0x7f,.policy=1,.priority=700,.inherit=4};
+    *a=(Attr){.id=id,.stack=stack,.stack_address=stack_address,.affinity=0x7f,.policy=1,
+        .priority=active_guest_attr?active_guest_attr->priority:current_priority,.inherit=4};
     ReleaseSRWLockExclusive(&lock);return 0;
 }
 
@@ -191,6 +193,30 @@ static ABI int32_t thread_set_affinity(void *handle,uint64_t mask) {
     DWORD_PTR previous=SetThreadAffinityMask(host,(DWORD_PTR)mask);
     if(previous && t) t->attr.affinity=mask;
     ReleaseSRWLockExclusive(&lock);return previous?0:INVALID;
+}
+/* Coarse Windows relative levels preserve the guest priority ordering around
+ * the default 700. This is not an emulation of the PS4 FIFO scheduler. */
+static int host_priority(int guest) {
+    return guest<512?THREAD_PRIORITY_HIGHEST:guest<700?THREAD_PRIORITY_ABOVE_NORMAL:
+        guest==700?THREAD_PRIORITY_NORMAL:THREAD_PRIORITY_BELOW_NORMAL;
+}
+static ABI int32_t thread_set_priority(void *handle,int priority) {
+    if(!handle || priority<256 || priority>767) return INVALID;
+    AcquireSRWLockExclusive(&lock);Thread *t=find_thread(handle);
+    int current=handle==thread_self();
+    HANDLE host=current?GetCurrentThread():t && !t->finished && !t->joined?t->host:NULL;
+    if(!host) {ReleaseSRWLockExclusive(&lock);return NO_THREAD;}
+    int ok=SetThreadPriority(host,host_priority(priority));
+    if(ok) {if(t) t->attr.priority=priority;if(current) current_priority=priority;}
+    ReleaseSRWLockExclusive(&lock);return ok?0:INVALID;
+}
+static ABI int32_t thread_get_priority(void *handle,int *out) {
+    if(!handle || !out) return INVALID;
+    AcquireSRWLockShared(&lock);Thread *t=find_thread(handle);
+    int current=handle==thread_self();
+    int valid=current || (t && t->host && !t->finished && !t->joined);
+    if(valid) *out=t?t->attr.priority:current_priority;
+    ReleaseSRWLockShared(&lock);return valid?0:NO_THREAD;
 }
 static DWORD WINAPI run_guest_thread(void *argument) {
     Thread *t=argument;
@@ -341,11 +367,16 @@ static int custom_stack_selftest(void) {
         ResetEvent(test.ready);ResetEvent(test.proceed);test.recovered=0;
         STACK_CHECK(!thread_create(&worker,&attr,synthetic_stack_worker,&test,"caller-stack"));
         STACK_CHECK(WaitForSingleObject(test.ready,10000)==WAIT_OBJECT_0 && test.recovered);
+        int priority=123;
+        STACK_CHECK(!thread_set_priority(worker,550) && GetThreadPriority(worker->host)==THREAD_PRIORITY_ABOVE_NORMAL);
+        STACK_CHECK(!thread_get_priority(worker,&priority) && priority==550);
         Thread *collision=(Thread *)(uintptr_t)123;
         STACK_CHECK(thread_create(&collision,&attr,synthetic_stack_worker,&test,"overlap")==INVALID &&
                     collision==(Thread *)(uintptr_t)123);
         SetEvent(test.proceed);void *result=NULL;
         STACK_CHECK(!thread_join(worker,&result) && result==&test);
+        STACK_CHECK(thread_set_priority(worker,550)==NO_THREAD);
+        priority=123;STACK_CHECK(thread_get_priority(worker,&priority)==NO_THREAD && priority==123);
         STACK_CHECK(runtime_memory_is_mapped((uintptr_t)storage,65536));
     }
     for(unsigned i=0;i<16384;i++) {
@@ -380,6 +411,7 @@ uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
     EXPORT("3PtV6p3QNX4",thread_equal);
     EXPORT("bt3CTBKmGyI",thread_set_affinity);
+    EXPORT("W0Hpm2X0uPE",thread_set_priority);EXPORT("1tKyG7RlMJo",thread_get_priority);
     EXPORT("6UgtwV+0zb4",thread_create);EXPORT("onNY9Byn-W8",thread_join);
     EXPORT("aI+OeCz8xrQ",thread_self);EXPORT("x1X76arYMxU",attr_get);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
@@ -412,6 +444,22 @@ int windows_thread_selftest(void) {
     CHECK(GetThreadGroupAffinity(GetCurrentThread(),&changed) && changed.Mask==selected);
     CHECK(SetThreadAffinityMask(GetCurrentThread(),original.Mask)!=0);
     puts("Thread affinity: actual Windows CPU mask, restoration and invalid-handle rejection passed");
+    int original_priority=GetThreadPriority(GetCurrentThread()),requested=123;
+    CHECK(original_priority!=THREAD_PRIORITY_ERROR_RETURN);
+    CHECK(thread_set_priority(NULL,550)==INVALID && thread_set_priority(thread_self(),255)==INVALID);
+    CHECK(thread_set_priority(thread_self(),768)==INVALID);
+    CHECK(thread_set_priority((void *)(uintptr_t)1,550)==NO_THREAD);
+    CHECK(thread_get_priority((void *)(uintptr_t)1,&requested)==NO_THREAD && requested==123);
+    CHECK(thread_get_priority(thread_self(),NULL)==INVALID);
+    CHECK(!thread_set_priority(thread_self(),550));
+    CHECK(GetThreadPriority(GetCurrentThread())==THREAD_PRIORITY_ABOVE_NORMAL);
+    CHECK(!thread_get_priority(thread_self(),&requested) && requested==550);
+    uint64_t priority_snapshot=0;
+    CHECK(!attr_init(&priority_snapshot) && !attr_get(thread_self(),&priority_snapshot));
+    CHECK(!get_priority(&priority_snapshot,&requested) && requested==550 && !attr_destroy(&priority_snapshot));
+    CHECK(!thread_set_priority(thread_self(),700) && GetThreadPriority(GetCurrentThread())==THREAD_PRIORITY_NORMAL);
+    CHECK(SetThreadPriority(GetCurrentThread(),original_priority));
+    puts("Thread priority: Windows relative level, guest-value query, restoration and invalid-handle rejection passed");
     CHECK(windows_thread_resolve("aI+OeCz8xrQ#U#H")==(uintptr_t)thread_self);
     CHECK(!windows_thread_resolve("aI+OeCz8xrQ#other"));
     uint64_t snapshot=0,independent=0;

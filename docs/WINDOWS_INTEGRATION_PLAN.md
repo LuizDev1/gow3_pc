@@ -784,3 +784,28 @@ accepts it. Local tests verify the actual Windows group mask changes and restore
 the original mask, plus invalid argument/handle rejection. All 39 Windows entry
 tests passed. Renderer CI also runs this thread test. A new GPU package is still
 needed to validate this service against the target game.
+
+### Affinity startup validated; thread priority checkpoint
+
+CPU run 38554914464 and renderer run 38554912067 passed for 194bad0. The
+checksum-verified renderer package passed the affinity call in a normal local
+GPU run, then stopped at scePthreadSetprio (W0Hpm2X0uPE#U#H), caller 0xe482f0,
+exit 20, with canonical libkernel@1 / libkernel@257 identity. The observed
+initialization call-site requests priority 550 after mask 0xf. No frame/menu
+is confirmed by this checkpoint.
+
+The provider now sets a Windows relative priority for the current thread or a
+live guest worker, retaining the exact requested guest value for Getprio and
+current-thread attribute snapshots. Guest priorities 256 through 767 map to
+coarse Windows levels: below 512 is HIGHEST, 512 through 699 ABOVE_NORMAL, 700
+NORMAL, and higher values BELOW_NORMAL. This preserves a coarse ordering around
+the existing default 700; it does not emulate PS4 FIFO scheduling or its timing.
+No realtime process class or TIME_CRITICAL priority is requested. Guest metadata
+changes only if Windows accepts the host operation. Invalid arguments, unknown
+handles and finished workers return errors without overwriting query outputs.
+
+Tests verify the actual Windows priority for request 550, exact guest queries,
+attribute snapshots, restoration of the main thread's original host priority,
+live worker updates and stale worker rejection. All 39 local entry tests passed;
+renderer CI also runs the scheduling test. The next GPU package still needs a
+target-game run to validate this change.
