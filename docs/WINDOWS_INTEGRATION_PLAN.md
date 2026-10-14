@@ -880,3 +880,21 @@ Archive routing/reading still requires runtime validation. No game assets were
 extracted or added to Git. This renderer CI run restored compiler results and
 its build/link step took 16 seconds; MSYS2 setup took 145 seconds. These are
 observations for one run, not a fixed future build-time guarantee.
+
+### Identified mutex ABI overlap
+
+Renderer run 38585420085 passed for the tracing build 433f995. A private hardware
+watch captured the original linked libc instruction at guest offset 0x5b6d81c:
+`or dword ptr [rax + 0x20], 0x100`, immediately after successful mutex creation.
+The guest-visible handle points to the Windows Mutex object. Its private `next`
+pointer previously occupied offset 0x20, so this valid libc flag write changed
+the linked-list pointer. This explains the corrupted traversal without assuming
+premature destruction. No guest instruction is changed or suppressed.
+
+The object now reserves a four-byte guest flag word at the observed offset;
+the private registry link follows it at offset 0x28. Compile-time assertions
+guard those offsets. The mutex selftest reproduces the guest's four-byte OR
+on two initialized locks and verifies traversal, ownership and deletion. This
+establishes only the observed flag field, not the complete internal pthread
+layout or signal semantics. Target-game validation of the corrected package
+is still required.

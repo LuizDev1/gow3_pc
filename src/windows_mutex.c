@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
 #include "windows_mutex.h"
 #define ABI __attribute__((sysv_abi))
 #define INVALID ((int32_t)UINT32_C(0x80020016))
@@ -84,8 +85,14 @@ typedef struct Mutex {
     DWORD owner;
     uint32_t depth, waiters;
     CONDITION_VARIABLE changed;
+    /* Target libc's heap initializer ORs 0x100 into *(handle + 0x20).
+     * This guest-visible word must not overlap the host registry link.
+     * Only this observed field is established, not a complete pthread ABI. */
+    uint32_t guest_flags;
     struct Mutex *next;
 } Mutex;
+_Static_assert(offsetof(Mutex,guest_flags)==0x20,"observed libc mutex flag ABI");
+_Static_assert(offsetof(Mutex,next)>=0x28,"private link follows guest flag storage");
 static Mutex *mutexes;
 static Mutex **find_mutex(Mutex *handle) {
     Mutex **at = &mutexes;
@@ -444,6 +451,17 @@ static DWORD WINAPI contention_worker(void *arg) {
     return 0;
 }
 int windows_mutex_selftest(void) {
+    Mutex *heap_lock=NULL,*other_heap_lock=NULL;
+    if(mutex_init(&heap_lock,NULL,"libc-heap") || mutex_init(&other_heap_lock,NULL,"libc-other")) return 1;
+    Mutex *saved_link=other_heap_lock->next;
+    /* Reproduce the unmodified target instruction's four-byte write. */
+    *(volatile uint32_t *)((unsigned char *)heap_lock+0x20)|=0x100;
+    *(volatile uint32_t *)((unsigned char *)other_heap_lock+0x20)|=0x100;
+    if(heap_lock->next || other_heap_lock->next!=saved_link ||
+        mutex_lock(&heap_lock) || mutex_unlock(&heap_lock) ||
+        mutex_lock(&other_heap_lock) || mutex_unlock(&other_heap_lock) ||
+        mutex_destroy(&heap_lock) || mutex_destroy(&other_heap_lock)) return 1;
+    puts("libc mutex flags: guest offset 0x20 writes preserve registry links and ownership");
     if (selftest_rwlocks() || selftest_condition_wait()) return 1;
     Attr *pa=NULL;Mutex *pm=NULL;
     if(posix_attr_init(NULL)!=22 || posix_attr_init(&pa) || posix_attr_type(&pa,0)!=22 ||
