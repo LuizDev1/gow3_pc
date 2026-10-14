@@ -265,6 +265,25 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('explicit language profile and invalid-output preservation passed', result.stdout)
 
+    def test_system_status_output_bounds_and_profile(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-system-status'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('nine-byte fields and reserved-output preservation passed',result.stdout)
+
+    def test_system_status_canonical_identity_gate(self):
+        code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x12\0\0\0')
+        names=['rPo6tV8D9bM#W#W','after-sys']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceSystemService',module='libSceSystemService')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-sys',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: rPo6tV8D9bM',result.stdout)
+
     def test_appcontent_lifecycle_and_output_bounds(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-content'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -643,6 +643,24 @@ static int selftest_content(void) {
 /* System parameter IDs follow shadPS4 systemservice.h. The diagnostic
  * explicitly selects English US (1); this is not inferred from Windows locale. */
 #define SYSTEM_PARAMETER ((int32_t)0x80a10003)
+/* Observed SystemService status prefix, following shadPS4 systemservice.h
+ * (GPL-2.0-or-later). This single-application diagnostic has no PS4 shell,
+ * queued system events, live broadcast or VR session. Foreground is the
+ * diagnostic execution profile, not a query of desktop keyboard focus. */
+static ABI int32_t guest_system_status(void *out) {
+    if(!out) return SYSTEM_PARAMETER;
+    const unsigned char prefix[9]={0,0,0,0,0,0,1,0,0};
+    memcpy(out,prefix,sizeof(prefix));return 0;
+}
+static int selftest_system_status(void) {
+    unsigned char bytes[32];memset(bytes,0xa5,sizeof(bytes));
+    const unsigned char expected[9]={0,0,0,0,0,0,1,0,0};
+    if(guest_system_status(NULL)!=SYSTEM_PARAMETER || guest_system_status(bytes+8) ||
+       memcmp(bytes+8,expected,sizeof(expected))) return 1;
+    for(size_t i=0;i<sizeof(bytes);i++)
+        if((i<8 || i>=17) && bytes[i]!=0xa5) return 1;
+    puts("System status: explicit foreground profile, nine-byte fields and reserved-output preservation passed");return 0;
+}
 static ABI int32_t guest_system_parameter(int32_t id,int32_t *out) {
     if(!out || id!=1) return SYSTEM_PARAMETER;
     *out=1;puts("Runtime: system language profile = English US");return 0;
@@ -1316,6 +1334,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
+        if (!strcmp(name,"rPo6tV8D9bM#systemservice")) return (uintptr_t)guest_system_status;
         if (!strcmp(name,"j3YMu1MVNNo#userservice")) return (uintptr_t)guest_user_init;
         if (!strcmp(name,"bwFjS+bX9mA#userservice")) return (uintptr_t)guest_user_term;
         if (!strcmp(name,"CdWp0oHWGr0#userservice")) return (uintptr_t)guest_user_initial;
@@ -1518,6 +1537,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-eventflag")) return windows_eventflag_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-system-status")) return selftest_system_status();
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-lifecycle")) return selftest_save_lifecycle();
