@@ -27,6 +27,29 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_user_service_profile_and_concurrent_event_delivery(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-user-service'],
+                              capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('local profile, lifecycle, bounded outputs and exactly-once concurrent login event passed',result.stdout)
+
+    def test_user_service_canonical_identity_and_version_gate(self):
+        code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x12\0\0\0')
+        names=['j3YMu1MVNNo#M#N','after-user']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceUserService',module='libSceUserService')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('offline local profile: user 1, Player',result.stdout)
+        self.assertIn('first unsupported PS4 import: after-user',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            with self.subTest(mismatch=mismatch):
+                result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+                self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+                self.assertNotIn('Runtime: UserService initialized',result.stdout)
+                self.assertIn('first unsupported PS4 import: j3YMu1MVNNo',result.stdout)
+
     def test_windows_thread_name_notification_is_continuable(self):
         result=subprocess.run([str(EXE.resolve()),'--selftest-thread-notification'],
                               capture_output=True,text=True,timeout=15)

@@ -648,6 +648,97 @@ static int selftest_playgo(void) {
     puts("PlayGo locus: explicit profile, invalid IDs and unchanged error outputs passed");
     free(buffer);puts("PlayGo: metadata initialization, ABI validation and open lifecycle passed");return 0;
 }
+/* Offline local UserService profile: one local user, not a Windows/PSN login.
+ * ABI follows the bundled shadPS4 system/userservice.h; error values follow
+ * shadPS4 system/userservice_error.h (GPL-2.0-or-later). No online account or
+ * dialog completion is reported. Unknown services still trap. */
+#define USER_ERROR(n) ((int32_t)(UINT32_C(0x80960000)|(n)))
+static SRWLOCK user_lock=SRWLOCK_INIT;
+static int user_initialized,user_login_pending;
+typedef struct {int32_t priority;} UserInitialize;
+typedef struct {int32_t type,id;} UserEvent;
+_Static_assert(sizeof(UserInitialize)==4 && sizeof(UserEvent)==8,"UserService ABI");
+static ABI int32_t guest_user_init(const UserInitialize *params) {
+    if(params && (params->priority<256 || params->priority>767)) return USER_ERROR(5);
+    AcquireSRWLockExclusive(&user_lock);
+    if(user_initialized) {ReleaseSRWLockExclusive(&user_lock);return USER_ERROR(3);}
+    user_initialized=1;user_login_pending=1;
+    ReleaseSRWLockExclusive(&user_lock);
+    puts("Runtime: UserService initialized (offline local profile: user 1, Player)");return 0;
+}
+static ABI int32_t guest_user_term(void) {
+    AcquireSRWLockExclusive(&user_lock);
+    if(!user_initialized) {ReleaseSRWLockExclusive(&user_lock);return USER_ERROR(2);}
+    user_initialized=0;user_login_pending=0;
+    ReleaseSRWLockExclusive(&user_lock);return 0;
+}
+static ABI int32_t guest_user_initial(int32_t *out) {
+    if(!out) return USER_ERROR(5);
+    AcquireSRWLockShared(&user_lock);
+    int32_t result=user_initialized?0:USER_ERROR(2);
+    if(!result) *out=1;
+    ReleaseSRWLockShared(&user_lock);return result;
+}
+static ABI int32_t guest_user_list(int32_t *out) {
+    if(!out) return USER_ERROR(5);
+    AcquireSRWLockShared(&user_lock);
+    int32_t result=user_initialized?0:USER_ERROR(2);
+    if(!result) {out[0]=1;out[1]=out[2]=out[3]=-1;}
+    ReleaseSRWLockShared(&user_lock);return result;
+}
+static ABI int32_t guest_user_name(int32_t id,char *out,uint64_t size) {
+    if(!out || id<=0) return USER_ERROR(5);
+    AcquireSRWLockShared(&user_lock);
+    int32_t result=!user_initialized?USER_ERROR(2):id!=1?USER_ERROR(9):
+                   size<sizeof("Player")?USER_ERROR(10):0;
+    if(!result) memcpy(out,"Player",sizeof("Player"));
+    ReleaseSRWLockShared(&user_lock);return result;
+}
+static ABI int32_t guest_user_event(UserEvent *out) {
+    if(!out) return USER_ERROR(5);
+    AcquireSRWLockExclusive(&user_lock);
+    int32_t result=!user_initialized?USER_ERROR(2):!user_login_pending?USER_ERROR(7):0;
+    if(!result) {*out=(UserEvent){0,1};user_login_pending=0;}
+    ReleaseSRWLockExclusive(&user_lock);return result;
+}
+static DWORD WINAPI test_user_event_worker(void *out) {
+    return (DWORD)guest_user_event(out);
+}
+static int selftest_user_service(void) {
+#define USER_CHECK(c) do {if(!(c)) {fprintf(stderr,"UserService check failed at %d\n",__LINE__);return 1;}}while(0)
+    int32_t id=123,ids[5]={11,22,33,44,55};UserEvent event={77,88};
+    char name[8];memset(name,0x55,sizeof(name));UserInitialize invalid={255},valid={700};
+    USER_CHECK(guest_user_initial(&id)==USER_ERROR(2) && id==123);
+    USER_CHECK(guest_user_list(ids)==USER_ERROR(2) && ids[0]==11 && ids[4]==55);
+    USER_CHECK(guest_user_event(&event)==USER_ERROR(2) && event.type==77 && event.id==88);
+    USER_CHECK(guest_user_name(1,name,sizeof(name))==USER_ERROR(2) && name[0]==0x55);
+    USER_CHECK(guest_user_term()==USER_ERROR(2) && guest_user_init(&invalid)==USER_ERROR(5));
+    USER_CHECK(!guest_user_init(NULL) && guest_user_init(&valid)==USER_ERROR(3));
+    USER_CHECK(guest_user_initial(NULL)==USER_ERROR(5) && !guest_user_initial(&id) && id==1);
+    USER_CHECK(guest_user_list(NULL)==USER_ERROR(5) && !guest_user_list(ids));
+    USER_CHECK(ids[0]==1 && ids[1]==-1 && ids[2]==-1 && ids[3]==-1 && ids[4]==55);
+    USER_CHECK(guest_user_name(-1,name,8)==USER_ERROR(5) &&
+               guest_user_name(2,name,8)==USER_ERROR(9) &&
+               guest_user_name(1,NULL,8)==USER_ERROR(5) &&
+               guest_user_name(1,name,6)==USER_ERROR(10) && name[0]==0x55);
+    USER_CHECK(!guest_user_name(1,name,7) && !strcmp(name,"Player") && name[7]==0x55);
+    USER_CHECK(guest_user_event(NULL)==USER_ERROR(5));
+    UserEvent events[2]={{77,88},{77,88}};HANDLE workers[2];
+    for(int i=0;i<2;i++) {workers[i]=CreateThread(NULL,0,test_user_event_worker,&events[i],0,NULL);USER_CHECK(workers[i]);}
+    USER_CHECK(WaitForMultipleObjects(2,workers,TRUE,10000)==WAIT_OBJECT_0);
+    int successes=0;
+    for(int i=0;i<2;i++) {
+        DWORD code=1;USER_CHECK(GetExitCodeThread(workers[i],&code));CloseHandle(workers[i]);
+        if(!code) {successes++;USER_CHECK(events[i].type==0 && events[i].id==1);}
+        else USER_CHECK(code==(DWORD)USER_ERROR(7) && events[i].type==77 && events[i].id==88);
+    }
+    USER_CHECK(successes==1 && guest_user_event(&event)==USER_ERROR(7) && event.type==77);
+    USER_CHECK(!guest_user_term() && guest_user_initial(&id)==USER_ERROR(2) && id==1);
+    USER_CHECK(!guest_user_init(&valid) && !guest_user_event(&event) && event.type==0 && event.id==1);
+    USER_CHECK(!guest_user_term());
+    puts("UserService: local profile, lifecycle, bounded outputs and exactly-once concurrent login event passed");return 0;
+#undef USER_CHECK
+}
 /* Logical diagnostic VideoOut port. ABI/status profile follows the bundled
  * shadPS4 video_out.h/videoout_error.h, GPL-2.0-or-later. No host window or
  * renderer is attached: no flip, presentation or vblank success is simulated. */
@@ -754,6 +845,12 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
+        if (!strcmp(name,"j3YMu1MVNNo#userservice")) return (uintptr_t)guest_user_init;
+        if (!strcmp(name,"bwFjS+bX9mA#userservice")) return (uintptr_t)guest_user_term;
+        if (!strcmp(name,"CdWp0oHWGr0#userservice")) return (uintptr_t)guest_user_initial;
+        if (!strcmp(name,"fPhymKNvK-A#userservice")) return (uintptr_t)guest_user_list;
+        if (!strcmp(name,"1xxcMiGu2fo#userservice")) return (uintptr_t)guest_user_name;
+        if (!strcmp(name,"yH17Q6NWtVg#userservice")) return (uintptr_t)guest_user_event;
         if (!strcmp(name,"uoUpLGNkygk#commondialog")) return (uintptr_t)guest_common_dialog_init;
         if (!strcmp(name,"lDqxaY1UbEo#msgdialog")) return (uintptr_t)guest_message_dialog_init;
         if (!strcmp(name,"6fIC3XKt2k0#msgdialog")) return (uintptr_t)guest_message_dialog_status;
@@ -810,6 +907,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         if (!strcmp(id->library, "libc") && !strcmp(id->module, "libc")) scope = "V#V";
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
         else if (!strcmp(id->library, "libSceSystemService") && !strcmp(id->module, "libSceSystemService")) scope = "systemservice";
+        else if (!strcmp(id->library,"libSceUserService") && !strcmp(id->module,"libSceUserService")) scope="userservice";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
@@ -937,6 +1035,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();

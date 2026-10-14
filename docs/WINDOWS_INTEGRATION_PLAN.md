@@ -664,3 +664,30 @@ No game files or guest instructions changed.
 The run also printed missing shader-cache file requests; their impact remains
 unresolved. No rendered game frame or menu is established. Local stack-header,
 package and renderer-base checks passed (3, 2 and 4 tests respectively).
+
+### Offline local UserService
+
+CPU run 38492327828 and renderer run 38492327723 passed for 0b59681. The
+checksum-verified, unmodified CI package also passed the former stack failure
+in a normal local GPU run and stopped at sceUserServiceInitialize, caller
+0xdd3eea, exit 20. This confirms the actual linker/packaging correction rather
+than only a manually configured generated copy.
+
+The Windows provider now implements an explicitly offline, single-user profile
+(local user 1, name Player), following the reference GoW3 service contract and
+the bundled shadPS4 ABI. Initialization, termination, initial user, four-entry
+login list, bounded user name and the initial login event share locked state.
+Duplicate initialization and uninitialized queries return the service's errors;
+termination clears pending events. The login event is consumed exactly once,
+including concurrent queries, and each fresh initialization resets it. No PSN
+or Windows account sign-in is performed. Initialization priority is validated
+as an ABI parameter; it does not create a PS4 scheduler.
+
+Resolution requires the canonical function identity libSceUserService@1 and
+module libSceUserService@257, independent of dump-local suffixes. Synthetic
+tests exercise dispatch and reject wrong libraries, modules and versions.
+Lifecycle tests check output sentinels, short buffers, missing users, event
+consumption and reset. All 35 local Windows entry tests passed. Renderer CI now
+also runs the service selftest; target-game execution with this implementation
+still requires the new renderer package. Shader-cache lookup messages and
+rendered-frame/menu validation remain unresolved.
