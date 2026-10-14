@@ -193,6 +193,7 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('defaults, validation, isolation, round trips and stale handles passed', result.stdout)
         self.assertIn('actual reserved stack, output isolation and invalid handles passed', result.stdout)
+        self.assertIn('actual Windows CPU mask, restoration and invalid-handle rejection passed',result.stdout)
 
     def test_direct_memory_shared_storage_and_lifecycle(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-memory'], capture_output=True, text=True, timeout=15)

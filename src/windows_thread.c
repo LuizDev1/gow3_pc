@@ -180,6 +180,18 @@ void runtime_thread_detach_host(void) {
 static Thread *find_thread(void *handle) {
     for(Thread *t=threads;t;t=t->next) if(t==handle) return t;return NULL;
 }
+/* PS4 CPU bits map to the same low host logical CPU bits. A host that cannot
+ * satisfy the requested mask returns an error; no scheduler success is faked. */
+static ABI int32_t thread_set_affinity(void *handle,uint64_t mask) {
+    if(!handle || !mask || (mask&~UINT64_C(0xff))) return INVALID;
+    AcquireSRWLockExclusive(&lock);Thread *t=find_thread(handle);
+    HANDLE host=handle==thread_self()?GetCurrentThread():
+        t && !t->finished && !t->joined?t->host:NULL;
+    if(!host) {ReleaseSRWLockExclusive(&lock);return NO_THREAD;}
+    DWORD_PTR previous=SetThreadAffinityMask(host,(DWORD_PTR)mask);
+    if(previous && t) t->attr.affinity=mask;
+    ReleaseSRWLockExclusive(&lock);return previous?0:INVALID;
+}
 static DWORD WINAPI run_guest_thread(void *argument) {
     Thread *t=argument;
     NT_TIB *tib=(NT_TIB *)NtCurrentTeb();
@@ -367,6 +379,7 @@ int windows_thread_create_selftest(void) {
 uintptr_t windows_thread_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
     EXPORT("3PtV6p3QNX4",thread_equal);
+    EXPORT("bt3CTBKmGyI",thread_set_affinity);
     EXPORT("6UgtwV+0zb4",thread_create);EXPORT("onNY9Byn-W8",thread_join);
     EXPORT("aI+OeCz8xrQ",thread_self);EXPORT("x1X76arYMxU",attr_get);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
@@ -386,6 +399,19 @@ int windows_thread_selftest(void) {
     CHECK(thread_self()==NULL);
     CHECK(!windows_tls_attach(NULL,0,16,16));
     CHECK(thread_self()!=NULL && thread_self()==windows_tls_current_thread());
+    GROUP_AFFINITY original={0},changed={0};DWORD_PTR allowed=0,system=0;
+    CHECK(GetThreadGroupAffinity(GetCurrentThread(),&original));
+    CHECK(GetProcessAffinityMask(GetCurrentProcess(),&allowed,&system));
+    uint64_t available=(uint64_t)allowed&0xff;
+    CHECK(available);
+    uint64_t selected=available&(~available+1);
+    CHECK(thread_set_affinity(NULL,selected)==INVALID && thread_set_affinity(thread_self(),0)==INVALID);
+    CHECK(thread_set_affinity((void *)(uintptr_t)1,selected)==NO_THREAD);
+    CHECK(thread_set_affinity(thread_self(),0x100)==INVALID);
+    CHECK(!thread_set_affinity(thread_self(),selected));
+    CHECK(GetThreadGroupAffinity(GetCurrentThread(),&changed) && changed.Mask==selected);
+    CHECK(SetThreadAffinityMask(GetCurrentThread(),original.Mask)!=0);
+    puts("Thread affinity: actual Windows CPU mask, restoration and invalid-handle rejection passed");
     CHECK(windows_thread_resolve("aI+OeCz8xrQ#U#H")==(uintptr_t)thread_self);
     CHECK(!windows_thread_resolve("aI+OeCz8xrQ#other"));
     uint64_t snapshot=0,independent=0;

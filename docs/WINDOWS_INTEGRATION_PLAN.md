@@ -763,3 +763,24 @@ Canonical resolution requires the observed library/module/version and function
 kind. Tests cover lifecycle and rejection of wrong identities; all 39 local
 Windows entry tests passed. Renderer CI also checks this lifecycle without GPU
 startup. A new CI package is required to validate the change against the game.
+
+### SaveData startup validated; live thread affinity
+
+Renderer run 38553038167 passed for 0085cf6. Its archive matched the published
+SHA-256 and the unchanged package was tested in a normal local GPU run. TLG
+passed UserService, Pad and SaveData initialization, then stopped at
+scePthreadSetaffinity (bt3CTBKmGyI#U#H), caller 0xe482de, exit 20. The canonical
+identity is libkernel@1 / libkernel@257. Local call-site inspection confirms
+the game obtains the current thread and requests mask 0xf. No rendered frame
+or menu is confirmed.
+
+The Windows thread provider now resolves that service and applies the mask with
+SetThreadAffinityMask for the current thread or a live registered guest worker.
+PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,
+out-of-profile CPU bits and unknown/stale workers return errors; Windows rejects
+unavailable CPU masks rather than the runtime reporting fake scheduler success.
+For registered workers, the requested attribute is updated only after Windows
+accepts it. Local tests verify the actual Windows group mask changes and restore
+the original mask, plus invalid argument/handle rejection. All 39 Windows entry
+tests passed. Renderer CI also runs this thread test. A new GPU package is still
+needed to validate this service against the target game.
