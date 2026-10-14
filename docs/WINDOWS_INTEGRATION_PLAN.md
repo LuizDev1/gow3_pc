@@ -1314,7 +1314,7 @@ reached nine successful EOP returns and stopped at the same diagnostic limit.
 The first completed capture in each run remained black. This excludes a general
 failure to register or deliver every EOP event; the later stall remains open.
 
-A separate run entered the engine's exit path, opened MESSAGE_DIALOG, and
+A separate run entered the engine's exit path, loaded MESSAGE_DIALOG, and
 requested scePthreadGetname at caller 0xdd40aa (How7B8Oet6k). This is an exit
 diagnostic request, not evidence of a rendered menu or the cause of that exit.
 The runtime now retains actual creation names for guest and attached host
@@ -1327,3 +1327,14 @@ Native fixtures exercise self/other queries, short and overlong names, the
 and versions. The C diagnostic compiles locally with warnings treated as
 errors; execution validation uses CI because of the previously observed local
 Application Control restriction.
+
+CPU run 38643711964 passed all 56 tests after ff2752a corrected an overlong
+synthetic sentinel NID in the new identity test. The original test failure
+occurred while encoding the synthetic fixture, not in thread-name execution.
+Renderer run 38643424540 passed for 3505fe8, which contains the same runtime
+source (ff2752a only changes that fixture). Its checksum-verified target run
+did not reproduce the engine exit during 40 seconds and was stopped by the
+harness after the familiar presentation/submission stall. No subsequent
+unsupported import or guest exception was reported. The intermittent exit
+and later graphics wait are both unresolved; thread-name support is validated
+as a diagnostic contract, not represented as a rendering fix.
