@@ -96,7 +96,7 @@ jobs:
         shell: msys2 {0}
         run: |
           set -o pipefail
-          cmake --build out/gpu-windows --target tlg-renderer-probe --parallel 2 \
+          cmake --build out/gpu-windows --target tlg-renderer-probe --parallel 4 \
             2>&1 | tee out/gpu-build-logs/build.log
       - name: Test linked runtime services without starting a GPU
         shell: msys2 {0}
