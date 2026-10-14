@@ -27,6 +27,19 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_signal_mask_canonical_identity_gate(self):
+        code=(b'\x31\xff\xbe\x01\0\0\0\x31\xd2\x48\x83\xec\x08'
+              b'\xff\x15\x0d\0\0\0\x48\x83\xc4\x08\xff\x25\x0b\0\0\0')
+        names=['6xVpy0Fdq+I#U#H','after-mask']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libkernel',module='libkernel')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-mask',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: 6xVpy0Fdq+I',result.stdout)
     def test_eventflag_waiter_lifetime_and_bit_consumption(self):
         result=subprocess.run([str(EXE.resolve()),'--selftest-eventflag'],capture_output=True,text=True,timeout=15)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)

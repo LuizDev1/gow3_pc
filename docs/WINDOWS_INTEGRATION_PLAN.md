@@ -898,3 +898,21 @@ on two initialized locks and verifies traversal, ownership and deletion. This
 establishes only the observed flag field, not the complete internal pthread
 layout or signal semantics. Target-game validation of the corrected package
 is still required.
+
+Renderer run 38586653451 passed for f3edd3b. Three consecutive normal local GPU
+runs of its checksum-verified package passed the previously failing heap/mutex
+initialization and stopped consistently at `_sigprocmask` (guest caller
+0x5b7ca1b, exit 20), with 2358 registered exit callbacks. No host registry access
+violation or libc `int 0x44` allocator assertion occurred in these runs.
+This validates the observed ABI overlap correction across those executions;
+it does not prove a full pthread layout or a rendered image.
+
+The next implementation tracks the observed `_sigprocmask` contract using a
+16-byte FreeBSD/Orbis signal set, per-thread masks, block/unblock/set/query,
+input/output aliasing and positive EINVAL in guest errno with a -1 return.
+New guest workers inherit the creator's mask and subsequently change their own
+copy. SIGKILL/SIGSTOP bits remain unmaskable. Windows exception handlers and
+host signal behavior are unaffected. Actual guest signal delivery remains
+unsupported; this is mask bookkeeping, not a signal-handler implementation.
+The real guest thread selftest checks inheritance/isolation, operations and
+invalid requests; synthetic imports check the canonical identity gate.

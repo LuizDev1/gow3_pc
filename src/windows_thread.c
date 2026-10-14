@@ -19,6 +19,26 @@
 typedef struct { uint64_t id,stack,guard,affinity; void *stack_address; int detach,policy,priority,inherit; } Attr;
 static _Thread_local const Attr *active_guest_attr;
 static _Thread_local int current_priority=700;
+/* FreeBSD/Orbis 128-bit sigset ABI, as in the reference runtime_kernel.c.
+ * This tracks guest masks only; Windows exceptions are not guest signals. */
+typedef struct {uint32_t bits[4];} GuestSigset;
+_Static_assert(sizeof(GuestSigset)==16,"guest signal set ABI");
+static _Thread_local GuestSigset current_signal_mask;
+extern int32_t *runtime_errno(void);
+static ABI int32_t guest_sigprocmask(int how,const GuestSigset *set,GuestSigset *old) {
+    if(set && (how<1 || how>3)) {*runtime_errno()=22;return -1;}
+    GuestSigset requested=set?*set:(GuestSigset){0};
+    if(old) *old=current_signal_mask;
+    if(!set) return 0;
+    for(unsigned i=0;i<4;i++) {
+        if(how==1) current_signal_mask.bits[i]|=requested.bits[i];
+        else if(how==2) current_signal_mask.bits[i]&=~requested.bits[i];
+        else current_signal_mask.bits[i]=requested.bits[i];
+    }
+    /* SIGKILL (9) and SIGSTOP (17) cannot be blocked. */
+    current_signal_mask.bits[0]&=~((1u<<8)|(1u<<16));
+    return 0;
+}
 static Attr attrs[LIMIT];
 static uint64_t next_id=1;
 static SRWLOCK lock=SRWLOCK_INIT;
@@ -159,7 +179,7 @@ static int valid_guest_stack(void *base,uint64_t size) {
     return 1;
 }
 typedef struct Thread { void *tcb; HANDLE host; GuestEntry entry; void *argument,*result;
-    Attr attr; int finished,joining,joined; struct Thread *next; } Thread;
+    Attr attr; GuestSigset signal_mask; int finished,joining,joined; struct Thread *next; } Thread;
 static Thread *threads;
 static unsigned thread_count;
 /* Decoder/HLE workers may enter guest callbacks. They need the configured guest
@@ -233,6 +253,7 @@ static DWORD WINAPI run_guest_thread(void *argument) {
         fputs("STOP: guest worker TLS initialization failed\n",stderr);ExitProcess(21);
     }
     active_guest_attr=&t->attr;
+    current_signal_mask=t->signal_mask;
     void *result=t->attr.stack_address?
         windows_call_guest_stack(t->entry,t->argument,t->attr.stack_address,t->attr.stack):
         t->entry(t->argument);
@@ -266,6 +287,7 @@ static ABI int32_t thread_create(Thread **out,uint64_t *attribute,GuestEntry ent
     }
     Thread *t=calloc(1,sizeof(*t));if(!t) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
     t->entry=entry;t->argument=argument;t->attr=selected;
+    t->signal_mask=current_signal_mask;
     t->host=CreateThread(NULL,(SIZE_T)selected.stack,run_guest_thread,t,CREATE_SUSPENDED,NULL);
     if(!t->host) {free(t);ReleaseSRWLockExclusive(&lock);return NOMEM;}
     t->next=threads;threads=t;++thread_count;*out=t;
@@ -399,10 +421,28 @@ static int custom_stack_selftest(void) {
     return 0;
 #undef STACK_CHECK
 }
+static ABI void *signal_mask_worker(void *argument) {
+    GuestSigset observed,empty={0};
+    if(guest_sigprocmask(999,NULL,&observed) || observed.bits[0]!=2 || observed.bits[3]!=0x80000000 ||
+        guest_sigprocmask(3,&empty,NULL)) return NULL;
+    return argument;
+}
 int windows_thread_create_selftest(void) {
     static const uint64_t data=42;
     if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
     test_main_identity=thread_self();if(!thread_equal(test_main_identity,thread_self()) || !thread_equal(NULL,NULL) || thread_equal(test_main_identity,NULL)) return 1;Thread *worker=NULL;void *result=NULL;
+    GuestSigset mask={{2,0,0,0x80000000}},observed={{0}},empty={{0}};
+    if(guest_sigprocmask(3,&mask,&observed) || observed.bits[0] ||
+        thread_create(&worker,NULL,signal_mask_worker,(void *)(uintptr_t)123,"signal-mask") ||
+        thread_join(worker,&result) || result!=(void *)(uintptr_t)123 ||
+        guest_sigprocmask(0,NULL,&observed) || memcmp(&observed,&mask,sizeof(mask)) ||
+        guest_sigprocmask(0,&empty,&observed)!=-1 || *runtime_errno()!=22 ||
+        guest_sigprocmask(2,&mask,&mask) || mask.bits[0]!=2 || mask.bits[3]!=0x80000000 ||
+        guest_sigprocmask(0,NULL,&observed) || memcmp(&observed,&empty,sizeof(empty))) return 1;
+    mask=(GuestSigset){{UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX}};
+    if(guest_sigprocmask(1,&mask,NULL) || guest_sigprocmask(0,NULL,&observed) ||
+        (observed.bits[0]&((1u<<8)|(1u<<16))) || guest_sigprocmask(3,&empty,NULL)) return 1;
+    puts("Guest signal masks: 128-bit ABI, operations, aliasing, unmaskable bits and worker inheritance passed (no signal delivery)");
     uint64_t posix_attr=0;
     if(posix_attr_init(NULL)!=22 || posix_attr_init(&posix_attr) ||
        posix_stack(&posix_attr,1)!=22 || posix_stack(&posix_attr,131072) ||
@@ -433,6 +473,7 @@ uintptr_t windows_thread_resolve(const char *name) {
     POSIX("EotR8a3ASf4",thread_self);
 #undef POSIX
 #define EXPORT(n,f) if(!strcmp(name,n "#U#H")) return (uintptr_t)f
+    EXPORT("6xVpy0Fdq+I",guest_sigprocmask);
     EXPORT("3PtV6p3QNX4",thread_equal);
     EXPORT("bt3CTBKmGyI",thread_set_affinity);
     EXPORT("W0Hpm2X0uPE",thread_set_priority);EXPORT("1tKyG7RlMJo",thread_get_priority);
