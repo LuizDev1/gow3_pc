@@ -346,6 +346,8 @@ static ABI int64_t guest_file_read(int fd,void *buffer,uint64_t size) {
     AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);DWORD count=0;
     int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):
         ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?(int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    if(getenv("TLG_TRACE_FILES")) fprintf(stderr,"File read: fd=%d requested=%llu result=%lld\n",
+        fd,(unsigned long long)size,(long long)result);
     ReleaseSRWLockExclusive(&file_lock);return result;
 }
 static ABI int64_t guest_file_pread(int fd,void *buffer,uint64_t size,int64_t offset) {
@@ -413,6 +415,8 @@ static ABI int64_t guest_file_fstat(int fd,GuestStat *out) {
     if(!out) return FILE_ERROR(14);
     AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);
     int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):stat_handle(h,out);
+    if(getenv("TLG_TRACE_FILES")) fprintf(stderr,"File fstat: fd=%d result=%lld size=%lld\n",
+        fd,(long long)result,result?0:(long long)out->size);
     ReleaseSRWLockExclusive(&file_lock);return result;
 }
 static ABI int64_t guest_file_stat(const char *path,GuestStat *out) {
@@ -500,7 +504,7 @@ static int selftest_dialog(void) {
 }
 static ABI int32_t guest_module_load(uint16_t id) {
     if(id==0xa4) {puts("Runtime: limited MESSAGE_DIALOG lifecycle provider loaded (no UI)");return dialog_module(1);}
-    if(id!=0xb4) return MODULE_INVALID;
+    if(id!=0xb4) {fprintf(stderr,"Unsupported module load: id=0x%x\n",id);return MODULE_INVALID;}
     AcquireSRWLockExclusive(&content_lock);
     if(content_refs==UINT_MAX) {ReleaseSRWLockExclusive(&content_lock);return CONTENT_BUSY;}
     ++content_refs;ReleaseSRWLockExclusive(&content_lock);
@@ -760,7 +764,9 @@ static ABI int32_t guest_save_memory_get(const SaveMemoryGet *get) {
     return save_memory_io(get->user,get->slot,get->data,0);
 }
 static ABI int32_t guest_save_memory_set(const SaveMemorySet *set) {
-    if(!set || set->pad || set->param || set->icon || set->count!=1 || !all_zero(set->reserved,sizeof(set->reserved))) {
+    /* SDK 4.x uses one data descriptor with dataNum left zero; 1 is also
+     * accepted. Multi-descriptor requests remain outside this profile. */
+    if(!set || set->pad || set->param || set->icon || set->count>1 || !all_zero(set->reserved,sizeof(set->reserved))) {
         fprintf(stderr,"Unsupported save-memory set profile: parameter present=%d metadata=%d icon=%d\n",
             set!=NULL,set && set->param!=NULL,set && set->icon!=NULL);return SAVE_PARAMETER;
     }
@@ -809,7 +815,7 @@ static int selftest_save_memory(int writing) {
     if(guest_save_memory_get(&get)!=SAVE_PARAMETER) return 1;
     if(writing) {
         data=(SaveMemoryData){.buffer=(void *)"DATA",.size=4,.offset=16};
-        SaveMemorySet set={.user=1,.data=&data,.count=1};
+        SaveMemorySet set={.user=1,.data=&data,.count=0};
         if(guest_save_memory_set(&set)) return 1;
     }
     if(guest_save_term() || save_memory_file!=INVALID_HANDLE_VALUE) return 1;
