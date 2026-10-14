@@ -916,3 +916,30 @@ host signal behavior are unaffected. Actual guest signal delivery remains
 unsupported; this is mask bookkeeping, not a signal-handler implementation.
 The real guest thread selftest checks inheritance/isolation, operations and
 invalid requests; synthetic imports check the canonical identity gate.
+
+### Content-reading diagnostic after signal-mask support
+
+CPU run 38587607580 and renderer run 38587607624 passed for d5aa750. Normal
+execution passed `_sigprocmask`, registered 3759 exit callbacks, and reached
+`## Exit engine`; it then stopped at `scePthreadGetname`, caller 0xdd40aa.
+This is engine shutdown, not successful boot. Numerous requested assets still
+failed loose-file lookup, and NGS2 loading remained unsupported.
+
+A private read-only PSARC diagnostic matched manifest names to TOC entries by
+their filename MD5 (uppercase when the archive is case-insensitive). The update
+archive's TOC order differs from its manifest order; indexing by manifest line
+would select the wrong payload. Each selected filename hash, block range,
+decompression size and a bounded aggregate output were checked. The diagnostic
+staged 359 requested resources (2,213,370 bytes) under ignored `out/tlg/`, using
+update entries where present and preserving original game-file content. No
+game assets or generated binaries are added to Git. This is an isolated content
+test, not an implemented native archive mount or a distributable game package.
+
+Using that private content root, the same d5aa750 binary found the first shader
+and stopped at `sceKernelPread` in the linked FIOS2 module (caller 0x5c1b422,
+exit 20, 2349 callbacks). The Windows file provider now implements positional
+reads with the descriptor lock held across seek/read/cursor restoration.
+Sequential reads/seek/close cannot observe the temporary cursor. Tests cover
+exact offset bytes, EOF/partial reads, preserved cursor and invalid parameters.
+The next renderer package must validate the actual shader read; no game image
+or menu is confirmed.

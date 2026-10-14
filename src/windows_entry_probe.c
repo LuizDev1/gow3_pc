@@ -348,6 +348,23 @@ static ABI int64_t guest_file_read(int fd,void *buffer,uint64_t size) {
         ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?(int64_t)count:FILE_ERROR(file_error(GetLastError()));
     ReleaseSRWLockExclusive(&file_lock);return result;
 }
+static ABI int64_t guest_file_pread(int fd,void *buffer,uint64_t size,int64_t offset) {
+    if((size && !buffer) || size>INT64_MAX || offset<0) return FILE_ERROR(22);
+    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);
+    if(h==INVALID_HANDLE_VALUE) {ReleaseSRWLockExclusive(&file_lock);return FILE_ERROR(9);}
+    LARGE_INTEGER zero={0},saved,target={.QuadPart=offset};DWORD count=0;
+    if(!SetFilePointerEx(h,zero,&saved,FILE_CURRENT)) {
+        int64_t error=FILE_ERROR(file_error(GetLastError()));ReleaseSRWLockExclusive(&file_lock);return error;
+    }
+    int64_t result;
+    if(!SetFilePointerEx(h,target,NULL,FILE_BEGIN)) result=FILE_ERROR(file_error(GetLastError()));
+    else result=ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?
+        (int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    /* Synchronous Windows handles have one shared cursor. Serialize seek/read
+     * and restore it before any guest read/seek/close can observe the change. */
+    if(!SetFilePointerEx(h,saved,NULL,FILE_BEGIN)) result=FILE_ERROR(5);
+    ReleaseSRWLockExclusive(&file_lock);return result;
+}
 static ABI int64_t guest_file_seek(int fd,int64_t offset,int whence) {
     if(whence<0 || whence>2) return FILE_ERROR(22);
     AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);LARGE_INTEGER move={.QuadPart=offset},position;
@@ -415,6 +432,11 @@ static int selftest_files(void) {
         guest_file_fstat(-1,&unchanged)!=FILE_ERROR(9) || memcmp(&unchanged,&before,sizeof(before))) return 1;
     puts("File metadata: 120-byte ABI, size, type, timestamp normalization and unchanged errors passed");
     if(fd<3 || guest_file_read((int)fd,bytes,3)!=3 || memcmp(bytes,"ABC",3) ||
+       guest_file_pread((int)fd,bytes,2,1)!=2 || memcmp(bytes,"BC",2) ||
+       guest_file_seek((int)fd,0,1)!=3 || guest_file_pread((int)fd,bytes,8,4)!=1 || bytes[0]!='E' ||
+       guest_file_pread((int)fd,bytes,1,99)!=0 || guest_file_seek((int)fd,0,1)!=3 ||
+       guest_file_pread((int)fd,bytes,1,-1)!=FILE_ERROR(22) || guest_file_pread((int)fd,NULL,1,0)!=FILE_ERROR(22) ||
+       guest_file_seek((int)fd,0,1)!=3 ||
        guest_file_seek((int)fd,-2,2)!=3 || guest_file_read((int)fd,bytes,8)!=2 || memcmp(bytes,"DE",2) ||
        guest_file_read((int)fd,bytes,1)!=0 || guest_file_close((int)fd) ||
        guest_file_close((int)fd)!=FILE_ERROR(9) || guest_file_read((int)fd,bytes,1)!=FILE_ERROR(9)) return 1;
@@ -906,6 +928,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"kBwCPsYX-m4#U#H")) return (uintptr_t)guest_file_fstat;
         if (!strcmp(name,"1G3lF1Gg1k8#U#H")) return (uintptr_t)guest_file_open;
         if (!strcmp(name,"Cg4srZ6TKbU#U#H")) return (uintptr_t)guest_file_read;
+        if (!strcmp(name,"+r3rMFwItV4#U#H")) return (uintptr_t)guest_file_pread;
         if (!strcmp(name,"oib76F-12fk#U#H")) return (uintptr_t)guest_file_seek;
         if (!strcmp(name,"UK2Tl2DWUns#U#H")) return (uintptr_t)guest_file_close;
         if (!strcmp(name,"lLMT9vJAck0#U#H")) return (uintptr_t)guest_clock_gettime;
