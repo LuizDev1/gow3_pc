@@ -75,6 +75,9 @@ int windows_tls_attach(const void *data, uint64_t filesz, uint64_t memsz, uint64
     if (!TlsSetValue(slot, tcb)) { _aligned_free(block); return -1; }
     allocation = block;
     main_size = memsz;
+    if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,
+        "TLS attach: block=%p bytes=%llu tcb=%p record=%p host=%lu\n",
+        block,(unsigned long long)(aligned+256),(void *)tcb,(void *)record,(unsigned long)GetCurrentThreadId());
     return 0;
 }
 static struct { const void *data; uint64_t filesz,memsz,alignment; int configured; } main_template;

@@ -162,6 +162,9 @@ static ABI int32_t mutex_init(Mutex **out, Attr **attr, const char *name) {
     m->next = mutexes;
     mutexes = m;
     *out = m;
+    if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,
+        "Mutex create: object=%p slot=%p next=%p type=%d host=%lu\n",
+        (void *)m,(void *)out,(void *)m->next,m->type,(unsigned long)GetCurrentThreadId());
     ReleaseSRWLockExclusive(&attr_lock);
     return 0;
 }
@@ -214,7 +217,12 @@ static ABI int32_t mutex_destroy(Mutex **handle) {
     Mutex **at = find_mutex(*handle);
     Mutex *m = *at;
     int32_t result = !m ? INVALID : (m->owner || m->waiters) ? BUSY : 0;
-    if (!result) { *at = m->next; *handle = NULL; }
+    if (!result) {
+        if(getenv("TLG_TRACE_SYNC")) fprintf(stderr,
+            "Mutex destroy: object=%p slot=%p next=%p host=%lu\n",
+            (void *)m,(void *)handle,(void *)m->next,(unsigned long)GetCurrentThreadId());
+        *at = m->next; *handle = NULL;
+    }
     ReleaseSRWLockExclusive(&attr_lock);
     if (!result) free(m);
     return result;

@@ -863,3 +863,20 @@ independent and retains attribution. Local tests exercise actual blocking
 threads, FIFO bit consumption, cancellation/deletion lifetimes and canonical
 library/module/version rejection. The next GPU package must validate this
 implementation against the game.
+
+Renderer run 38583442233 passed for 211583d (package SHA256
+`52c8d5af705703db4b12d62a712a81da8ec6009d2eea1d8042d80099d64ac17a`).
+The normal GPU execution again stopped in the host mutex traversal (host RVA
+0x10460, invalid link 0x2/0x3). Other diagnostic executions reached `_sigprocmask`
+in the linked libc, caller offset 0x5b7ca1b, exit 20. These results establish
+that the fault remains intermittent, not that event-flag support fixes it.
+Optional `TLG_TRACE_SYNC` logging now records mutex allocation/unlink operations
+and main TLS storage bounds for a targeted lifetime audit.
+
+A read-only inspection of the local boot and update PSARC manifests found
+`ps4_shader_cache/clear_vs_clear_vs_5_0_00000000.sb` in both archives. Thus the
+loose-file failure for that shader is not evidence of an absent game asset.
+Archive routing/reading still requires runtime validation. No game assets were
+extracted or added to Git. This renderer CI run restored compiler results and
+its build/link step took 16 seconds; MSYS2 setup took 145 seconds. These are
+observations for one run, not a fixed future build-time guarantee.
