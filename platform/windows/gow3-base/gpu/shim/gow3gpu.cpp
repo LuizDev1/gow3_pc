@@ -4,6 +4,7 @@
 #include "gow3_png.h"
 #include "gow3_settings.h"
 #include "gow3_copy.h"
+#include "tlg_submission_profile.h"
 #ifndef _WIN32
 #include <sys/resource.h>
 #endif
@@ -212,6 +213,7 @@ static void StartProfileWriter() {
 #endif
 
 extern "C" int gow3gpu_init(const Gow3GpuConfig* config) {
+    if(!config || TlgSubmissionProfile::Apply(config->serial)) return -1;
     Gow3Settings::Load();
 #ifdef GOW3_PGO_GENERATE
     StartProfileWriter();

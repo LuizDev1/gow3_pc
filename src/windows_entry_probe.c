@@ -643,6 +643,14 @@ static int selftest_content(void) {
 /* System parameter IDs follow shadPS4 systemservice.h. The diagnostic
  * explicitly selects English US (1); this is not inferred from Windows locale. */
 #define SYSTEM_PARAMETER ((int32_t)0x80a10003)
+static volatile LONG system_splash_hidden;
+/* No PS4 shell splash is created by this Windows diagnostic. Hiding the absent
+ * overlay is idempotent and does not assert that the guest has rendered a menu. */
+static ABI int32_t guest_hide_system_splash(void) {
+    if(!InterlockedExchange(&system_splash_hidden,1))
+        puts("Runtime: system splash hidden (no PS4 shell overlay)");
+    return 0;
+}
 /* Observed SystemService status prefix, following shadPS4 systemservice.h
  * (GPL-2.0-or-later). This single-application diagnostic has no PS4 shell,
  * queued system events, live broadcast or VR session. Foreground is the
@@ -659,6 +667,8 @@ static int selftest_system_status(void) {
        memcmp(bytes+8,expected,sizeof(expected))) return 1;
     for(size_t i=0;i<sizeof(bytes);i++)
         if((i<8 || i>=17) && bytes[i]!=0xa5) return 1;
+    if(guest_hide_system_splash() || guest_hide_system_splash() || system_splash_hidden!=1 ||
+       guest_system_status(bytes+8) || memcmp(bytes+8,expected,sizeof(expected))) return 1;
     puts("System status: explicit foreground profile, nine-byte fields and reserved-output preservation passed");return 0;
 }
 static ABI int32_t guest_system_parameter(int32_t id,int32_t *out) {
@@ -1335,6 +1345,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
         if (!strcmp(name,"fZo48un7LK4#systemservice")) return (uintptr_t)guest_system_parameter;
         if (!strcmp(name,"rPo6tV8D9bM#systemservice")) return (uintptr_t)guest_system_status;
+        if (!strcmp(name,"Vo5V8KAwCmk#systemservice")) return (uintptr_t)guest_hide_system_splash;
         if (!strcmp(name,"j3YMu1MVNNo#userservice")) return (uintptr_t)guest_user_init;
         if (!strcmp(name,"bwFjS+bX9mA#userservice")) return (uintptr_t)guest_user_term;
         if (!strcmp(name,"CdWp0oHWGr0#userservice")) return (uintptr_t)guest_user_initial;

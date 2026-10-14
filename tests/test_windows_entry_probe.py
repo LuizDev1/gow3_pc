@@ -270,6 +270,20 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         self.assertIn('nine-byte fields and reserved-output preservation passed',result.stdout)
 
+    def test_system_splash_canonical_identity_gate(self):
+        code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        names=['Vo5V8KAwCmk#W#W','after-hide']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceSystemService',module='libSceSystemService')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-hide',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: Vo5V8KAwCmk',result.stdout)
+
     def test_system_status_canonical_identity_gate(self):
         code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0'
               b'\x48\x83\xc4\x08\xff\x25\x12\0\0\0')
