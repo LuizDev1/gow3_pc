@@ -185,18 +185,24 @@ static int valid_guest_stack(void *base,uint64_t size) {
     return 1;
 }
 typedef struct Thread { void *tcb; HANDLE host; GuestEntry entry; void *argument,*result;
-    Attr attr; GuestSigset signal_mask; int finished,joining,joined; struct Thread *next; } Thread;
+    Attr attr; GuestSigset signal_mask; int finished,joining,joined; struct Thread *next;
+    char name[32]; unsigned name_size; } Thread;
 static Thread *threads;
 static unsigned thread_count;
+static void retain_thread_name(Thread *t,const char *name) {
+    if(name) while(t->name_size<sizeof(t->name) && name[t->name_size]) {
+        t->name[t->name_size]=name[t->name_size];++t->name_size;
+    }
+}
 /* Decoder/HLE workers may enter guest callbacks. They need the configured guest
  * TLS and a stable thread record; these bounded host records live to process exit. */
 void runtime_thread_attach_host(const char *name) {
-    (void)name;
     if(!windows_memory_register_current_stack()) ExitProcess(21);
     if(windows_tls_current_thread()) return;
     AcquireSRWLockExclusive(&lock);
     Thread *t=thread_count<LIMIT?calloc(1,sizeof(*t)):NULL;
     if(!t) {ReleaseSRWLockExclusive(&lock);ExitProcess(21);}
+    retain_thread_name(t,name);
     t->attr=(Attr){.stack=1024*1024,.guard=4096,.affinity=0x7f,.policy=1,.priority=700,.inherit=4};
     t->joined=1;t->next=threads;threads=t;thread_count++;
     ReleaseSRWLockExclusive(&lock);
@@ -207,6 +213,17 @@ void runtime_thread_detach_host(void) {
 }
 static Thread *find_thread(void *handle) {
     for(Thread *t=threads;t;t=t->next) if(t==handle) return t;return NULL;
+}
+/* Fixed 32-byte ABI, independently documented by OpenOrbis and shadPS4's
+ * GPL-2.0-or-later threads/pthread.cpp. Copy only retained name bytes: the
+ * caller supplies termination/storage, and bytes beyond the name stay intact. */
+static ABI int32_t thread_get_name(void *handle,char *out) {
+    if(!handle || !out) return INVALID;
+    AcquireSRWLockShared(&lock);Thread *t=find_thread(handle);
+    int current=handle==thread_self();
+    int32_t result=(!t && !current) || (t && (t->finished || t->joined))?NO_THREAD:0;
+    if(!result && t) memcpy(out,t->name,t->name_size);
+    ReleaseSRWLockShared(&lock);return result;
 }
 /* PS4 CPU bits map to the same low host logical CPU bits. A host that cannot
  * satisfy the requested mask returns an error; no scheduler success is faked. */
@@ -293,6 +310,7 @@ static ABI int32_t thread_create(Thread **out,uint64_t *attribute,GuestEntry ent
     }
     Thread *t=calloc(1,sizeof(*t));if(!t) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
     t->entry=entry;t->argument=argument;t->attr=selected;
+    retain_thread_name(t,name);
     t->signal_mask=current_signal_mask;
     t->host=CreateThread(NULL,(SIZE_T)selected.stack,run_guest_thread,t,CREATE_SUSPENDED,NULL);
     if(!t->host) {free(t);ReleaseSRWLockExclusive(&lock);return NOMEM;}
@@ -433,6 +451,36 @@ static ABI void *signal_mask_worker(void *argument) {
         guest_sigprocmask(3,&empty,NULL)) return NULL;
     return argument;
 }
+typedef struct { HANDLE ready,proceed; const char *name; unsigned size; int failed; } NameTest;
+static ABI void *name_test_worker(void *argument) {
+    NameTest *test=argument;unsigned char out[40];memset(out,0xa5,sizeof(out));
+    test->failed=thread_get_name(thread_self(),(char *)out) ||
+        memcmp(out,test->name,test->size);
+    for(unsigned i=test->size;i<sizeof(out);i++) if(out[i]!=0xa5) test->failed=1;
+    SetEvent(test->ready);WaitForSingleObject(test->proceed,INFINITE);return argument;
+}
+static int selftest_thread_names(void) {
+    const char *names[]={"render-producer","01234567890123456789012345678901-extra"};
+    for(unsigned i=0;i<2;i++) {
+        NameTest test={.ready=CreateEvent(NULL,TRUE,FALSE,NULL),
+            .proceed=CreateEvent(NULL,TRUE,FALSE,NULL),.name=names[i],.size=i?32:15};
+        Thread *worker=NULL;void *result=NULL;unsigned char out[40];memset(out,0xa5,sizeof(out));
+        if(!test.ready || !test.proceed || thread_create(&worker,NULL,name_test_worker,&test,test.name)) return 1;
+        int failed=WaitForSingleObject(test.ready,10000)!=WAIT_OBJECT_0 || test.failed ||
+            thread_get_name(worker,(char *)out) || memcmp(out,test.name,test.size) ||
+            thread_get_name(worker,NULL)!=INVALID || thread_get_name(NULL,(char *)out)!=INVALID ||
+            thread_get_name((void *)(uintptr_t)1,(char *)out)!=NO_THREAD;
+        for(unsigned j=test.size;j<sizeof(out);j++) if(out[j]!=0xa5) failed=1;
+        SetEvent(test.proceed);
+        if(thread_join(worker,&result) || result!=&test) failed=1;
+        memset(out,0xa5,sizeof(out));
+        if(thread_get_name(worker,(char *)out)!=NO_THREAD) failed=1;
+        for(unsigned j=0;j<sizeof(out);j++) if(out[j]!=0xa5) failed=1;
+        CloseHandle(test.ready);CloseHandle(test.proceed);if(failed) return 1;
+    }
+    puts("Thread names: actual creation names, 32-byte bound, output preservation and stale handles passed");
+    return 0;
+}
 int windows_thread_create_selftest(void) {
     static const uint64_t data=42;
     if(windows_tls_configure_main(&data,8,16,16) || windows_tls_attach_main()) return 1;
@@ -467,7 +515,7 @@ int windows_thread_create_selftest(void) {
     DWORD status=1;
     if(!host || WaitForSingleObject(host,10000)!=WAIT_OBJECT_0 || !GetExitCodeThread(host,&status) || status) return 1;
     CloseHandle(host);
-    if(custom_stack_selftest()) return 1;
+    if(custom_stack_selftest() || selftest_thread_names()) return 1;
     windows_tls_detach();puts("Host renderer workers: private guest TLS and idempotent attachment passed");
     puts("Guest threads: SysV entry, private TLS, stable identity, join result and stale join passed");return 0;
 }
@@ -486,6 +534,7 @@ uintptr_t windows_thread_resolve(const char *name) {
     EXPORT("W0Hpm2X0uPE",thread_set_priority);EXPORT("1tKyG7RlMJo",thread_get_priority);
     EXPORT("6UgtwV+0zb4",thread_create);EXPORT("onNY9Byn-W8",thread_join);
     EXPORT("aI+OeCz8xrQ",thread_self);EXPORT("x1X76arYMxU",attr_get);
+    EXPORT("How7B8Oet6k",thread_get_name);
     EXPORT("nsYoNRywwNg",attr_init);EXPORT("62KCwEMmzcM",attr_destroy);
     EXPORT("UTXzJbWhhTE",set_stack);EXPORT("-Wreprtu0Qs",set_detach);
     EXPORT("F+yfmduIBB8",set_stack_address);EXPORT("Ru36fiTtJzA",get_stack_address);

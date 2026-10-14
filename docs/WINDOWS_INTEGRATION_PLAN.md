@@ -1305,3 +1305,25 @@ packet interrupt/data selections without changing synchronization behavior.
 These are localized waits, not a confirmed renderer root cause or a completed
 fix. No semaphore signal or GPU completion is fabricated to advance execution.
 Private diagnostics and original-game disassembly remain under ignored out/.
+
+Renderer run 38642228432 passed for 4840325. Its private trace run confirmed
+subscription to event 0x40, matching GraphicsCore interrupts and successful
+EOP QUEUE returns across nine submissions. The tenth submission did not return
+in the 35-second diagnostic window. A serial draw-preparation control also
+reached nine successful EOP returns and stopped at the same diagnostic limit.
+The first completed capture in each run remained black. This excludes a general
+failure to register or deliver every EOP event; the later stall remains open.
+
+A separate run entered the engine's exit path, opened MESSAGE_DIALOG, and
+requested scePthreadGetname at caller 0xdd40aa (How7B8Oet6k). This is an exit
+diagnostic request, not evidence of a rendered menu or the cause of that exit.
+The runtime now retains actual creation names for guest and attached host
+threads and supports their bounded query. The unnamed initial host identity
+has no retained name bytes. Invalid/stale identities preserve the output.
+The fixed 32-byte copy bound follows the [OpenOrbis declaration](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/blob/master/include/orbis/libkernel.h)
+and [shadPS4 implementation](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/kernel/threads/pthread.cpp).
+Native fixtures exercise self/other queries, short and overlong names, the
+32-byte boundary and stale handles; a canonical import fixture checks scope
+and versions. The C diagnostic compiles locally with warnings treated as
+errors; execution validation uses CI because of the previously observed local
+Application Control restriction.

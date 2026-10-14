@@ -88,6 +88,19 @@ class WindowsEntryTests(unittest.TestCase):
                                       capture_output=True,text=True,timeout=15)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             self.assertEqual(saved.read_bytes(),b'KEEP'+b'\0'*12+b'DATA'+b'\0'*44)
+    def test_thread_name_canonical_identity_gate(self):
+        code=(b'\x31\xff\x31\xf6\x48\x83\xec\x08\xff\x15\x12\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x10\0\0\0')
+        names=['How7B8Oet6k#U#H','after-thread-name']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libkernel',module='libkernel')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-thread-name',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: How7B8Oet6k',result.stdout)
     def test_signal_mask_canonical_identity_gate(self):
         code=(b'\x31\xff\xbe\x01\0\0\0\x31\xd2\x48\x83\xec\x08'
               b'\xff\x15\x0d\0\0\0\x48\x83\xc4\x08\xff\x25\x0b\0\0\0')
