@@ -800,6 +800,31 @@ after restart. All 44 local entry tests passed; the renderer workflow also
 executes that persistence test against its linked binary. Target-game validation
 with an isolated writable save directory remains pending.
 
+### Offline NP title configuration boundary
+
+Renderer run 38595399308 and CPU run 38595399209 passed for a905bed. The local
+GPU execution created a new 1,048,576-byte memory file in the isolated diagnostic
+save directory, passed SetupSaveDataMemory2 and reached `sceNpSetNpTitleId`
+(libSceNpManager@1 / libSceNpManager@257, caller 0xcfb3b8, exit 20). It also
+requested `game/savetitle/savetitle.dat`, which was not included in the earlier
+359-file staged subset. The frame-capture trigger remained unconsumed: there
+is no captured guest display frame yet.
+
+The new NP provider only records local title configuration. It validates the
+16-byte title-ID and 128-byte secret ABI, a terminated 12-character title ID,
+and NULL parameters; it protects replacement with a state lock and never logs
+or persists title secrets. No PSN login, request, account binding, callback or
+online identity is reported. Other NP functions remain unresolved. Canonical
+resolution requires the observed library/module/version and function kind.
+The layout/error references are
+[shadPS4 np_types.h](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/np/np_types.h)
+and [np_error.h](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/np/np_error.h),
+GPL-2.0-or-later. Synthetic inputs test NULL and malformed parameters,
+configuration/replacement, cleanup of synthetic secret state, and rejection of
+wrong canonical identities. All 46 local entry tests passed. The renderer
+workflow now runs the NP configuration selftest as well; target-game validation
+of this provider is pending.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,

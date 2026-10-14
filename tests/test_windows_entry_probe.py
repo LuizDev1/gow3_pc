@@ -27,6 +27,24 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_np_title_local_configuration(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-np-title'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('secret cleanup passed; no online authentication',result.stdout)
+
+    def test_np_title_canonical_identity_gate(self):
+        code=(b'\x31\xff\x31\xf6\x48\x83\xec\x08\xff\x15\x12\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x10\0\0\0')
+        names=['Ec63y59l9tw#R#S','after-np']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceNpManager',module='libSceNpManager')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-np',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: Ec63y59l9tw',result.stdout)
     def test_save_memory_survives_process_restart_without_truncation(self):
         with tempfile.TemporaryDirectory() as directory:
             saved=Path(directory)/'CUSA03627-user1-slot0.memory'

@@ -976,6 +976,45 @@ static int selftest_gnm_registration(void) {
        output[0]!=UINT64_C(0x123456789abcdef0) || output[1]!=UINT64_C(0xfedcba9876543210)) return 1;
     puts("GNM registration: retail failure code and unchanged output passed");return 0;
 }
+/* Local NP title configuration only. ABI/errors: shadPS4 np_types.h and
+ * np_error.h (GPL-2.0-or-later). Never log or persist the supplied secret. */
+typedef struct {char id[13];unsigned char padding[3];} NpTitle;
+typedef struct {unsigned char data[128];} NpSecret;
+_Static_assert(sizeof(NpTitle)==16 && sizeof(NpSecret)==128,"NP title ABI");
+static SRWLOCK np_title_lock=SRWLOCK_INIT;
+static NpTitle local_np_title;
+static NpSecret local_np_secret;
+static int local_np_configured;
+static ABI int32_t guest_np_set_title(const NpTitle *title,const NpSecret *secret) {
+    if(!title || !secret) return (int32_t)0x80550003;
+    int valid=title->id[12]==0 && title->id[9]=='_';
+    for(unsigned i=0;i<4;i++) valid=valid && title->id[i]>='A' && title->id[i]<='Z';
+    for(unsigned i=4;i<12;i++) if(i!=9) valid=valid && title->id[i]>='0' && title->id[i]<='9';
+    if(!valid) return (int32_t)0x8055001e;
+    AcquireSRWLockExclusive(&np_title_lock);
+    SecureZeroMemory(&local_np_secret,sizeof(local_np_secret));
+    memcpy(local_np_title.id,title->id,sizeof(local_np_title.id));
+    memset(local_np_title.padding,0,sizeof(local_np_title.padding));
+    local_np_secret=*secret;local_np_configured=1;
+    ReleaseSRWLockExclusive(&np_title_lock);
+    puts("Runtime: NP title configuration recorded locally (offline; no PSN login/network)");return 0;
+}
+static int selftest_np_title(void) {
+    NpTitle title={.id="NPXX00001_00"},invalid=title;NpSecret secret={{0}};
+    memset(secret.data,0x55,sizeof(secret.data));
+    if(guest_np_set_title(NULL,&secret)!=(int32_t)0x80550003 ||
+        guest_np_set_title(&title,NULL)!=(int32_t)0x80550003 || local_np_configured ||
+        guest_np_set_title(&title,&secret) || !local_np_configured ||
+        memcmp(local_np_title.id,title.id,sizeof(title.id)) || memcmp(&local_np_secret,&secret,sizeof(secret))) return 1;
+    invalid.id[12]='A';
+    if(guest_np_set_title(&invalid,&secret)!=(int32_t)0x8055001e ||
+        memcmp(local_np_title.id,title.id,sizeof(title.id))) return 1;
+    memset(&secret,0x33,sizeof(secret));
+    if(guest_np_set_title(&title,&secret) || memcmp(&local_np_secret,&secret,sizeof(secret))) return 1;
+    SecureZeroMemory(&local_np_secret,sizeof(local_np_secret));
+    memset(&local_np_title,0,sizeof(local_np_title));local_np_configured=0;
+    puts("NP title: local configuration, validation, replacement and secret cleanup passed; no online authentication");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -1007,6 +1046,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
             return posix?posix:windows_thread_resolve(name);
         }
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
+        if (!strcmp(name,"Ec63y59l9tw#npmanager")) return (uintptr_t)guest_np_set_title;
         if (!strcmp(name,"yKDy8S5yLA0#savedata")) return (uintptr_t)guest_save_term;
         if (!strcmp(name,"oQySEUfgXRA#savedata")) return (uintptr_t)guest_save_memory_setup;
         if (!strcmp(name,"QwOO7vegnV8#savedata")) return (uintptr_t)guest_save_memory_get;
@@ -1081,6 +1121,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library,"libSceUserService") && !strcmp(id->module,"libSceUserService")) scope="userservice";
         else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
         else if (!strcmp(id->library,"libSceSaveData") && !strcmp(id->module,"libSceSaveData")) scope="savedata";
+        else if (!strcmp(id->library,"libSceNpManager") && !strcmp(id->module,"libSceNpManager")) scope="npmanager";
         else if (!strcmp(id->library,"libScePosix") && !strcmp(id->module,"libkernel")) scope="posix";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
@@ -1213,6 +1254,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-lifecycle")) return selftest_save_lifecycle();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-np-title")) return selftest_np_title();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-write")) return selftest_save_memory(1);
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-read")) return selftest_save_memory(0);
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();

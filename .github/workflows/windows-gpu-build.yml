@@ -126,6 +126,7 @@ jobs:
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-user-service 2>&1 | tee out/gpu-build-logs/user-service-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-pad 2>&1 | tee out/gpu-build-logs/pad-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-save-lifecycle 2>&1 | tee out/gpu-build-logs/save-lifecycle-test.log
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-np-title 2>&1 | tee out/gpu-build-logs/np-title-test.log
           TLG_ENTRY_PROBE="$(cygpath -w "$PWD/out/gpu-windows/tlg-renderer-probe.exe")" PYTHONPATH=tests python -m unittest test_windows_entry_probe.WindowsEntryTests.test_save_memory_survives_process_restart_without_truncation 2>&1 | tee out/gpu-build-logs/save-memory-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-thread 2>&1 | tee out/gpu-build-logs/thread-scheduling-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-thread-create 2>&1 | tee out/gpu-build-logs/guest-thread-test.log
