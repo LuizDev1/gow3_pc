@@ -59,6 +59,7 @@ class WindowsEntryTests(unittest.TestCase):
         result = subprocess.run([str(EXE.resolve()), '--selftest-thread-create'], capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('SysV entry, private TLS, stable identity, join result and stale join passed', result.stdout)
+        self.assertIn('actual stack and Windows bounds, TLS, fault recovery, overlap rejection and reuse passed', result.stdout)
 
     def test_playgo_initialization_validates_metadata_and_abi(self):
         with tempfile.TemporaryDirectory() as root:

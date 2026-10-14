@@ -1,5 +1,7 @@
 /* NID -> symbol name for eboot and linked libc imports (diagnostics only).
  * Names from public PS4 symbol lists (as collected in shadPS4 aerolib). */
+{"F+yfmduIBB8#U#H","scePthreadAttrSetstackaddr"},
+{"Ru36fiTtJzA#U#H","scePthreadAttrGetstackaddr"},
 {"bzQExy189ZI#q#q","_init_env"},
 {"8G2LB+A3rzg#q#q","atexit"},
 {"XKRegsFpEpk#q#q","catchReturnFromMain"},

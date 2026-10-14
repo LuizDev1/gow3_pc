@@ -126,7 +126,7 @@ static int32_t map_storage(void **out,uint64_t size,int prot,int flags,int64_t p
     if(!address) {ReleaseSRWLockExclusive(&lock);return NOMEM;}
     views[slot]=(View){address,size,section,prot,0};*out=address;
     ReleaseSRWLockExclusive(&lock);
-    printf("Runtime: direct memory mapped (%llu bytes, protection 0x%x; GPU not connected)\n",(unsigned long long)size,prot);return 0;
+    printf("Runtime: direct memory mapped (%llu bytes, protection 0x%x)\n",(unsigned long long)size,prot);return 0;
 }
 static int32_t unmap_storage(void *address,uint64_t size) {
     AcquireSRWLockExclusive(&lock);

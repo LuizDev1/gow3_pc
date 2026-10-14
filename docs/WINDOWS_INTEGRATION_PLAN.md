@@ -593,3 +593,31 @@ fulfill this contract. No command submission, rendered game frame or menu is
 established by this checkpoint. The legacy direct-memory log text saying
 "GPU not connected" predates the new hooks and is not a reliable GPU-mode status;
 the import connection and GNM logs provide the evidence above.
+
+### Caller-owned thread stacks
+
+The Windows thread provider now stores and resolves scePthreadAttrSetstackaddr
+and scePthreadAttrGetstackaddr. A caller-owned stack must have a nonoverflowing
+range, registered guest storage and committed writable nonguard pages. Creation
+rejects overlapping stacks of live workers without changing the output handle.
+The caller retains ownership and must keep storage mapped until join.
+
+Workers initialize guest TLS and register their Windows host stack before a
+Win64-to-SysV bridge enters the requested storage. The bridge preserves Win64
+nonvolatile registers, floating-point controls and the original host stack; it
+temporarily updates NT_TIB stack bounds for Windows exception handling. Normal
+return restores the host context before TLS and host-stack cleanup. Existing
+guest memory registrations cover the caller's storage without duplicate views
+or ownership changes. Attribute snapshots report the active caller stack.
+Caller-owned stacks are fixed-size; their guard attribute does not allocate a
+Windows growth guard. Foreign unwinding through the assembly bridge and detached
+threads remain unsupported.
+
+The synthetic worker test executes on a real 32 KiB caller stack, checks its
+address and Windows bounds, reads private guest TLS, recovers a real protected
+read through the renderer landing point, and verifies join results. It also
+rejects overflowing, unmapped and readonly storage and simultaneous reuse;
+sequential reuse preserves the caller's mapping and surrounding sentinels.
+Local validation passed all 33 entry tests and four renderer-base tests; the
+entry suite also passed after the final diagnostic-label/log cleanup. GPU build
+and target-game validation of this bridge are still pending.
