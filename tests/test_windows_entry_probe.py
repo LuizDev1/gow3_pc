@@ -306,6 +306,25 @@ class WindowsEntryTests(unittest.TestCase):
                 self.assertEqual(result.returncode,20,result.stdout+result.stderr)
                 self.assertIn('first unsupported PS4 import: '+symbol,result.stdout)
 
+    def test_discmap_module_reports_absent_bitmap_without_modifying_outputs(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-discmap'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('absent bitmap and unchanged outputs passed',result.stdout)
+
+    def test_discmap_canonical_identity_gate(self):
+        code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        names=['lbQKqsERhtE#D#D','after-disc']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceDiscMap',module='libSceDiscMap')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-disc',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: lbQKqsERhtE',result.stdout)
+
     def test_console_preserves_binary_data_and_routes_descriptors(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-console'], capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)

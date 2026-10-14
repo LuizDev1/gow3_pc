@@ -479,6 +479,22 @@ static SRWLOCK content_lock=SRWLOCK_INIT;
 static unsigned content_refs,content_initialized;
 #define MODULE_INVALID ((int32_t)0x805a1000)
 #define MODULE_UNLOADED ((int32_t)0x805a1001)
+/* Local loose-file storage has no PS4 package/disc bitmap. The absence result
+ * follows the GoW runtime reference and shadPS4 disc_map_codes.h (GPL-2.0-or-later).
+ * Do not claim that missing resources or disc extents are installed on HDD. */
+#define DISC_MAP_NO_BITMAP ((int32_t)0x81100004)
+static unsigned discmap_refs;
+static int32_t discmap_module(int action) {
+    AcquireSRWLockExclusive(&content_lock);int32_t result=0;
+    if(action==1) {if(discmap_refs==UINT_MAX) result=MODULE_INVALID;else ++discmap_refs;}
+    else if(!discmap_refs) result=MODULE_UNLOADED;
+    else if(action==-1) --discmap_refs;
+    ReleaseSRWLockExclusive(&content_lock);return result;
+}
+static ABI int32_t guest_discmap_on_hdd(const char *path,int64_t offset,int64_t size,int32_t *out) {
+    (void)path;(void)offset;(void)size;(void)out;
+    return discmap_module(0)?MODULE_UNLOADED:DISC_MAP_NO_BITMAP;
+}
 #define CONTENT_PARAMETER ((int32_t)0x80d90002)
 #define CONTENT_BUSY ((int32_t)0x80d90003)
 /* Limited dialog provider: lifecycle only, no UI/open/result implementation.
@@ -528,6 +544,7 @@ static int selftest_dialog(void) {
 }
 static int32_t trophy_module(int action);
 static ABI int32_t guest_module_load(uint16_t id) {
+    if(id==0xd7) {puts("Runtime: DiscMap provider available (no disc bitmap)");return discmap_module(1);}
     if(id==0xad) return trophy_module(1);
     if(id==0xa4) {puts("Runtime: limited MESSAGE_DIALOG lifecycle provider loaded (no UI)");return dialog_module(1);}
     if(id!=0xb4) {fprintf(stderr,"Unsupported module load: id=0x%x\n",id);return MODULE_INVALID;}
@@ -537,6 +554,7 @@ static ABI int32_t guest_module_load(uint16_t id) {
     puts("Runtime: limited AppContent host provider loaded");return 0;
 }
 static ABI int32_t guest_module_loaded(uint16_t id) {
+    if(id==0xd7) return discmap_module(0);
     if(id==0xad) return trophy_module(0);
     if(id==0xa4) return dialog_module(0);
     if(id!=0xb4) return MODULE_INVALID;
@@ -544,6 +562,7 @@ static ABI int32_t guest_module_loaded(uint16_t id) {
     ReleaseSRWLockShared(&content_lock);return result;
 }
 static ABI int32_t guest_module_unload(uint16_t id) {
+    if(id==0xd7) return discmap_module(-1);
     if(id==0xad) return trophy_module(-1);
     if(id==0xa4) return dialog_module(-1);
     if(id!=0xb4) return MODULE_INVALID;
@@ -681,6 +700,17 @@ static ABI int32_t guest_playgo_locus(uint32_t handle,const uint16_t *ids,uint32
     memset(out,3,count);ReleaseSRWLockShared(&playgo_lock);
     printf("Runtime: PlayGo OFFLINE ASSUMPTION: %u requested chunks reported LocalFast (first=%u)\n",count,ids[0]);
     return 0;
+}
+static int selftest_discmap(void) {
+    int32_t sentinel=123;
+    if(guest_module_loaded(0xd7)!=MODULE_UNLOADED || guest_module_unload(0xd7)!=MODULE_UNLOADED ||
+       guest_module_load(0xd7) || guest_module_load(0xd7) || guest_module_loaded(0xd7) ||
+       guest_discmap_on_hdd("/app0/fixture.bin",0,5,&sentinel)!=DISC_MAP_NO_BITMAP || sentinel!=123 ||
+       guest_discmap_on_hdd(NULL,-1,-1,NULL)!=DISC_MAP_NO_BITMAP ||
+       guest_module_unload(0xd7) || guest_module_loaded(0xd7) || guest_module_unload(0xd7) ||
+       guest_module_loaded(0xd7)!=MODULE_UNLOADED || guest_module_unload(0xd7)!=MODULE_UNLOADED)
+        return 1;
+    puts("DiscMap: reference-counted module, absent bitmap and unchanged outputs passed");return 0;
 }
 static int selftest_playgo(void) {
     uint32_t handle=123;PlayGoInit params={0};
@@ -1252,6 +1282,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         }
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
         if (!strcmp(name,"Ec63y59l9tw#npmanager")) return (uintptr_t)guest_np_set_title;
+        if (!strcmp(name,"lbQKqsERhtE#discmap")) return (uintptr_t)guest_discmap_on_hdd;
         if (!strcmp(name,"XbkjbobZlCY#nptrophy")) return (uintptr_t)guest_trophy_create_context;
         if (!strcmp(name,"q7U6tEAQf7c#nptrophy")) return (uintptr_t)guest_trophy_create_handle;
         if (!strcmp(name,"E1Wrwd07Lr8#nptrophy")) return (uintptr_t)guest_trophy_destroy_context;
@@ -1333,6 +1364,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
         else if (!strcmp(id->library,"libSceSaveData") && !strcmp(id->module,"libSceSaveData")) scope="savedata";
         else if (!strcmp(id->library,"libSceNpManager") && !strcmp(id->module,"libSceNpManager")) scope="npmanager";
+        else if (!strcmp(id->library,"libSceDiscMap") && !strcmp(id->module,"libSceDiscMap")) scope="discmap";
         else if (!strcmp(id->library,"libSceNpTrophy") && !strcmp(id->module,"libSceNpTrophy")) scope="nptrophy";
         else if (!strcmp(id->library,"libScePosix") && !strcmp(id->module,"libkernel")) scope="posix";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
@@ -1458,6 +1490,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-gnm-registration")) return selftest_gnm_registration();
     if (argc == 2 && !strcmp(argv[1], "--selftest-video")) return selftest_video();
     if (argc == 2 && !strcmp(argv[1], "--selftest-dialog")) return selftest_dialog();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-discmap")) return selftest_discmap();
     if (argc == 2 && !strcmp(argv[1], "--selftest-thread-create")) return windows_thread_create_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-playgo")) return selftest_playgo();
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
