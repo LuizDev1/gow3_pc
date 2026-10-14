@@ -1115,3 +1115,54 @@ passed. The checksum-verified renderer package reached a different concurrent
 stop at sceSystemServiceGetStatus, caller 0xdd4634, exit 20. The FIOS size defect
 remained observable, so this run does not establish that memory corruption is
 fixed. The frame-capture trigger remained unconsumed; no image or menu was seen.
+
+### Native FIOS initialization dependency traced (2026-10-14)
+
+A breakpoint after the original sceFiosInitialize call captured return code
+0x805a1000. The native library's initialization path calls sceSysmoduleLoadModule
+for DiscMap (0xd7) and forwards this loader error. Initialization therefore never
+enables the full file-handle registry. Its fallback FHOpenSync encodes a direct
+file slot with 0x7fff8000; FHGetSize searches the full registry and returns -1.
+This explains why a successful file open/read could coexist with a failed size
+query. It is not evidence that the game itself frees its title table incorrectly.
+
+Commit 0b04b29 provides a reference-counted DiscMap module and the observed
+sceDiscMapIsRequestOnHDD contract for absent disc bitmap information. It returns
+0x81100004 and preserves outputs, following the existing GoW runtime and the
+[shadPS4 implementation](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/disc_map/disc_map.cpp).
+It does not advertise disc extents, complete installation, or unknown DiscMap
+exports. Native module and canonical identity tests cover the provider.
+
+CPU run 38626008716 and renderer run 38626008559 passed; 51 local entry tests
+passed. That target run progressed through DiscMap loading and stopped at
+sceKernelClockGettime, caller 0x5c488e5, before FIOS initialization completed.
+Commit 1290b08 adds the kernel variant of the existing timespec clock, translating
+POSIX errno to kernel errors while preserving output buffers on failure. All
+52 local tests pass, including null/invalid clock errors and identity gating.
+The full initialization result, a valid title-file size, and rendering still
+require target validation of the new renderer package.
+
+### Valid size and direct original-archive validation
+
+CPU run 38626748081 and renderer run 38626748059 passed for 1290b08. FIOS then
+opened the archive set and reached its six-argument DiscMap extent query,
+fJgP+wqifno, caller 0x5c44510. The original caller checks its error before reading
+output extents and has a fallback path. Commit 98518a0 supplies the same absent
+bitmap error for this query, preserving every output rather than fabricating
+physical disc layout. The selftest covers sentinel preservation and null outputs.
+
+CPU run 38627485362 and renderer run 38627485341 passed. All 52 local entry tests
+passed. Separate private breakpoint captures of the checksum-verified renderer
+confirmed sceFiosInitialize returns zero and the save-title query now resolves
+handle 0x11801f to a valid native record with size 821. These captures modify only
+temporary debugger breakpoints; no persisted image patches were made. The
+previous UINT32_MAX read and low-pointer strlcpy fault did not recur in these runs.
+
+Normal execution was also repeated with TLG_GAME_ROOT pointing directly at the
+original CUSA03627 game directory, without the diagnostic loose-file extraction
+root. Native FIOS performed positional reads from the original PSARC archives,
+reached local save/trophy setup and stopped at sceSystemServiceGetStatus, caller
+0xdd4634, exit 20. Saves remained under the isolated diagnostic save root; game
+files were opened read-only. This validates the archive path exercised by this
+startup run, not every resource, gameplay or package operation. GetStatus is the
+next observed blocker. No frame capture was produced and no menu was observed.
