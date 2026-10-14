@@ -73,6 +73,24 @@ int runtime_memory_is_mapped(uintptr_t address,uint64_t size) {
     /* Empty/overflowing ranges are rejected rather than treated as GPU storage. */
     return size && size<=UINTPTR_MAX-address && runtime_memory_clamp(address,size)==size;
 }
+/* Return guest mapping metadata, including an exclusive end address. Renderer
+ * fault tracking can temporarily change Windows page protection; that does not
+ * change the guest's CPU/GPU permissions. Optional outputs follow the reference
+ * runtime_memory.c / shadPS4 QueryProtection contract (GPL-2.0-or-later). */
+static ABI int32_t query_protection(void *address,void **start,void **end,uint32_t *prot) {
+    uintptr_t at=(uintptr_t)address,a=0,b=0;int mapped=0;
+    AcquireSRWLockShared(&lock);
+    if(region_locked(at,&a,&b,&mapped) && mapped) {
+        for(int i=0;i<LIMIT;i++) if(views[i].address && at>=(uintptr_t)views[i].address &&
+                                  at-(uintptr_t)views[i].address<views[i].size) {
+            if(start) *start=(void *)a;
+            if(end) *end=(void *)b;
+            if(prot) *prot=(uint32_t)views[i].protection;
+            ReleaseSRWLockShared(&lock);return 0;
+        }
+    }
+    ReleaseSRWLockShared(&lock);return (int32_t)0x8002000d; /* EACCES: unmapped. */
+}
 static int aligned(uint64_t n) { return n>=PAGE && !(n&(n-1)); }
 static ABI uint64_t direct_size(void) { return POOL; }
 /* The three PRT aperture slots start empty (kernel memory.cpp, shadPS4,
@@ -365,6 +383,7 @@ uintptr_t windows_memory_resolve(const char *name) {
     EXPORT("mL8NDH86iQI",map_named_flexible);
     EXPORT("pO96TwzOm5E",direct_size);EXPORT("rTXw65xmLIA",allocate);
     EXPORT("L0v2Go5jOuM",get_prt_aperture);
+    EXPORT("WFcfL2lzido",query_protection);
     EXPORT("L-Q3LEjIbgA",map);EXPORT("MBuItvba6z8",release);EXPORT("cQke9UuBQOk",unmap);
 #undef EXPORT
     return 0;
@@ -405,6 +424,17 @@ int windows_memory_selftest(void) {
     runtime_memory_gpu_protect((uintptr_t)x,PAGE,1,0);
     MEMORY_BASIC_INFORMATION info;
     CHECK(VirtualQuery(x,&info,sizeof(info)) && info.Protect==PAGE_READONLY);
+    void *qstart=NULL,*qend=NULL;uint32_t qprot[3]={11,123,44};
+    CHECK(!query_protection((char *)x+PAGE-1,&qstart,&qend,qprot+1) &&
+          qstart==x && qend==(char *)x+PAGE && qprot[0]==11 && qprot[1]==3 && qprot[2]==44);
+    CHECK(!query_protection(y,&qstart,&qend,qprot+1) && qstart==y &&
+          qend==(char *)y+PAGE && qprot[1]==0x33);
+    CHECK(!query_protection(x,NULL,NULL,NULL));
+    qstart=(void *)(uintptr_t)11;qend=(void *)(uintptr_t)22;qprot[1]=33;
+    CHECK(query_protection(NULL,&qstart,&qend,qprot+1)==(int32_t)0x8002000d &&
+          qstart==(void *)(uintptr_t)11 && qend==(void *)(uintptr_t)22 && qprot[1]==33);
+    CHECK(windows_memory_resolve("WFcfL2lzido#U#H")== (uintptr_t)query_protection &&
+          !windows_memory_resolve("WFcfL2lzido#other"));
     uint64_t backing_value=UINT64_C(0x445566778899aabb);
     CHECK(runtime_memory_write_backing((uintptr_t)x,&backing_value,sizeof(backing_value)));
     CHECK(*(volatile uint64_t *)y==backing_value && *(volatile uint64_t *)x==backing_value);
