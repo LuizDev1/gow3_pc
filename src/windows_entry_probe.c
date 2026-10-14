@@ -207,16 +207,23 @@ uint64_t runtime_process_time_counter(void) {
     return (uint64_t)(((__uint128_t)((uint64_t)now.QuadPart-process_start)*1000000000)/qpc_hz);
 }
 uint64_t runtime_tsc_frequency(void) {return guest_tsc_frequency();}
+/* Process counter ticks are nanoseconds, independently of the hardware TSC.
+ * Keep the frequency paired with runtime_process_time_counter, also used by
+ * the selected renderer's kernel export. */
+static ABI uint64_t guest_process_counter(void) {return runtime_process_time_counter();}
+static ABI uint64_t guest_process_counter_frequency(void) {return UINT64_C(1000000000);}
 static int selftest_clock(void) {
     uint64_t hz=guest_tsc_frequency(),a=guest_read_tsc(),before=guest_process_time();
-    uint64_t counter_before=runtime_process_time_counter();
+    uint64_t process_hz=guest_process_counter_frequency();
+    if(!process_hz || process_hz!=guest_process_counter_frequency()) return 1;
+    uint64_t counter_before=guest_process_counter();
     Sleep(30);uint64_t b=guest_read_tsc(),after=guest_process_time();
-    uint64_t counter_after=runtime_process_time_counter();
+    uint64_t counter_after=guest_process_counter();
     if(!hz || guest_tsc_frequency()!=hz || b<=a || after<=before) return 1;
     uint64_t elapsed=(uint64_t)(((__uint128_t)(b-a)*1000000)/hz);
     uint64_t expected=after-before;
     if(elapsed<expected/2 || elapsed>expected*2) return 1;
-    uint64_t counter_us=(counter_after-counter_before)/1000;
+    uint64_t counter_us=(uint64_t)(((__uint128_t)(counter_after-counter_before)*1000000)/process_hz);
     if(counter_after<=counter_before || counter_us<expected/2 || counter_us>expected*2) return 1;
     puts("Timing: advancing hardware counter, stable frequency and elapsed-time agreement passed");return 0;
 }
@@ -1289,6 +1296,8 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"-2IRUCO--PM#U#H")) return (uintptr_t)guest_read_tsc;
         if (!strcmp(name,"1j3S3n-tTW4#U#H")) return (uintptr_t)guest_tsc_frequency;
         if (!strcmp(name,"4J2sUJmuHZQ#U#H")) return (uintptr_t)guest_process_time;
+        if (!strcmp(name,"fgxnMeTNUtY#U#H")) return (uintptr_t)guest_process_counter;
+        if (!strcmp(name,"BNowx2l588E#U#H")) return (uintptr_t)guest_process_counter_frequency;
         if (!strcmp(name,"FxVZqBAA7ks#U#H")) return (uintptr_t)guest_console_write;
         if (!strcmp(name,"9BcDykPmo1I#U#H")) return (uintptr_t)guest_console_error;
         uintptr_t resolved = windows_equeue_resolve(name);

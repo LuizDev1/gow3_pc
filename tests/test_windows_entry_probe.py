@@ -291,6 +291,21 @@ class WindowsEntryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('advancing hardware counter, stable frequency and elapsed-time agreement passed', result.stdout)
 
+    def test_process_counter_exports_require_kernel_identity(self):
+        code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        for symbol in ['fgxnMeTNUtY', 'BNowx2l588E']:
+            names=[symbol+'#U#H', 'after-clock']
+            raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+            valid=dict(library='libkernel',module='libkernel')
+            result=self.run_image(canonical(raw,names,**valid))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: after-clock',result.stdout)
+            for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+                result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+                self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+                self.assertIn('first unsupported PS4 import: '+symbol,result.stdout)
+
     def test_console_preserves_binary_data_and_routes_descriptors(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-console'], capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
