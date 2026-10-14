@@ -861,6 +861,27 @@ Save-memory single-descriptor writes now accept dataNum zero as the SDK 4.x
 default for one descriptor; multi-descriptor requests remain unsupported.
 No guest display frame has been captured.
 
+Renderer run 38603293952 passed for dbd80d0. In the complete staged-content test,
+the UINT32_MAX read now returns exactly 821 bytes. The original save-title
+header is accepted and local NP configuration passes. The run then logs module
+0xad as unsupported and enters engine shutdown. This confirms the read fix
+without omitting savetitle.dat or modifying original instructions.
+
+The next local trophy profile provides module reference tracking and four
+observed creation/lifetime APIs: CreateContext, CreateHandle, DestroyContext,
+DestroyHandle. Context creation binds the existing read-only trophy00.trp for
+offline user 1 / service label 0, checks its v3 header, declared size and table
+bounds, and retains the package handle until context destruction/unload.
+This is header binding, not complete catalog validation or registration.
+Opaque IDs are monotonic and stale IDs are rejected; unloading releases local
+objects. Registration, catalog queries, achievement unlocks, callbacks and PSN
+synchronization remain unresolved. The API/error reference is
+[shadPS4 np_trophy.cpp](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/np/np_trophy.cpp)
+and np_error.h, GPL-2.0-or-later. All 48 local entry tests passed, including
+synthetic TRP header binding, malformed headers, stale IDs, cleanup and
+canonical library/module/version rejection. The next GPU package must validate
+the context/handle boundary against the real game.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,

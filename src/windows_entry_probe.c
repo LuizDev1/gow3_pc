@@ -519,7 +519,9 @@ static int selftest_dialog(void) {
        dialog_module(-1)!=MODULE_UNLOADED) return 1;
     puts("Dialogs: load references, initialization order, duplicate init and final unload reset passed");return 0;
 }
+static int32_t trophy_module(int action);
 static ABI int32_t guest_module_load(uint16_t id) {
+    if(id==0xad) return trophy_module(1);
     if(id==0xa4) {puts("Runtime: limited MESSAGE_DIALOG lifecycle provider loaded (no UI)");return dialog_module(1);}
     if(id!=0xb4) {fprintf(stderr,"Unsupported module load: id=0x%x\n",id);return MODULE_INVALID;}
     AcquireSRWLockExclusive(&content_lock);
@@ -528,12 +530,14 @@ static ABI int32_t guest_module_load(uint16_t id) {
     puts("Runtime: limited AppContent host provider loaded");return 0;
 }
 static ABI int32_t guest_module_loaded(uint16_t id) {
+    if(id==0xad) return trophy_module(0);
     if(id==0xa4) return dialog_module(0);
     if(id!=0xb4) return MODULE_INVALID;
     AcquireSRWLockShared(&content_lock);int32_t result=content_refs?0:MODULE_UNLOADED;
     ReleaseSRWLockShared(&content_lock);return result;
 }
 static ABI int32_t guest_module_unload(uint16_t id) {
+    if(id==0xad) return trophy_module(-1);
     if(id==0xa4) return dialog_module(-1);
     if(id!=0xb4) return MODULE_INVALID;
     AcquireSRWLockExclusive(&content_lock);
@@ -1054,6 +1058,99 @@ static int selftest_np_title(void) {
     memset(&local_np_title,0,sizeof(local_np_title));local_np_configured=0;
     puts("NP title: local configuration, validation, replacement and secret cleanup passed; no online authentication");return 0;
 }
+/* Local trophy creation only, following shadPS4 np_trophy.cpp / np_error.h.
+ * Contexts bind a read-only TRP package. Registration and unlock are unresolved. */
+#define TROPHY_ERROR(n) ((int32_t)(0x80551600u|(n)))
+static SRWLOCK trophy_lock=SRWLOCK_INIT;
+static unsigned trophy_refs;
+static int32_t trophy_context,next_trophy_context=1,next_trophy_handle=1;
+static int32_t trophy_handles[16];
+static HANDLE trophy_package=INVALID_HANDLE_VALUE;
+static int32_t trophy_module(int action) {
+    AcquireSRWLockExclusive(&trophy_lock);int32_t result=0;
+    if(action==1) {
+        if(trophy_refs==UINT_MAX) result=MODULE_INVALID;
+        else ++trophy_refs;
+    } else if(!trophy_refs) result=MODULE_UNLOADED;
+    else if(action==-1 && !--trophy_refs) {
+        if(trophy_package!=INVALID_HANDLE_VALUE) CloseHandle(trophy_package);
+        trophy_package=INVALID_HANDLE_VALUE;trophy_context=0;memset(trophy_handles,0,sizeof(trophy_handles));
+    }
+    ReleaseSRWLockExclusive(&trophy_lock);
+    if(!result && action==1) puts("Runtime: local trophy lifecycle provider loaded (registration/unlock unsupported)");
+    return result;
+}
+static uint32_t trp_be32(const unsigned char *p) {
+    return ((uint32_t)p[0]<<24)|((uint32_t)p[1]<<16)|((uint32_t)p[2]<<8)|p[3];
+}
+static ABI int32_t guest_trophy_create_context(int32_t *out,int32_t user,uint32_t label,uint64_t options) {
+    if(!out || options) return TROPHY_ERROR(4);
+    if(user!=1) return TROPHY_ERROR(0x25);
+    if(label) return TROPHY_ERROR(0x22);
+    AcquireSRWLockExclusive(&trophy_lock);
+    if(!trophy_refs) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(1);}
+    if(trophy_context) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x13);}
+    if(next_trophy_context==INT_MAX) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x23);}
+    char path[2048];
+    if(translate_path("/app0/sce_sys/trophy/trophy00.trp",path,sizeof(path))) {
+        ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x26);
+    }
+    HANDLE h=CreateFileA(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    if(h==INVALID_HANDLE_VALUE) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x26);}
+    unsigned char header[64];DWORD read=0;LARGE_INTEGER size;
+    int valid=GetFileSizeEx(h,&size) && size.QuadPart>=128 && ReadFile(h,header,sizeof(header),&read,NULL) && read==sizeof(header);
+    if(valid) {
+        uint64_t declared=((uint64_t)trp_be32(header+8)<<32)|trp_be32(header+12);
+        uint64_t entries=trp_be32(header+16),width=trp_be32(header+20);
+        valid=trp_be32(header)==0xdca24d00 && trp_be32(header+4)==3 &&
+            declared==(uint64_t)size.QuadPart && entries && width==64 && entries<=(declared-64)/64;
+    }
+    if(!valid) {CloseHandle(h);ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x16);}
+    trophy_context=next_trophy_context++;trophy_package=h;*out=trophy_context;
+    ReleaseSRWLockExclusive(&trophy_lock);
+    puts("Runtime: local trophy context bound to TRP header (not registered; no unlocks)");return 0;
+}
+static ABI int32_t guest_trophy_destroy_context(int32_t id) {
+    AcquireSRWLockExclusive(&trophy_lock);
+    if(!id || id!=trophy_context) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(9);}
+    if(!CloseHandle(trophy_package)) {ReleaseSRWLockExclusive(&trophy_lock);ExitProcess(21);}
+    trophy_package=INVALID_HANDLE_VALUE;trophy_context=0;
+    ReleaseSRWLockExclusive(&trophy_lock);return 0;
+}
+static ABI int32_t guest_trophy_create_handle(int32_t *out) {
+    if(!out) return TROPHY_ERROR(4);
+    AcquireSRWLockExclusive(&trophy_lock);
+    if(!trophy_refs) {ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(1);}
+    if(next_trophy_handle<INT_MAX) for(unsigned i=0;i<16;i++) if(!trophy_handles[i]) {
+        *out=trophy_handles[i]=next_trophy_handle++;ReleaseSRWLockExclusive(&trophy_lock);return 0;
+    }
+    ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(0x24);
+}
+static ABI int32_t guest_trophy_destroy_handle(int32_t id) {
+    AcquireSRWLockExclusive(&trophy_lock);
+    if(id) for(unsigned i=0;i<16;i++) if(trophy_handles[i]==id) {
+        trophy_handles[i]=0;ReleaseSRWLockExclusive(&trophy_lock);return 0;
+    }
+    ReleaseSRWLockExclusive(&trophy_lock);return TROPHY_ERROR(8);
+}
+static int selftest_trophy_lifecycle(void) {
+    int32_t context=123,handle=0;
+    if(guest_trophy_create_context(&context,1,0,0)!=TROPHY_ERROR(1) || context!=123 ||
+        trophy_module(0)!=MODULE_UNLOADED || trophy_module(1) || trophy_module(0) ||
+        guest_trophy_create_context(NULL,1,0,0)!=TROPHY_ERROR(4) ||
+        guest_trophy_create_context(&context,2,0,0)!=TROPHY_ERROR(0x25) ||
+        guest_trophy_create_context(&context,1,0,0) || !context ||
+        guest_trophy_create_context(&context,1,0,0)!=TROPHY_ERROR(0x13) ||
+        guest_trophy_create_handle(&handle) || !handle || guest_trophy_destroy_handle(handle) ||
+        guest_trophy_destroy_handle(handle)!=TROPHY_ERROR(8)) return 1;
+    int32_t stale=context;
+    if(guest_trophy_destroy_context(context) || guest_trophy_destroy_context(stale)!=TROPHY_ERROR(9) ||
+        guest_trophy_create_context(&context,1,0,0) || context==stale ||
+        guest_trophy_create_handle(&handle) || trophy_module(-1) ||
+        guest_trophy_destroy_context(context)!=TROPHY_ERROR(9) ||
+        guest_trophy_destroy_handle(handle)!=TROPHY_ERROR(8) || trophy_module(0)!=MODULE_UNLOADED) return 1;
+    puts("Trophies: local package binding, context/handle lifetime, stale IDs and unload cleanup passed; no registration/unlock");return 0;
+}
 static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabilities) {
     /* prepare_tlg.py validates this target and its libc hash; prepare.py sets
      * bit 0 only after inspecting the supplied libc's _init_env as exactly C3.
@@ -1086,6 +1183,10 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         }
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
         if (!strcmp(name,"Ec63y59l9tw#npmanager")) return (uintptr_t)guest_np_set_title;
+        if (!strcmp(name,"XbkjbobZlCY#nptrophy")) return (uintptr_t)guest_trophy_create_context;
+        if (!strcmp(name,"q7U6tEAQf7c#nptrophy")) return (uintptr_t)guest_trophy_create_handle;
+        if (!strcmp(name,"E1Wrwd07Lr8#nptrophy")) return (uintptr_t)guest_trophy_destroy_context;
+        if (!strcmp(name,"GNcF4oidY0Y#nptrophy")) return (uintptr_t)guest_trophy_destroy_handle;
         if (!strcmp(name,"yKDy8S5yLA0#savedata")) return (uintptr_t)guest_save_term;
         if (!strcmp(name,"oQySEUfgXRA#savedata")) return (uintptr_t)guest_save_memory_setup;
         if (!strcmp(name,"QwOO7vegnV8#savedata")) return (uintptr_t)guest_save_memory_get;
@@ -1161,6 +1262,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
         else if (!strcmp(id->library,"libSceSaveData") && !strcmp(id->module,"libSceSaveData")) scope="savedata";
         else if (!strcmp(id->library,"libSceNpManager") && !strcmp(id->module,"libSceNpManager")) scope="npmanager";
+        else if (!strcmp(id->library,"libSceNpTrophy") && !strcmp(id->module,"libSceNpTrophy")) scope="nptrophy";
         else if (!strcmp(id->library,"libScePosix") && !strcmp(id->module,"libkernel")) scope="posix";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
@@ -1294,6 +1396,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-lifecycle")) return selftest_save_lifecycle();
     if (argc == 2 && !strcmp(argv[1], "--selftest-np-title")) return selftest_np_title();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-trophy-lifecycle")) return selftest_trophy_lifecycle();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-write")) return selftest_save_memory(1);
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-read")) return selftest_save_memory(0);
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();

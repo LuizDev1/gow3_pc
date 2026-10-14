@@ -27,6 +27,39 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_local_trophy_objects_bind_a_package_without_registration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'sce_sys/trophy/trophy00.trp'
+            path.parent.mkdir(parents=True)
+            path.write_bytes(struct.pack('>IIQIII',0xdca24d00,3,128,1,64,0).ljust(128,b'\0'))
+            env=dict(os.environ,TLG_GAME_ROOT=directory)
+            result=subprocess.run([str(EXE.resolve()),'--selftest-trophy-lifecycle'],env=env,
+                                  capture_output=True,text=True,timeout=15)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertIn('unload cleanup passed; no registration/unlock',result.stdout)
+            before=path.read_bytes()
+            self.assertEqual(len(before),128)
+            for invalid in (b'bad'.ljust(128,b'\0'),
+                            struct.pack('>IIQIII',0xdca24d00,3,256,1,64,0).ljust(128,b'\0')):
+                path.write_bytes(invalid)
+                result=subprocess.run([str(EXE.resolve()),'--selftest-trophy-lifecycle'],env=env,
+                                      capture_output=True,text=True,timeout=15)
+                self.assertNotEqual(result.returncode,0)
+                self.assertEqual(path.read_bytes(),invalid)
+
+    def test_trophy_canonical_identity_gate(self):
+        code=(b'\x31\xff\x48\x83\xec\x08\xff\x15\x14\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x12\0\0\0')
+        names=['q7U6tEAQf7c#N#O','after-trp']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libSceNpTrophy',module='libSceNpTrophy')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('first unsupported PS4 import: after-trp',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+            self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+            self.assertIn('first unsupported PS4 import: q7U6tEAQf7c',result.stdout)
     def test_np_title_local_configuration(self):
         result=subprocess.run([str(EXE.resolve()),'--selftest-np-title'],capture_output=True,text=True,timeout=15)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
