@@ -774,6 +774,32 @@ identity is libkernel@1 / libkernel@257. Local call-site inspection confirms
 the game obtains the current thread and requests mask 0xf. No rendered frame
 or menu is confirmed.
 
+Renderer run 38593844899 and CPU run 38593844828 passed for 73ac324. With the
+private content root, the GPU run passed positional shader reads and asset
+loads, no longer reached the previous `## Exit engine` point, and stopped at
+`sceSaveDataSetupSaveDataMemory2`, canonical libSceSaveData@1 /
+libSceSaveData@257 (caller 0xcfb253, exit 20, 3759 callbacks). The original
+instructions build a 64-byte setup struct: option SET_PARAM (1), offline user 1,
+memorySize 1,048,576, iconMemorySize 116,736, NULL initial parameter/icon, slot
+zero and reserved zeros. The result pointer is NULL. No rendered frame is
+established by that progress.
+
+The local memory-only SaveData profile now requires an explicit existing
+`TLG_SAVE_ROOT` directory and uses a separate
+`CUSA03627-user1-slot0.memory` file. It supports the observed setup, bounded raw
+Get/SetMemory2 data for user 1 / slot 0, explicit zero-fill when extending,
+preservation of existing file contents and flush-before-success on writes.
+Non-NULL parameter/icon payloads, other users/slots, double buffering, mounted
+save directories and sync/event APIs remain unsupported. This is a persistent
+raw memory blob, not a PS4 save-container export or complete save-system support.
+The setup/get/set ABI reference is
+[shadPS4 savedata.cpp](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/save_data/savedata.cpp)
+(GPL-2.0-or-later). A two-process synthetic test preserves seeded bytes, checks
+new zero-filled space, performs a bounded write and verifies persisted bytes
+after restart. All 44 local entry tests passed; the renderer workflow also
+executes that persistence test against its linked binary. Target-game validation
+with an isolated writable save directory remains pending.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,

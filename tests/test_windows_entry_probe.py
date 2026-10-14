@@ -27,6 +27,16 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_save_memory_survives_process_restart_without_truncation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            saved=Path(directory)/'CUSA03627-user1-slot0.memory'
+            saved.write_bytes(b'KEEP'+b'\0'*12)
+            env=dict(os.environ,TLG_SAVE_ROOT=directory)
+            for operation in ('write','read'):
+                result=subprocess.run([str(EXE.resolve()),'--selftest-save-memory-'+operation],env=env,
+                                      capture_output=True,text=True,timeout=15)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertEqual(saved.read_bytes(),b'KEEP'+b'\0'*12+b'DATA'+b'\0'*44)
     def test_signal_mask_canonical_identity_gate(self):
         code=(b'\x31\xff\xbe\x01\0\0\0\x31\xd2\x48\x83\xec\x08'
               b'\xff\x15\x0d\0\0\0\x48\x83\xc4\x08\xff\x25\x0b\0\0\0')

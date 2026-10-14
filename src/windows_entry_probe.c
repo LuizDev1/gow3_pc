@@ -678,6 +678,86 @@ static int selftest_playgo(void) {
 #define SAVE_NOT_INITIALIZED ((int32_t)0x809f0001)
 static SRWLOCK save_lock=SRWLOCK_INIT;
 static int save_initialized;
+static HANDLE save_memory_file=INVALID_HANDLE_VALUE;
+static uint64_t save_memory_size;
+#define SAVE_INTERNAL ((int32_t)0x809f000b)
+#define SAVE_MEMORY_NOT_READY ((int32_t)0x809f0012)
+/* Observed SDK setup/get/set layouts from shadPS4 savedata.cpp (GPL-2.0-or-later).
+ * Narrow local user 1 / slot 0 memory backend; icons and metadata are unresolved. */
+typedef struct {uint32_t option;int32_t user;uint64_t size,icon_size;
+    const void *param,*icon;uint32_t slot;unsigned char reserved[20];} SaveMemorySetup;
+typedef struct {uint64_t existed_size;unsigned char reserved[16];} SaveMemoryResult;
+typedef struct {void *buffer;uint64_t size;int64_t offset;unsigned char reserved[40];} SaveMemoryData;
+typedef struct {int32_t user;uint32_t pad;SaveMemoryData *data;void *param,*icon;
+    uint32_t slot;unsigned char reserved[28];} SaveMemoryGet;
+typedef struct {int32_t user;uint32_t pad;const SaveMemoryData *data;const void *param,*icon;
+    uint32_t count,slot;unsigned char reserved[32];} SaveMemorySet;
+_Static_assert(sizeof(SaveMemorySetup)==64 && sizeof(SaveMemoryResult)==24 &&
+    sizeof(SaveMemoryData)==64 && sizeof(SaveMemoryGet)==64 && sizeof(SaveMemorySet)==72,"save memory ABI");
+static int all_zero(const void *data,size_t size) {
+    const unsigned char *p=data;for(size_t i=0;i<size;i++) if(p[i]) return 0;return 1;
+}
+static ABI int32_t guest_save_memory_setup(const SaveMemorySetup *setup,SaveMemoryResult *out) {
+    AcquireSRWLockExclusive(&save_lock);
+    if(!save_initialized) {ReleaseSRWLockExclusive(&save_lock);return SAVE_NOT_INITIALIZED;}
+    if(!setup || setup->user!=1 || setup->slot || setup->option>1 || setup->param || setup->icon ||
+        !setup->size || setup->size>16*1024*1024 || setup->icon_size>1024*1024 ||
+        !all_zero(setup->reserved,sizeof(setup->reserved))) {
+        ReleaseSRWLockExclusive(&save_lock);return SAVE_PARAMETER;
+    }
+    const char *root=getenv("TLG_SAVE_ROOT");char path[2048];
+    if(!root || !*root || strlen(root)>1900) {ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;}
+    snprintf(path,sizeof(path),"%s/CUSA03627-user1-slot0.memory",root);
+    if(save_memory_file!=INVALID_HANDLE_VALUE) {
+        int32_t result=save_memory_size==setup->size?0:(int32_t)0x809f0003;
+        if(!result && out) *out=(SaveMemoryResult){.existed_size=save_memory_size};
+        ReleaseSRWLockExclusive(&save_lock);return result;
+    }
+    HANDLE h=CreateFileA(path,GENERIC_READ|GENERIC_WRITE,0,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+    LARGE_INTEGER existing;
+    if(h==INVALID_HANDLE_VALUE || !GetFileSizeEx(h,&existing) || existing.QuadPart<0 || existing.QuadPart>16*1024*1024) {
+        if(h!=INVALID_HANDLE_VALUE) CloseHandle(h);
+        ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;
+    }
+    /* Never truncate an existing save; explicitly zero-fill newly grown bytes. */
+    LARGE_INTEGER end=existing;unsigned char zero[4096]={0};int ok=SetFilePointerEx(h,end,NULL,FILE_BEGIN);
+    uint64_t position=(uint64_t)existing.QuadPart;
+    while(ok && position<setup->size) {
+        DWORD amount=(DWORD)(setup->size-position>sizeof(zero)?sizeof(zero):setup->size-position),written=0;
+        ok=WriteFile(h,zero,amount,&written,NULL) && written==amount;position+=written;
+    }
+    if(!ok || !FlushFileBuffers(h)) {CloseHandle(h);ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;}
+    save_memory_file=h;save_memory_size=setup->size;
+    if(out) *out=(SaveMemoryResult){.existed_size=(uint64_t)existing.QuadPart};
+    ReleaseSRWLockExclusive(&save_lock);
+    printf("Runtime: local save memory ready (%llu bytes; user 1, slot 0; icons/metadata unsupported)\n",
+        (unsigned long long)setup->size);return 0;
+}
+static int32_t save_memory_io(int32_t user,uint32_t slot,const SaveMemoryData *data,int writing) {
+    AcquireSRWLockExclusive(&save_lock);int32_t result=0;
+    if(!save_initialized) result=SAVE_NOT_INITIALIZED;
+    else if(user!=1 || slot || !data || (!data->buffer && data->size) || data->offset<0 ||
+        !all_zero(data->reserved,sizeof(data->reserved))) result=SAVE_PARAMETER;
+    else if(save_memory_file==INVALID_HANDLE_VALUE) result=SAVE_MEMORY_NOT_READY;
+    else if((uint64_t)data->offset>save_memory_size || data->size>save_memory_size-(uint64_t)data->offset) result=SAVE_PARAMETER;
+    else {
+        LARGE_INTEGER offset={.QuadPart=data->offset};DWORD amount=(DWORD)data->size,done=0;
+        int ok=SetFilePointerEx(save_memory_file,offset,NULL,FILE_BEGIN) &&
+            (writing?WriteFile(save_memory_file,data->buffer,amount,&done,NULL):
+                     ReadFile(save_memory_file,data->buffer,amount,&done,NULL)) && done==amount;
+        if(ok && writing) ok=FlushFileBuffers(save_memory_file);
+        if(!ok) result=SAVE_INTERNAL;
+    }
+    ReleaseSRWLockExclusive(&save_lock);return result;
+}
+static ABI int32_t guest_save_memory_get(const SaveMemoryGet *get) {
+    if(!get || get->pad || get->param || get->icon || !all_zero(get->reserved,sizeof(get->reserved))) return SAVE_PARAMETER;
+    return save_memory_io(get->user,get->slot,get->data,0);
+}
+static ABI int32_t guest_save_memory_set(const SaveMemorySet *set) {
+    if(!set || set->pad || set->param || set->icon || set->count!=1 || !all_zero(set->reserved,sizeof(set->reserved))) return SAVE_PARAMETER;
+    return save_memory_io(set->user,set->slot,set->data,1);
+}
 static ABI int32_t guest_save_init3(const void *params) {
     if(params) return SAVE_PARAMETER;
     AcquireSRWLockExclusive(&save_lock);save_initialized=1;ReleaseSRWLockExclusive(&save_lock);
@@ -686,6 +766,10 @@ static ABI int32_t guest_save_init3(const void *params) {
 static ABI int32_t guest_save_term(void) {
     AcquireSRWLockExclusive(&save_lock);
     if(!save_initialized) {ReleaseSRWLockExclusive(&save_lock);return SAVE_NOT_INITIALIZED;}
+    if(save_memory_file!=INVALID_HANDLE_VALUE) {
+        if(!FlushFileBuffers(save_memory_file) || !CloseHandle(save_memory_file)) {ReleaseSRWLockExclusive(&save_lock);return SAVE_INTERNAL;}
+        save_memory_file=INVALID_HANDLE_VALUE;save_memory_size=0;
+    }
     save_initialized=0;ReleaseSRWLockExclusive(&save_lock);return 0;
 }
 static int selftest_save_lifecycle(void) {
@@ -697,6 +781,31 @@ static int selftest_save_lifecycle(void) {
        guest_save_init3(NULL) || guest_save_term() || save_initialized ||
        guest_save_term()!=SAVE_NOT_INITIALIZED || guest_save_init3(NULL) || guest_save_term()) return 1;
     puts("SaveData lifecycle: NULL initialization, idempotency, opaque parameter rejection and termination passed");return 0;
+}
+static int selftest_save_memory(int writing) {
+    SaveMemorySetup setup={.option=1,.user=1,.size=64};
+    SaveMemoryResult result;memset(&result,0x55,sizeof(result));SaveMemoryResult before=result;
+    if(guest_save_memory_setup(&setup,&result)!=SAVE_NOT_INITIALIZED || memcmp(&before,&result,sizeof(result)) ||
+        guest_save_init3(NULL)) return 1;
+    setup.user=2;
+    if(guest_save_memory_setup(&setup,&result)!=SAVE_PARAMETER || memcmp(&before,&result,sizeof(result))) return 1;
+    setup.user=1;
+    if(guest_save_memory_setup(&setup,&result) || result.existed_size!=(writing?16u:64u)) return 1;
+    unsigned char bytes[64];memset(bytes,0x55,sizeof(bytes));
+    SaveMemoryData data={.buffer=bytes,.size=64};SaveMemoryGet get={.user=1,.data=&data};
+    if(guest_save_memory_get(&get) || memcmp(bytes,"KEEP",4)) return 1;
+    for(unsigned i=4;i<64;i++) if(bytes[i]!=(unsigned char)(!writing && i>=16 && i<20?"DATA"[i-16]:0)) return 1;
+    data.offset=INT64_MAX;
+    if(guest_save_memory_get(&get)!=SAVE_PARAMETER) return 1;
+    data.offset=0;data.size=UINT64_MAX;
+    if(guest_save_memory_get(&get)!=SAVE_PARAMETER) return 1;
+    if(writing) {
+        data=(SaveMemoryData){.buffer=(void *)"DATA",.size=4,.offset=16};
+        SaveMemorySet set={.user=1,.data=&data,.count=1};
+        if(guest_save_memory_set(&set)) return 1;
+    }
+    if(guest_save_term() || save_memory_file!=INVALID_HANDLE_VALUE) return 1;
+    puts("Save memory: preserved existing bytes, explicit zero-fill, bounded I/O and persisted restart passed");return 0;
 }
 /* Offline local UserService profile: one local user, not a Windows/PSN login.
  * ABI follows the bundled shadPS4 system/userservice.h; error values follow
@@ -899,6 +1008,9 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         }
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
         if (!strcmp(name,"yKDy8S5yLA0#savedata")) return (uintptr_t)guest_save_term;
+        if (!strcmp(name,"oQySEUfgXRA#savedata")) return (uintptr_t)guest_save_memory_setup;
+        if (!strcmp(name,"QwOO7vegnV8#savedata")) return (uintptr_t)guest_save_memory_get;
+        if (!strcmp(name,"cduy9v4YmT4#savedata")) return (uintptr_t)guest_save_memory_set;
         if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
@@ -1101,6 +1213,8 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
     if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-save-lifecycle")) return selftest_save_lifecycle();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-write")) return selftest_save_memory(1);
+    if (argc == 2 && !strcmp(argv[1], "--selftest-save-memory-read")) return selftest_save_memory(0);
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();
