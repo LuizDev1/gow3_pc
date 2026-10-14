@@ -904,6 +904,18 @@ write/reload persistence and wrong-user rejection as well as memory bytes.
 All 48 local entry tests passed. The next GPU package must validate the real
 metadata request and determine whether the text-copy fault is independent.
 
+Renderer run 38609047743 and CPU run 38609047673 passed for ab05511. The local
+target execution accepted the metadata request and created the 1328-byte local
+parameter file; the previous unsupported-metadata diagnostic no longer appears.
+It still stopped at the same libc strlcpy instruction with source address 0x22.
+Thus metadata support is validated for the observed request but does not fix
+this independent text-pointer fault. The caller identified at 0xe20424 reads a
+string pointer from a language-indexed save-title table. The next investigation
+must inspect that table's relocation/lifetime and the caller's registers;
+do not suppress the fault or change guest instructions to make progress.
+The display-frame capture trigger remains unconsumed. No first game image,
+menu, trophy registration, playable behavior or complete save support is claimed.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,
