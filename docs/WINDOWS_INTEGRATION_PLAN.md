@@ -565,3 +565,31 @@ Direct mapping now accepts hints in the selected AddressSpace's reserved range,
 using an actual shared section view. No guest code or driver success is patched.
 The regression test verifies the requested system address and shared storage.
 The corrected non-debugger run still needs validation; no game frame is claimed.
+
+### Normal GPU run after the tessellation mapping correction
+
+Renderer run 38488037263 passed at commit 4a9cf2f, including the executable
+link, identity, profile, memory, recovery and packaging checks. CPU run
+38487967508 passed for the same runtime sources (0524c2a); the later commit
+only increased renderer build parallelism. The downloaded diagnostic archive's
+SHA-256 matched the GitHub artifact digest. Its local link/profile checks passed.
+
+A normal run, without the debug notification filter, initialized Vulkan on the
+RTX 3060 Ti, returned from both native initializers, and entered TLG USA 1.03.
+The actual 128 KiB tessellation allocation mapped successfully. GNM subsequently
+created vqueues 3, 4 and 5 (pipe 2, queues 0 through 2), in addition to the two
+earlier queues. The previous engine allocation assertion did not recur.
+
+The next diagnostic stop is import F+yfmduIBB8#U#H, libkernel version 1,
+module libkernel version 257, caller 0xc51aee, exit 20. The upstream shadPS4
+[kernel registration](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/kernel/threads/pthread_attr.cpp)
+identifies it as the Orbis wrapper of pthread_attr_setstackaddr.
+Local call-site inspection confirms the game supplies its own stack address
+after requesting a 32 KiB stack. The current Windows thread provider uses
+CreateThread-owned stacks and does not implement caller-owned stack execution.
+That requires a real stack/lifecycle bridge, including Windows stack metadata,
+TLS and renderer memory registration; silently discarding the address would not
+fulfill this contract. No command submission, rendered game frame or menu is
+established by this checkpoint. The legacy direct-memory log text saying
+"GPU not connected" predates the new hooks and is not a reliable GPU-mode status;
+the import connection and GNM logs provide the evidence above.
