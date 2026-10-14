@@ -75,6 +75,13 @@ int runtime_memory_is_mapped(uintptr_t address,uint64_t size) {
 }
 static int aligned(uint64_t n) { return n>=PAGE && !(n&(n-1)); }
 static ABI uint64_t direct_size(void) { return POOL; }
+/* The three PRT aperture slots start empty (kernel memory.cpp, shadPS4,
+ * GPL-2.0-or-later). This backend has not configured any sparse texture ranges;
+ * their setter and actual PRT mapping remain unsupported. */
+static ABI int32_t get_prt_aperture(int32_t id,uintptr_t *address,uint64_t *size) {
+    if(id<0 || id>=3 || !address || !size) return INVALID;
+    *address=0;*size=0;return 0;
+}
 static ABI int32_t allocate(int64_t low,int64_t high,uint64_t size,uint64_t alignment,int type,int64_t *out) {
     if (!alignment) alignment=PAGE;
     if (!out || low<0 || high<0 || !size || size%PAGE || !aligned(alignment) || type<0 || type>10) return INVALID;
@@ -357,6 +364,7 @@ uintptr_t windows_memory_resolve(const char *name) {
     EXPORT("IWIBBdTHit4",map_flexible);EXPORT("teiItL2boFw",release_flexible);
     EXPORT("mL8NDH86iQI",map_named_flexible);
     EXPORT("pO96TwzOm5E",direct_size);EXPORT("rTXw65xmLIA",allocate);
+    EXPORT("L0v2Go5jOuM",get_prt_aperture);
     EXPORT("L-Q3LEjIbgA",map);EXPORT("MBuItvba6z8",release);EXPORT("cQke9UuBQOk",unmap);
 #undef EXPORT
     return 0;
@@ -373,6 +381,18 @@ static void test_unmap_hook(uintptr_t address,uint64_t size) {
 int windows_memory_selftest(void) {
     int64_t a=-1,b=-1;void *x=NULL,*y=NULL;
 #define CHECK(c) do {if(!(c)) {fprintf(stderr,"memory check failed at %d\n",__LINE__);return 1;}}while(0)
+    uint64_t aperture[4]={11,22,33,44};
+    CHECK(get_prt_aperture(-1,(uintptr_t *)(aperture+1),aperture+2)==INVALID &&
+          get_prt_aperture(3,(uintptr_t *)(aperture+1),aperture+2)==INVALID &&
+          get_prt_aperture(0,NULL,aperture+2)==INVALID &&
+          get_prt_aperture(0,(uintptr_t *)(aperture+1),NULL)==INVALID &&
+          aperture[1]==22 && aperture[2]==33);
+    for(int i=0;i<3;i++) {
+        CHECK(!get_prt_aperture(i,(uintptr_t *)(aperture+1),aperture+2));
+        CHECK(aperture[0]==11 && !aperture[1] && !aperture[2] && aperture[3]==44);
+    }
+    CHECK(windows_memory_resolve("L0v2Go5jOuM#U#H")== (uintptr_t)get_prt_aperture &&
+          !windows_memory_resolve("L0v2Go5jOuM#other"));
     CHECK(direct_size()==POOL);CHECK(allocate(0,POOL,1,0,0,&a)==INVALID);
     CHECK(!allocate(0,POOL,PAGE,0,0,&a));CHECK(!allocate(0,POOL,PAGE,0,0,&b));CHECK(a!=b);
     CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,0x33,0x80,a,0));
