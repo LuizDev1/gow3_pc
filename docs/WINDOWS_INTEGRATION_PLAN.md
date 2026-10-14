@@ -811,7 +811,7 @@ requested `game/savetitle/savetitle.dat`, which was not included in the earlier
 is no captured guest display frame yet.
 
 The new NP provider only records local title configuration. It validates the
-16-byte title-ID and 128-byte secret ABI, a terminated 12-character title ID,
+16-byte title-ID and 128-byte secret ABI, a bounded nonempty terminated title ID,
 and NULL parameters; it protects replacement with a state lock and never logs
 or persists title secrets. No PSN login, request, account binding, callback or
 online identity is reported. Other NP functions remain unresolved. Canonical
@@ -824,6 +824,15 @@ configuration/replacement, cleanup of synthetic secret state, and rejection of
 wrong canonical identities. All 46 local entry tests passed. The renderer
 workflow now runs the NP configuration selftest as well; target-game validation
 of this provider is pending.
+
+Renderer run 38597004497 passed for 942aa55, but the target run returned to
+engine shutdown before logging successful NP configuration. The first provider
+had required an unverified 12-character identifier pattern; the public ABI
+only supplies a 13-byte string field. That guessed format restriction has been
+removed. The provider checks a nonempty terminated string within the field,
+and logs only parameter presence or rejected length, never contents, if it
+fails again. A synthetic 9-character ID tests the bounded-string contract.
+Target-game validation is still required before claiming NP startup passed.
 
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.

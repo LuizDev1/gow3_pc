@@ -986,11 +986,17 @@ static NpTitle local_np_title;
 static NpSecret local_np_secret;
 static int local_np_configured;
 static ABI int32_t guest_np_set_title(const NpTitle *title,const NpSecret *secret) {
-    if(!title || !secret) return (int32_t)0x80550003;
-    int valid=title->id[12]==0 && title->id[9]=='_';
-    for(unsigned i=0;i<4;i++) valid=valid && title->id[i]>='A' && title->id[i]<='Z';
-    for(unsigned i=4;i<12;i++) if(i!=9) valid=valid && title->id[i]>='0' && title->id[i]<='9';
-    if(!valid) return (int32_t)0x8055001e;
+    if(!title || !secret) {
+        fprintf(stderr,"NP local configuration rejected: title present=%d, secret present=%d\n",title!=NULL,secret!=NULL);
+        return (int32_t)0x80550003;
+    }
+    size_t length=0;while(length<sizeof(title->id) && title->id[length]) ++length;
+    /* The public ABI bounds the field; it does not establish a prefix or a
+     * required 12-character format. Do not guess an online identifier schema. */
+    if(!length || length==sizeof(title->id)) {
+        fprintf(stderr,"NP local configuration rejected: identifier length=%zu (contents redacted)\n",length);
+        return (int32_t)0x8055001e;
+    }
     AcquireSRWLockExclusive(&np_title_lock);
     SecureZeroMemory(&local_np_secret,sizeof(local_np_secret));
     memcpy(local_np_title.id,title->id,sizeof(local_np_title.id));
@@ -1011,6 +1017,8 @@ static int selftest_np_title(void) {
         memcmp(local_np_title.id,title.id,sizeof(title.id))) return 1;
     memset(&secret,0x33,sizeof(secret));
     if(guest_np_set_title(&title,&secret) || memcmp(&local_np_secret,&secret,sizeof(secret))) return 1;
+    title=(NpTitle){.id="CUSA00001"};
+    if(guest_np_set_title(&title,&secret) || memcmp(local_np_title.id,title.id,sizeof(title.id))) return 1;
     SecureZeroMemory(&local_np_secret,sizeof(local_np_secret));
     memset(&local_np_title,0,sizeof(local_np_title));local_np_configured=0;
     puts("NP title: local configuration, validation, replacement and secret cleanup passed; no online authentication");return 0;
