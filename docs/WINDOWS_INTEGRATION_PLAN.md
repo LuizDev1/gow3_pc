@@ -691,3 +691,22 @@ consumption and reset. All 35 local Windows entry tests passed. Renderer CI now
 also runs the service selftest; target-game execution with this implementation
 still requires the new renderer package. Shader-cache lookup messages and
 rendered-frame/menu validation remain unresolved.
+
+### UserService target-game validation
+
+CPU run 38493640276 and renderer run 38493640471 passed for bcb027e. The
+renderer run included the new service selftest. Its diagnostic archive matched
+the published SHA-256 and was used unchanged for a normal local GPU run.
+TLG USA 1.03 initialized the offline UserService profile successfully and
+advanced to scePadInit (hv1luiJrqQM#F#G), caller 0xdd3ef7, exit 20. The observed
+canonical identity is libScePad@1, module libScePad@257. There was no recurrence
+of the previous main-stack access violation. No game frame/menu is confirmed.
+
+The reference GoW3 runtime_pad.c is the relevant next implementation source:
+it uses SDL3 gamepads and a keyboard fallback, with events pumped by the same
+window layer already selected for TLG. Its ABI includes a 120-byte PadData and
+28-byte ControllerInfo. Reuse still needs Windows synchronization/clock changes,
+canonical identity dispatch, lifecycle and input tests, and an audit of GoW3
+mapping, replay/recording and settings-overlay options. The reference is not
+linked into the Windows diagnostic yet; controller connection or working input
+is not claimed by this checkpoint.
