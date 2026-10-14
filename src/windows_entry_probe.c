@@ -22,6 +22,7 @@
 #endif
 #include "windows_thread.h"
 #include "windows_semaphore.h"
+#include "windows_pad.h"
 #if !defined(__x86_64__) || !defined(__clang__)
 #error Build with x86-64 Clang (SysV guest ABI required).
 #endif
@@ -841,6 +842,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
     if (is_data && (capabilities & 1) && !strcmp(name, "f7uOxY9mM1U#U#H"))
         return (uintptr_t)&stack_canary;
     if (!is_data && (capabilities & 1)) {
+        uintptr_t pad=windows_pad_resolve(name);if(pad) return pad;
         if (!strcmp(name,"ts6GlZOKRrE#playgo")) return (uintptr_t)guest_playgo_init;
         if (!strcmp(name,"uWIYLFkkwqk#playgo")) return (uintptr_t)guest_playgo_locus;
         if (!strcmp(name,"M1Gma1ocrGE#playgo")) return (uintptr_t)guest_playgo_open;
@@ -908,6 +910,7 @@ static uintptr_t resolve_identity(uint64_t index, int is_data, uint64_t capabili
         else if (!strcmp(id->library, "libkernel") && !strcmp(id->module, "libkernel")) scope = "U#H";
         else if (!strcmp(id->library, "libSceSystemService") && !strcmp(id->module, "libSceSystemService")) scope = "systemservice";
         else if (!strcmp(id->library,"libSceUserService") && !strcmp(id->module,"libSceUserService")) scope="userservice";
+        else if (!strcmp(id->library,"libScePad") && !strcmp(id->module,"libScePad")) scope="pad";
         else if (!strcmp(id->library,"libSceCommonDialog") && !strcmp(id->module,"libSceCommonDialog")) scope="commondialog";
         else if (!strcmp(id->library,"libSceMsgDialog") && !strcmp(id->module,"libSceMsgDialog")) scope="msgdialog";
         else if (!strcmp(id->library, "libSceSysmodule") && !strcmp(id->module, "libSceSysmodule")) scope = "sysmodule";
@@ -1036,6 +1039,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--selftest-semaphore")) return windows_semaphore_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-system-parameter")) return selftest_system_parameter();
     if (argc == 2 && !strcmp(argv[1], "--selftest-user-service")) return selftest_user_service();
+    if (argc == 2 && !strcmp(argv[1], "--selftest-pad")) return windows_pad_selftest();
     if (argc == 2 && !strcmp(argv[1], "--selftest-content")) return selftest_content();
     if (argc == 2 && !strcmp(argv[1], "--selftest-files")) return selftest_files();
     if (argc == 2 && !strcmp(argv[1], "--selftest-timespec")) return selftest_timespec();

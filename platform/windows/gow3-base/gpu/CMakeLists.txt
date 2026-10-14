@@ -227,6 +227,7 @@ if(WIN32)
         ${TLG_ROOT}/src/windows_mutex.c
         ${TLG_ROOT}/src/windows_tls.c
         ${TLG_ROOT}/src/windows_thread.c
+        ${TLG_ROOT}/src/windows_pad.c
         ${TLG_ROOT}/src/windows_semaphore.c)
     set_property(TARGET tlg-renderer-probe PROPERTY C_STANDARD 11)
     target_compile_definitions(tlg-renderer-probe PRIVATE TLG_WITH_RENDERER=1)

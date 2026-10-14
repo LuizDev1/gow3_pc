@@ -108,6 +108,7 @@ jobs:
           set -o pipefail
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-link 2>&1 | tee out/gpu-build-logs/link-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-user-service 2>&1 | tee out/gpu-build-logs/user-service-test.log
+          ./out/gpu-windows/tlg-renderer-probe.exe --selftest-pad 2>&1 | tee out/gpu-build-logs/pad-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-identity 2>&1 | tee out/gpu-build-logs/identity-test.log
           GOW3_UPSCALER=fsr3 GOW3_NULL_GPU=1 GOW3_READBACKS=0 ./out/gpu-windows/tlg-renderer-probe.exe --selftest-renderer-profile 2>&1 | tee out/gpu-build-logs/profile-test.log
           ./out/gpu-windows/tlg-renderer-probe.exe --selftest-memory 2>&1 | tee out/gpu-build-logs/memory-test.log

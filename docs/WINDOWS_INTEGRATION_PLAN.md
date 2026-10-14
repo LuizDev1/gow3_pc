@@ -710,3 +710,35 @@ canonical identity dispatch, lifecycle and input tests, and an audit of GoW3
 mapping, replay/recording and settings-overlay options. The reference is not
 linked into the Windows diagnostic yet; controller connection or working input
 is not claimed by this checkpoint.
+
+### Windows Pad service and SDL input sampling
+
+The Windows runtime now provides Pad initialization, standard local-user port
+open/close, state and single-sample buffered reads, controller information and
+vibration dispatch. Canonical resolution requires libScePad@1 and module
+libScePad@257. Stale handles cannot acquire a reopened port. Invalid handles,
+arguments and counts leave caller storage untouched. Reads and close share a
+Windows SRW lock. CPU-only diagnostics have no input backend and return neutral,
+disconnected samples; they do not pretend a hardware device exists.
+
+The SDL backend adapts the reference GoW3 runtime_pad.c ABI and default button,
+stick, trigger and touch-click sampling. Events remain owned by the selected
+window loop. Keyboard buttons are sampled only with an SDL keyboard focus;
+the renderer's keyboard fallback is a virtual controller, not a physical DS4
+claim. Disconnection and reconnection update the logical connection generation.
+Timestamps use the same process-microsecond clock as the rest of the runtime.
+Physical gamepad rumble is dispatched to SDL and failures are returned; no
+motion, light-bar or calibration success is simulated. Unsupported imports
+still stop. GoW3 mapping overrides, injected input files, replay, recording and
+settings-overlay behavior are not imported.
+
+Local tests passed all 37 entry cases, four renderer-base tests and two package
+tests. A separate SDL-enabled harness built with the official SDL 3.4.18 MinGW
+SDK exercised the actual sampling code using an in-process SDL virtual
+controller: button press/release, stick endpoints and triggers passed. The
+same selftest runs in renderer CI without Vulkan. Mock-backed lifecycle tests
+cover bounded 120-byte PadData and 28-byte ControllerInfo outputs, single-sample
+buffer semantics, disconnect/reconnect, stale handles and vibration failures.
+CPU and renderer build lists and CPU source packaging include the new module.
+The next CI build and target-game run still need to validate this integration;
+physical input, a rendered frame and menu navigation remain unconfirmed.

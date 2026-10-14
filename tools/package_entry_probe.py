@@ -21,6 +21,7 @@ def package():
              'src/windows_renderer_runtime.c', 'src/windows_renderer_runtime.h',
              'src/windows_thread.c', 'src/windows_thread.h',
              'src/windows_semaphore.c', 'src/windows_semaphore.h',
+             'src/windows_pad.c', 'src/windows_pad.h',
              'tools/inspect_target.py', 'tools/package_entry_probe.py',
              'tools/configure_probe_stack.py', 'tools/inspect_playgo.py', 'tools/prepare_content_parameters.py',
              'tests/paths.py', 'tests/test_windows_entry_probe.py']

@@ -27,6 +27,27 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_pad_lifecycle_sample_bounds_and_disconnect(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-pad'],capture_output=True,text=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('lifecycle, sample bounds, conversion, disconnect/reconnect, stale handles and rumble errors passed',result.stdout)
+
+    def test_pad_canonical_identity_and_version_gate(self):
+        code=(b'\x48\x83\xec\x08\xff\x15\x16\0\0\0'
+              b'\x48\x83\xc4\x08\xff\x25\x14\0\0\0')
+        names=['hv1luiJrqQM#F#G','after-pad']
+        raw=package(code,[(32,1,0,0),(40,1,1,0)],names,capabilities=1)
+        valid=dict(library='libScePad',module='libScePad')
+        result=self.run_image(canonical(raw,names,**valid))
+        self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+        self.assertIn('Runtime: Pad library initialized',result.stdout)
+        self.assertIn('first unsupported PS4 import: after-pad',result.stdout)
+        for mismatch in [dict(library='other'),dict(module='other'),dict(version=2),dict(module_version=258)]:
+            with self.subTest(mismatch=mismatch):
+                result=self.run_image(canonical(raw,names,**(valid|mismatch)))
+                self.assertEqual(result.returncode,20,result.stdout+result.stderr)
+                self.assertNotIn('Runtime: Pad library initialized',result.stdout)
+
     def test_user_service_profile_and_concurrent_event_delivery(self):
         result=subprocess.run([str(EXE.resolve()),'--selftest-user-service'],
                               capture_output=True,text=True,timeout=15)
