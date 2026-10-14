@@ -834,6 +834,33 @@ and logs only parameter presence or rejected length, never contents, if it
 fails again. A synthetic 9-character ID tests the bounded-string contract.
 Target-game validation is still required before claiming NP startup passed.
 
+### Read-to-EOF request and the next offline service boundary
+
+Renderer run 38600341690 passed for a9adc72; run 38602139679 passed for c907b3e.
+The paired content tests showed that with savetitle.dat staged, shutdown happens
+before NP configuration; without that one file, local NP configuration passes
+and shutdown happens later. This control is diagnostic only, not a validated
+complete content package. All 347 traced positional reads returned their
+requested bytes. The expanded sequential trace identified the actual early
+failure: `sceKernelRead` requests UINT32_MAX bytes from the 821-byte save-title
+file, and the direct Windows ReadFile call returns a guest I/O error.
+
+Disk reads now bound the Windows request by the bytes remaining in the file,
+under the descriptor lock. This preserves read-to-EOF and short-read behavior
+without asking Windows to probe a nonexistent four-gigabyte destination range.
+The same bound applies to positional reads after selecting the requested
+offset; their original cursor is still restored. The native fixture test reads
+a five-byte file into an eight-byte buffer with a UINT32_MAX request, verifies
+EOF and positional partial reads, and checks cursor preservation.
+
+The paired control also logged a rejected module load for 0xad. The public
+[shadPS4 sysmodule table](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/sysmodule/sysmodule_table.h)
+identifies this as libSceNpTrophy. That local service is not implemented yet;
+the runtime does not report it as loaded. NGS2 (module 0xb) is also unsupported.
+Save-memory single-descriptor writes now accept dataNum zero as the SDK 4.x
+default for one descriptor; multi-descriptor requests remain unsupported.
+No guest display frame has been captured.
+
 The Windows thread provider now resolves that service and applies the mask with
 SetThreadAffinityMask for the current thread or a live registered guest worker.
 PS4 low CPU bits map directly to the low Windows logical CPU bits. Empty masks,

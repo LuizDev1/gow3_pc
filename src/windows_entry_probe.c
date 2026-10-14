@@ -341,11 +341,22 @@ static HANDLE find_file(int id) {
     for(unsigned i=0;i<128;i++) if(guest_files[i].id==id && id>=3) return guest_files[i].handle;
     return INVALID_HANDLE_VALUE;
 }
+/* The PS4 reader can request UINT32_MAX to consume the rest of a small file.
+ * Windows may probe the entire requested buffer and reject it before EOF.
+ * All descriptors here are synchronous disk handles, serialized by file_lock. */
+static int64_t bounded_read_size(HANDLE h,uint64_t requested,DWORD *count) {
+    LARGE_INTEGER end,zero={0},position;
+    if(!GetFileSizeEx(h,&end) || !SetFilePointerEx(h,zero,&position,FILE_CURRENT) ||
+        end.QuadPart<0 || position.QuadPart<0) return FILE_ERROR(5);
+    uint64_t remaining=position.QuadPart<end.QuadPart?(uint64_t)(end.QuadPart-position.QuadPart):0;
+    uint64_t bounded=requested<remaining?requested:remaining;
+    *count=bounded>UINT32_MAX?UINT32_MAX:(DWORD)bounded;return 0;
+}
 static ABI int64_t guest_file_read(int fd,void *buffer,uint64_t size) {
     if((size && !buffer) || size>INT64_MAX) return FILE_ERROR(22);
-    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);DWORD count=0;
-    int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):
-        ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?(int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    AcquireSRWLockExclusive(&file_lock);HANDLE h=find_file(fd);DWORD count=0,amount=0;
+    int64_t result=h==INVALID_HANDLE_VALUE?FILE_ERROR(9):bounded_read_size(h,size,&amount);
+    if(!result && amount) result=ReadFile(h,buffer,amount,&count,NULL)?(int64_t)count:FILE_ERROR(file_error(GetLastError()));
     if(getenv("TLG_TRACE_FILES")) fprintf(stderr,"File read: fd=%d requested=%llu result=%lld\n",
         fd,(unsigned long long)size,(long long)result);
     ReleaseSRWLockExclusive(&file_lock);return result;
@@ -360,8 +371,11 @@ static ABI int64_t guest_file_pread(int fd,void *buffer,uint64_t size,int64_t of
     }
     int64_t result;
     if(!SetFilePointerEx(h,target,NULL,FILE_BEGIN)) result=FILE_ERROR(file_error(GetLastError()));
-    else result=ReadFile(h,buffer,size>UINT32_MAX?UINT32_MAX:(DWORD)size,&count,NULL)?
-        (int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    else {
+        DWORD amount=0;result=bounded_read_size(h,size,&amount);
+        if(!result && amount) result=ReadFile(h,buffer,amount,&count,NULL)?
+            (int64_t)count:FILE_ERROR(file_error(GetLastError()));
+    }
     /* Synchronous Windows handles have one shared cursor. Serialize seek/read
      * and restore it before any guest read/seek/close can observe the change. */
     if(!SetFilePointerEx(h,saved,NULL,FILE_BEGIN)) result=FILE_ERROR(5);
@@ -437,7 +451,10 @@ static int selftest_files(void) {
     if(fd<3 || guest_file_fstat((int)fd,&descriptor) || descriptor.size!=stat.size || descriptor.ino!=stat.ino ||
         guest_file_fstat(-1,&unchanged)!=FILE_ERROR(9) || memcmp(&unchanged,&before,sizeof(before))) return 1;
     puts("File metadata: 120-byte ABI, size, type, timestamp normalization and unchanged errors passed");
-    if(fd<3 || guest_file_read((int)fd,bytes,3)!=3 || memcmp(bytes,"ABC",3) ||
+    if(fd<3 || guest_file_read((int)fd,bytes,UINT32_MAX)!=5 || memcmp(bytes,"ABCDE",5) ||
+       guest_file_read((int)fd,bytes,UINT32_MAX)!=0 || guest_file_seek((int)fd,0,0)!=0 ||
+       guest_file_pread((int)fd,bytes,UINT32_MAX,2)!=3 || memcmp(bytes,"CDE",3) || guest_file_seek((int)fd,0,1)!=0 ||
+       guest_file_read((int)fd,bytes,3)!=3 || memcmp(bytes,"ABC",3) ||
        guest_file_pread((int)fd,bytes,2,1)!=2 || memcmp(bytes,"BC",2) ||
        guest_file_seek((int)fd,0,1)!=3 || guest_file_pread((int)fd,bytes,8,4)!=1 || bytes[0]!='E' ||
        guest_file_pread((int)fd,bytes,1,99)!=0 || guest_file_seek((int)fd,0,1)!=3 ||
