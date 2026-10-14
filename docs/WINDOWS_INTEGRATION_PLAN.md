@@ -547,3 +547,21 @@ Pre-startup review also corrected the renderer's process-counter units: its
 frequency service advertises 1 GHz, so the bridge now returns nanoseconds from
 the shared QPC origin. Raw RDTSC remains the separate hardware-counter service.
 The clock test compares both counters with elapsed process microseconds.
+
+Run 38485382027 passed, including canonical identity/profile tests and diagnostic
+packaging. Its checksum-verified artifact was tested locally on the RTX 3060 Ti:
+Vulkan/swapchain creation succeeded and 125 relocations connected to 327 symbols.
+Initial startup exposed legacy Windows thread-name notifications (0x406d1388),
+which the diagnostic had treated as fatal. A narrowly matched continuable event
+is now allowed to return normally, with a real RaiseException regression test.
+
+A local debug run filtering only those notifications initialized both native
+modules and entered TLG. GNM created compute vqueues 1 and 2 (pipe 1/queue 4 and
+pipe 0/queue 3). The next stop was the engine's tessellation allocation assertion
+at 0x1483245. Instruction/relocation inspection confirmed a real 128 KiB direct
+allocation followed by mapping at the GNM-provided system-reserved address; the
+Windows backend incorrectly discarded that hint and scanned occupied user pages.
+Direct mapping now accepts hints in the selected AddressSpace's reserved range,
+using an actual shared section view. No guest code or driver success is patched.
+The regression test verifies the requested system address and shared storage.
+The corrected non-debugger run still needs validation; no game frame is claimed.

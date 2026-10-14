@@ -14,8 +14,9 @@ Actor-hook status is disabled. The root TLG loader/preparation/tests are preserv
 The renderer still contains GoW3-specific graphics assumptions, shader heuristics,
 settings and overlay text. They require audit before this library is executed with
 TLG. Compilation is not runtime compatibility. The `tlg-renderer-probe` target
-validates the complete archive against TLG loader callbacks; GPU startup and
-guest graphics dispatch are not enabled. No game frame, menu or gameplay is claimed.
+validates the complete archive against TLG loader callbacks and offers an explicit
+experimental `--gpu` mode. Local testing created a Vulkan device/swapchain on an
+RTX 3060 Ti and two real guest compute queues. No game frame, menu or gameplay is claimed.
 
 Imported text whitespace is normalized; SOURCE_MANIFEST.json records the original bytes.
 
@@ -50,7 +51,20 @@ page protection. External image segments are registered but have no backing alia
 The GoW3 restart action is disabled in this integration.
 
 CI links the entire renderer archive with the TLG diagnostic and runs memory,
-recovery and link checks without initializing a GPU. This catches dormant paths
-with missing callbacks. Remaining work includes auditing game-specific behavior,
-registering stack memory, enabling Vulkan startup, routing canonical GPU imports
-and verifying the target game. The original GoW3 loader is not imported.
+recovery, canonical identity and profile checks without initializing a GPU.
+The experimental mode initializes Vulkan, registers image/stack memory and routes
+GNM, VideoOut and related kernel imports by canonical identity. GoW3 camera,
+upscaling, reduced scene targets and configuration/overlay controls are disabled.
+Target initialization still has gaps; see the integration plan for observed stops.
+The original GoW3 loader is not imported.
+
+## Experimental local diagnostic
+
+Download `tlg-windows-renderer-diagnostic` from a successful Windows renderer CI
+run and extract the whole package, including its DLLs. From the repository root,
+prepare metadata with `tools/prepare_content_parameters.py` using your game
+directory, then run the extracted executable with `--gpu` and your prepared
+`TLGWIN02` boot image. GPU parameters default to `out/tlg/gpu-parameters.bin`;
+`TLG_GPU_PARAMETERS` overrides that path. Files remain under `TLG_GAME_ROOT`.
+The GPU diagnostic has a 120-second watchdog. Omitting `--gpu` keeps CPU mode.
+Game files and prepared boot images are never included in the CI package.

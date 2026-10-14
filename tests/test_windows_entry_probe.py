@@ -27,6 +27,12 @@ def canonical(raw, names, library='libc', version=1, module='libc', module_versi
 
 @unittest.skipUnless(os.name == 'nt' and EXE.is_file(), 'build the Windows entry probe first')
 class WindowsEntryTests(unittest.TestCase):
+    def test_windows_thread_name_notification_is_continuable(self):
+        result=subprocess.run([str(EXE.resolve()),'--selftest-thread-notification'],
+                              capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('continuable name event returned normally passed',result.stdout)
+
     def test_renderer_fault_recovery(self):
         result = subprocess.run([str(EXE.resolve()), '--selftest-renderer-recovery'],
                                 capture_output=True, text=True, timeout=15)

@@ -112,7 +112,12 @@ static int32_t map_storage(void **out,uint64_t size,int prot,int flags,int64_t p
     void *address=NULL;
     uint64_t step=alignment>65536?alignment:65536;
     uint64_t start=(uintptr_t)*out;
-    if(start<UINT64_C(0x1000000000) || start>=UINT64_C(0xfc00000000)-size) start=UINT64_C(0x1000000000);
+    /* GNM's system ring uses the system-reserved range declared by the selected
+     * AddressSpace shim. Preserve such hints rather than scanning occupied user
+     * heap pages. This still creates a real view of the allocated section. */
+    int system_hint=start>=UINT64_C(0x700000000) && start<UINT64_C(0x800000000) &&
+        size<=UINT64_C(0x800000000)-start;
+    if(!system_hint && (start<UINT64_C(0x1000000000) || start>=UINT64_C(0xfc00000000)-size)) start=UINT64_C(0x1000000000);
     start=(start+step-1)&~(step-1);
     for(uint64_t candidate=start, attempts=0;candidate<UINT64_C(0xfc00000000)-size && attempts<4096;candidate+=step,attempts++) {
         address=MapViewOfFileEx(section,FILE_MAP_READ|FILE_MAP_WRITE,0,0,(SIZE_T)size,(void *)(uintptr_t)candidate);
@@ -371,6 +376,10 @@ int windows_memory_selftest(void) {
     CHECK(direct_size()==POOL);CHECK(allocate(0,POOL,1,0,0,&a)==INVALID);
     CHECK(!allocate(0,POOL,PAGE,0,0,&a));CHECK(!allocate(0,POOL,PAGE,0,0,&b));CHECK(a!=b);
     CHECK(!map(&x,PAGE,3,0,a,0));CHECK(!map(&y,PAGE,0x33,0x80,a,0));
+    void *system=(void *)(uintptr_t)UINT64_C(0x7f0000000);
+    CHECK(!map(&system,PAGE,0x33,0,a,65536));CHECK((uintptr_t)system==UINT64_C(0x7f0000000));
+    *(volatile uint64_t *)system=42;CHECK(*(volatile uint64_t *)x==42);
+    CHECK(!unmap(system,PAGE));
     runtime_memory_set_gpu_hooks(test_map_hook,test_unmap_hook,NULL);
     CHECK(test_maps==2 && !test_unmaps);
     runtime_memory_gpu_protect((uintptr_t)x,PAGE,1,0);
@@ -450,6 +459,7 @@ int windows_memory_selftest(void) {
     puts("Renderer memory queries: view bounds, gaps, overflow and unmap invalidation passed");
     puts("Renderer memory bridge: hook replay, pre-unmap notification, backing aliases and guest protection limits passed");
     puts("Renderer stacks: current-frame query, idempotent registration and detach invalidation passed");
+    puts("GNM system memory: reserved-address hint and shared section backing passed");
     puts("Flexible memory: zero-fill, isolation, budget, invalid requests and release passed");
     puts("Direct mapping: no-overwrite alias placement and GPU permission metadata passed");
     puts("Direct memory: allocation isolation, shared aliases, low addresses and lifecycle passed");return 0;

@@ -878,6 +878,11 @@ static ABI __attribute__((noreturn)) void guest_exit(void) {
     ExitProcess(24);
 }
 static LONG WINAPI fault(EXCEPTION_POINTERS *e) {
+    if(e->ExceptionRecord->ExceptionCode==0x406d1388 &&
+        !(e->ExceptionRecord->ExceptionFlags&EXCEPTION_NONCONTINUABLE) &&
+        e->ExceptionRecord->NumberParameters>=3 &&
+        (uint32_t)e->ExceptionRecord->ExceptionInformation[0]==0x1000)
+        return EXCEPTION_CONTINUE_EXECUTION;
 #ifdef TLG_WITH_RENDERER
     if(e->ExceptionRecord->ExceptionCode==EXCEPTION_ACCESS_VIOLATION &&
         e->ExceptionRecord->NumberParameters>=2 &&
@@ -913,8 +918,18 @@ static DWORD WINAPI watchdog(void *unused) {
     ExitProcess(124);
     return 0;
 }
+static int selftest_thread_notification(void) {
+    void *handler=AddVectoredExceptionHandler(1,fault);
+    if(!handler) return 1;
+    ULONG_PTR info[3]={0x1000,(ULONG_PTR)"tlg:test",(ULONG_PTR)(DWORD)-1};
+    RaiseException(0x406d1388,0,3,info);
+    RemoveVectoredExceptionHandler(handler);
+    puts("Windows thread notification: continuable name event returned normally passed");
+    return 0;
+}
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if(argc==2 && !strcmp(argv[1],"--selftest-thread-notification")) return selftest_thread_notification();
     if (argc == 2 && !strcmp(argv[1], "--selftest-gnm-registration")) return selftest_gnm_registration();
     if (argc == 2 && !strcmp(argv[1], "--selftest-video")) return selftest_video();
     if (argc == 2 && !strcmp(argv[1], "--selftest-dialog")) return selftest_dialog();
@@ -960,7 +975,11 @@ int main(int argc, char **argv) {
 #endif
     }
     if (!boot_path) {
+#ifdef TLG_WITH_RENDERER
+        fputs("Usage: tlg-renderer-probe.exe [--gpu] boot.bin\nExperimental diagnostic; no gameplay guarantee.\n",stderr);
+#else
         fputs("Usage: tlg-entry-probe.exe boot.bin\nDiagnostic only; no graphics or PS4 runtime.\n", stderr);
+#endif
         return 1;
     }
     SYSTEM_INFO system; GetSystemInfo(&system); page_size = system.dwPageSize;

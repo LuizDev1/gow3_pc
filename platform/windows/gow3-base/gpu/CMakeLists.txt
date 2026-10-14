@@ -75,6 +75,13 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(XXHASH REQUIRED IMPORTED_TARGET libxxhash)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+# SDL's pkg-config metadata may request a GUI subsystem. The TLG diagnostic keeps
+# console output; SDL still creates its own graphics window in GPU mode.
+get_target_property(TLG_SDL_LINK_OPTIONS PkgConfig::SDL3 INTERFACE_LINK_OPTIONS)
+if(TLG_SDL_LINK_OPTIONS)
+    list(REMOVE_ITEM TLG_SDL_LINK_OPTIONS "-mwindows")
+    set_property(TARGET PkgConfig::SDL3 PROPERTY INTERFACE_LINK_OPTIONS "${TLG_SDL_LINK_OPTIONS}")
+endif()
 if (NOT WIN32)
     pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 endif()
