@@ -503,6 +503,14 @@ static ABI int32_t guest_discmap_on_hdd(const char *path,int64_t offset,int64_t 
     (void)path;(void)offset;(void)size;(void)out;
     return discmap_module(0)?MODULE_UNLOADED:DISC_MAP_NO_BITMAP;
 }
+/* The observed six-argument DiscMap query feeds cached physical extent data.
+ * With no bitmap, report its absence and leave every output untouched. Native
+ * FIOS checks the error before reading these outputs and uses its fallback. */
+static ABI int32_t guest_discmap_extent(const char *path,int64_t offset,int64_t size,
+                                      void *flags,void *first,void *last) {
+    (void)flags;(void)first;(void)last;
+    return guest_discmap_on_hdd(path,offset,size,NULL);
+}
 #define CONTENT_PARAMETER ((int32_t)0x80d90002)
 #define CONTENT_BUSY ((int32_t)0x80d90003)
 /* Limited dialog provider: lifecycle only, no UI/open/result implementation.
@@ -711,10 +719,14 @@ static ABI int32_t guest_playgo_locus(uint32_t handle,const uint16_t *ids,uint32
 }
 static int selftest_discmap(void) {
     int32_t sentinel=123;
+    uint64_t extents[3]={UINT64_MAX,123,456},before[3];memcpy(before,extents,sizeof(before));
     if(guest_module_loaded(0xd7)!=MODULE_UNLOADED || guest_module_unload(0xd7)!=MODULE_UNLOADED ||
        guest_module_load(0xd7) || guest_module_load(0xd7) || guest_module_loaded(0xd7) ||
        guest_discmap_on_hdd("/app0/fixture.bin",0,5,&sentinel)!=DISC_MAP_NO_BITMAP || sentinel!=123 ||
        guest_discmap_on_hdd(NULL,-1,-1,NULL)!=DISC_MAP_NO_BITMAP ||
+       guest_discmap_extent("/app0/fixture.bin",0,5,extents,extents+1,extents+2)!=DISC_MAP_NO_BITMAP ||
+       memcmp(before,extents,sizeof(before)) ||
+       guest_discmap_extent(NULL,-1,-1,NULL,NULL,NULL)!=DISC_MAP_NO_BITMAP ||
        guest_module_unload(0xd7) || guest_module_loaded(0xd7) || guest_module_unload(0xd7) ||
        guest_module_loaded(0xd7)!=MODULE_UNLOADED || guest_module_unload(0xd7)!=MODULE_UNLOADED)
         return 1;
@@ -1291,6 +1303,7 @@ static uintptr_t resolve_verified(const char *name, int is_data, uint64_t capabi
         if (!strcmp(name,"TywrFKCoLGY#savedata")) return (uintptr_t)guest_save_init3;
         if (!strcmp(name,"Ec63y59l9tw#npmanager")) return (uintptr_t)guest_np_set_title;
         if (!strcmp(name,"lbQKqsERhtE#discmap")) return (uintptr_t)guest_discmap_on_hdd;
+        if (!strcmp(name,"fJgP+wqifno#discmap")) return (uintptr_t)guest_discmap_extent;
         if (!strcmp(name,"XbkjbobZlCY#nptrophy")) return (uintptr_t)guest_trophy_create_context;
         if (!strcmp(name,"q7U6tEAQf7c#nptrophy")) return (uintptr_t)guest_trophy_create_handle;
         if (!strcmp(name,"E1Wrwd07Lr8#nptrophy")) return (uintptr_t)guest_trophy_destroy_context;
