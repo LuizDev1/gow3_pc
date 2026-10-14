@@ -1166,3 +1166,91 @@ reached local save/trophy setup and stopped at sceSystemServiceGetStatus, caller
 files were opened read-only. This validates the archive path exercised by this
 startup run, not every resource, gameplay or package operation. GetStatus is the
 next observed blocker. No frame capture was produced and no menu was observed.
+
+### SystemService status prefix (2026-10-14)
+
+Commit 5cb817a supplies sceSystemServiceGetStatus for the existing
+single-application foreground diagnostic profile. Its nine observed field bytes
+report zero queued PS4 system events, no shell overlay, foreground execution,
+normal CPU mode, no broadcast and no VR out-of-area condition. It does not infer
+desktop keyboard focus or implement a shell event queue. The field layout and
+null-buffer parameter error follow
+[shadPS4 SystemService](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/system/systemservice.cpp).
+Only these field bytes are written; adjacent and reserved storage is preserved.
+
+All 54 local Windows entry tests pass, including sentinel bounds, null output,
+field values and rejection of mismatched canonical library/module versions.
+The original caller at 0xdd4634 reads the overlay/background bytes to control
+its frame update. Target rendering remains unverified until the new package runs.
+
+CPU run 38629774404 and renderer run 38629774463 passed. The checksum-verified
+package, with the original game directory as its read-only content root, passed
+GetStatus and stopped at scePadSetMotionSensorState, caller 0xd2e22f, exit 20.
+The caller requests enable=1 and ignores the return before calling the existing
+pad state reader. No frame was captured during this run.
+
+Commit 0c5388f supplies this observed motion-state request with explicit limits:
+the diagnostic has no implemented motion sampling, so enabling returns the Pad
+NOT_PERMITTED error; disabling succeeds because sampling is already disabled.
+Invalid/stale handles and invalid boolean values return Pad errors. Tests cover
+these requests and resolver scope. No motion readings or enabled-device success
+are fabricated. All 54 local entry tests continue to pass.
+
+CPU run 38630559344 and renderer run 38630559580 passed for 0c5388f. The target
+run passed the motion-state request and stopped at scePthreadYield, caller
+0xe4a399, in a loop waiting for work. The original-content root remained in use;
+no frame was captured. Commit 8472989 maps this request to Windows SwitchToThread
+with a Sleep(0) fallback when no peer is eligible. It returns success after the
+actual scheduler request, without promising PS4 FIFO ordering. Native thread
+tests check that yielding preserves the guest thread identity and resolver scope;
+all 54 local entry tests pass. A target run of this package is still required.
+
+CPU run 38631281724 and renderer run 38631281666 passed for 8472989. Its target
+run reached GNM compute/graphics command preparation: Vulkan compiled a compute
+pipeline, and the game called DispatchDirect, SetPsShader350, SetEmbeddedVsShader
+and DrawIndexAuto. The guest's own frame counter reached 2; that counter is not
+evidence of two displayed frames. The capture trigger remained unconsumed.
+Execution stopped at sceKernelGetPrtAperture, caller 0x14a770c, exit 20.
+
+Commit c262dba exposes the three initially empty PRT aperture slots, matching
+the initial state in
+[shadPS4 kernel memory](https://github.com/shadps4-emu/shadPS4/blob/main/src/core/libraries/kernel/memory.cpp).
+The Windows provider has not configured any such sparse-texture range, so valid
+queries return address/size zero. The setter and sparse mapping remain unsupported.
+Tests cover all three IDs, output sentinels, invalid IDs/null outputs and resolver
+scope; all 54 local entry tests pass. Rendering still requires target validation.
+
+CPU run 38632032537 and renderer run 38632032587 passed for c262dba. The target
+passed the PRT query and stopped at sceKernelQueryMemoryProtection, caller
+0x14a7791, while validating a GPU buffer range. No display frame was captured.
+Commit dc16c69 supplies this query from the actual mapping registry: containing
+range with an exclusive end, guest CPU/GPU permission bits, optional outputs,
+and EACCES with unchanged outputs for unmapped addresses. Renderer page guards
+are temporary host protections and do not alter these guest permission bits.
+Native tests check two real aliases with different guest flags, page boundaries,
+sentinel preservation, optional/null outputs, and queries while a GPU guard has
+made Windows storage read-only. All 54 local entry tests pass.
+
+CPU run 38632975963 and renderer run 38632975675 passed for dc16c69. The
+checksum-verified target run passed the memory query and reached
+sceGnmSubmitAndFlipCommandBuffersForWorkload, buffer 1. GNM draw/dispatch calls
+and Vulkan compute pipeline compilation were observed. No subsequent unsupported
+import or guest access fault was reported during that run, but presentation did
+not complete: the capture trigger remained unconsumed after a 120-second
+diagnostic limit. The harness stopped its own process at that limit; this is not
+a naturally returned game exit or a captured frame.
+
+A repeat with reduced log verbosity captured two private thread snapshots at
+20 and 40 seconds. The main guest thread waited in wait_count. The GPU command
+processor stack included RunEventWriteEop / Rasterizer::DrainDrawPipe, while
+another GPU worker stack included Runtime::AccessBuffer / Scheduler::WaitHostCopies
+/ RunEventWriteEos. These locate waits, not their proven cause. Private stack
+captures and addresses remain in ignored out/ and are not distributed.
+
+A paired diagnostic with GOW3_DRAW_PIPE=0, the existing serial preparation mode,
+also produced no display frame during 60 seconds and was stopped by the harness.
+Therefore disabling parallel preparation alone did not resolve the observed
+stall. The serial setting was not made the default or represented as a fix.
+The next investigation is GPU/host-copy completion and the waiting submission;
+no synchronization bypass, guest patch, fabricated GPU completion or menu claim
+was introduced. Image/menu rendering remains unconfirmed.
