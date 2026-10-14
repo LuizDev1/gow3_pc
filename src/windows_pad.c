@@ -248,12 +248,22 @@ static ABI int32_t pad_vibration(int32_t handle,const uint8_t *motors) {
     int32_t result=handle<=0 || handle!=opened?PAD_ERROR(3):!motors?PAD_ERROR(1):vibrate_backend(motors);
     ReleaseSRWLockExclusive(&lock);return result;
 }
+/* Motion sampling is not implemented by this diagnostic. A valid request to
+ * enable it reports NOT_PERMITTED (pad_errors.h); disabling is already true.
+ * Never acknowledge enabled sensors or synthesize motion samples. */
+static ABI int32_t pad_motion_state(int32_t handle,uint8_t enable) {
+    AcquireSRWLockShared(&lock);
+    int32_t result=handle<=0 || handle!=opened?PAD_ERROR(3):
+                   enable>1?PAD_ERROR(1):enable?PAD_ERROR(0x101):0;
+    ReleaseSRWLockShared(&lock);return result;
+}
 uintptr_t windows_pad_resolve(const char *name) {
 #define EXPORT(n,f) if(!strcmp(name,n "#pad")) return (uintptr_t)f
     EXPORT("hv1luiJrqQM",pad_init);EXPORT("xk0AcarP3V4",pad_open);
     EXPORT("6ncge5+l5Qs",pad_close);EXPORT("YndgXqQVV7c",pad_read_state);
     EXPORT("gjP9-KQzoUk",pad_info);EXPORT("yFVnOdGxvZY",pad_vibration);
     EXPORT("q1cHNfGycLI",pad_read);
+    EXPORT("clVvL4ZDntw",pad_motion_state);
 #undef EXPORT
     return 0;
 }
@@ -308,6 +318,9 @@ int windows_pad_selftest(void) {
     PAD_CHECK(pad_open(2,0,0,NULL)==PAD_ERROR(1) && pad_open(1,2,0,NULL)==PAD_ERROR(1) &&
               pad_open(1,0,1,NULL)==PAD_ERROR(1) && pad_open(1,0,0,&initialized)==PAD_ERROR(1));
     int32_t handle=pad_open(1,0,0,NULL);PAD_CHECK(handle>0);
+    PAD_CHECK(pad_motion_state(handle+1,1)==PAD_ERROR(3) &&
+              pad_motion_state(handle,2)==PAD_ERROR(1) &&
+              pad_motion_state(handle,1)==PAD_ERROR(0x101) && !pad_motion_state(handle,0));
     PAD_CHECK(pad_open(1,0,0,NULL)==PAD_ERROR(4));
     struct {PadData data;uint64_t guard;} packet;memset(&packet,0x55,sizeof(packet));
     PAD_CHECK(pad_read_state(handle+1,&packet.data)==PAD_ERROR(3) && packet.data.buttons==0x55555555);
@@ -335,6 +348,7 @@ int windows_pad_selftest(void) {
     test_connected=0;PAD_CHECK(!pad_read_state(handle,&packet.data) && !packet.data.connected);
     test_connected=1;PAD_CHECK(!pad_read_state(handle,&packet.data) && packet.data.connected_count==2);
     PAD_CHECK(!pad_close(handle) && pad_close(handle)==PAD_ERROR(3));
+    PAD_CHECK(pad_motion_state(handle,1)==PAD_ERROR(3));
     int32_t reopened=pad_open(1,0,0,NULL);PAD_CHECK(reopened>handle && pad_read_state(handle,&packet.data)==PAD_ERROR(3));
     PAD_CHECK(!pad_close(reopened));
     PAD_CHECK(axis(INT16_MIN)==0 && axis(0)==128 && axis(INT16_MAX)==255 &&
@@ -346,6 +360,8 @@ int windows_pad_selftest(void) {
     PAD_CHECK(packet.data.buttons==BTN_TOUCHPAD && packet.data.touch_count==1 && packet.data.touches[0].x==1440);
     PAD_CHECK(windows_pad_resolve("hv1luiJrqQM#pad")== (uintptr_t)pad_init &&
               !windows_pad_resolve("hv1luiJrqQM#other"));
+    PAD_CHECK(windows_pad_resolve("clVvL4ZDntw#pad")== (uintptr_t)pad_motion_state &&
+              !windows_pad_resolve("clVvL4ZDntw#other"));
     init_backend=host_init;sample_backend=sample_host;vibrate_backend=host_vibrate;
     puts("Pad: lifecycle, sample bounds, conversion, disconnect/reconnect, stale handles and rumble errors passed");return 0;
 #undef PAD_CHECK
