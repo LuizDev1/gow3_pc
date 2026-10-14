@@ -363,6 +363,8 @@ static ABI int64_t guest_file_pread(int fd,void *buffer,uint64_t size,int64_t of
     /* Synchronous Windows handles have one shared cursor. Serialize seek/read
      * and restore it before any guest read/seek/close can observe the change. */
     if(!SetFilePointerEx(h,saved,NULL,FILE_BEGIN)) result=FILE_ERROR(5);
+    if(getenv("TLG_TRACE_FILES")) fprintf(stderr,"File pread: fd=%d requested=%llu offset=%lld result=%lld\n",
+        fd,(unsigned long long)size,(long long)offset,(long long)result);
     ReleaseSRWLockExclusive(&file_lock);return result;
 }
 static ABI int64_t guest_file_seek(int fd,int64_t offset,int whence) {
@@ -751,11 +753,17 @@ static int32_t save_memory_io(int32_t user,uint32_t slot,const SaveMemoryData *d
     ReleaseSRWLockExclusive(&save_lock);return result;
 }
 static ABI int32_t guest_save_memory_get(const SaveMemoryGet *get) {
-    if(!get || get->pad || get->param || get->icon || !all_zero(get->reserved,sizeof(get->reserved))) return SAVE_PARAMETER;
+    if(!get || get->pad || get->param || get->icon || !all_zero(get->reserved,sizeof(get->reserved))) {
+        fprintf(stderr,"Unsupported save-memory get profile: parameter present=%d metadata=%d icon=%d\n",
+            get!=NULL,get && get->param!=NULL,get && get->icon!=NULL);return SAVE_PARAMETER;
+    }
     return save_memory_io(get->user,get->slot,get->data,0);
 }
 static ABI int32_t guest_save_memory_set(const SaveMemorySet *set) {
-    if(!set || set->pad || set->param || set->icon || set->count!=1 || !all_zero(set->reserved,sizeof(set->reserved))) return SAVE_PARAMETER;
+    if(!set || set->pad || set->param || set->icon || set->count!=1 || !all_zero(set->reserved,sizeof(set->reserved))) {
+        fprintf(stderr,"Unsupported save-memory set profile: parameter present=%d metadata=%d icon=%d\n",
+            set!=NULL,set && set->param!=NULL,set && set->icon!=NULL);return SAVE_PARAMETER;
+    }
     return save_memory_io(set->user,set->slot,set->data,1);
 }
 static ABI int32_t guest_save_init3(const void *params) {
