@@ -6,6 +6,7 @@
 #include "windows_memory.h"
 #include "windows_renderer_runtime.h"
 #include <windows.h>
+#include <winternl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -110,6 +111,12 @@ typedef void *(ABI *GuestEntry)(void *);
  * supported. Normal returns restore the host stack before thread cleanup. */
 _Static_assert(offsetof(NT_TIB,StackBase)==8 && offsetof(NT_TIB,StackLimit)==16,
                "Win64 NT_TIB stack layout");
+/* GetCurrentThreadStackLimits uses DeallocationStack as its lower bound.
+ * The x64 field immediately precedes TlsSlots (Wine include/winternl.h and
+ * dlls/kernelbase/thread.c document the layout/query). Validate the layout and
+ * the running Windows API before using this private Windows ABI field. */
+_Static_assert(offsetof(TEB,TlsSlots)-sizeof(void *)==0x1478,
+               "Win64 TEB DeallocationStack layout");
 void *windows_call_guest_stack(GuestEntry entry,void *argument,void *base,uint64_t size);
 __asm__(".text\n"
         ".globl windows_call_guest_stack\n"
@@ -121,11 +128,11 @@ __asm__(".text\n"
         "movups %xmm9,48(%rsp)\n movups %xmm10,64(%rsp)\n movups %xmm11,80(%rsp)\n"
         "movups %xmm12,96(%rsp)\n movups %xmm13,112(%rsp)\n movups %xmm14,128(%rsp)\n"
         "movups %xmm15,144(%rsp)\n stmxcsr 160(%rsp)\n fnstcw 164(%rsp)\n"
-        "mov %rsp,%rbx\n mov %gs:8,%r12\n mov %gs:16,%r13\n"
-        "mov %rcx,%rax\n mov %rdx,%rdi\n mov %r8,%gs:16\n"
+        "mov %rsp,%rbx\n mov %gs:8,%r12\n mov %gs:16,%r13\n mov %gs:0x1478,%r14\n"
+        "mov %rcx,%rax\n mov %rdx,%rdi\n mov %r8,%gs:16\n mov %r8,%gs:0x1478\n"
         "add %r9,%r8\n mov %r8,%gs:8\n and $-16,%r8\n mov %r8,%rsp\n"
         "call *%rax\n"
-        "mov %rbx,%rsp\n mov %r12,%gs:8\n mov %r13,%gs:16\n"
+        "mov %rbx,%rsp\n mov %r12,%gs:8\n mov %r13,%gs:16\n mov %r14,%gs:0x1478\n"
         "movups 0(%rsp),%xmm6\n movups 16(%rsp),%xmm7\n movups 32(%rsp),%xmm8\n"
         "movups 48(%rsp),%xmm9\n movups 64(%rsp),%xmm10\n movups 80(%rsp),%xmm11\n"
         "movups 96(%rsp),%xmm12\n movups 112(%rsp),%xmm13\n movups 128(%rsp),%xmm14\n"
@@ -177,6 +184,12 @@ static DWORD WINAPI run_guest_thread(void *argument) {
     Thread *t=argument;
     NT_TIB *tib=(NT_TIB *)NtCurrentTeb();
     void *host_base=tib->StackBase,*host_limit=tib->StackLimit;
+    ULONG_PTR host_low=0,host_high=0;
+    GetCurrentThreadStackLimits(&host_low,&host_high);
+    void *host_allocation=*(void **)((unsigned char *)tib+0x1478);
+    if(t->attr.stack_address && (host_low!=(ULONG_PTR)host_allocation || host_high!=(ULONG_PTR)host_base)) {
+        fputs("STOP: Windows custom-stack ABI is not supported on this system\n",stderr);ExitProcess(21);
+    }
     if(!windows_memory_register_current_stack()) ExitProcess(21);
     if(windows_tls_attach_main() || windows_tls_bind_thread(t)) {
         fputs("STOP: guest worker TLS initialization failed\n",stderr);ExitProcess(21);
@@ -186,7 +199,10 @@ static DWORD WINAPI run_guest_thread(void *argument) {
         windows_call_guest_stack(t->entry,t->argument,t->attr.stack_address,t->attr.stack):
         t->entry(t->argument);
     active_guest_attr=NULL;
-    if(tib->StackBase!=host_base || tib->StackLimit!=host_limit) {
+    ULONG_PTR restored_low=0,restored_high=0;
+    GetCurrentThreadStackLimits(&restored_low,&restored_high);
+    if(tib->StackBase!=host_base || tib->StackLimit!=host_limit ||
+       restored_low!=host_low || restored_high!=host_high) {
         fputs("STOP: guest worker did not restore Windows stack bounds\n",stderr);ExitProcess(21);
     }
     windows_memory_unregister_current_stack();
@@ -257,9 +273,12 @@ static ABI void *synthetic_stack_worker(void *argument) {
     StackTest *test=argument;volatile unsigned char local=17;
     uintptr_t low=(uintptr_t)test->base,high=low+32768;
     NT_TIB *tib=(NT_TIB *)NtCurrentTeb();
+    ULONG_PTR api_low=0,api_high=0;
+    GetCurrentThreadStackLimits(&api_low,&api_high);
     uint64_t snapshot=0,size=0;void *address=NULL;
     if((uintptr_t)&local<low || (uintptr_t)&local>=high ||
        tib->StackBase!=(void *)high || tib->StackLimit!=test->base ||
+       api_low!=low || api_high!=high ||
        !runtime_memory_is_mapped(low,32768) || attr_init(&snapshot) ||
        attr_get(thread_self(),&snapshot) || get_stack(&snapshot,&size) || size!=32768 ||
        get_stack_address(&snapshot,&address) || address!=test->base || attr_destroy(&snapshot)) return NULL;

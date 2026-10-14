@@ -621,3 +621,15 @@ sequential reuse preserves the caller's mapping and surrounding sentinels.
 Local validation passed all 33 entry tests and four renderer-base tests; the
 entry suite also passed after the final diagnostic-label/log cleanup. GPU build
 and target-game validation of this bridge are still pending.
+
+An additional live GetCurrentThreadStackLimits check caught a missing Windows
+metadata field: updating NT_TIB alone left the API's lower bound on the host
+stack. The bridge now also saves, switches and restores the x64 TEB
+DeallocationStack field. Its offset is checked against the Windows header's
+TlsSlots layout and its value is checked against the live Windows API before
+entering caller storage. This private ABI follows the field/query relationship
+documented in Wine's [TEB layout](https://github.com/wine-mirror/wine/blob/master/include/winternl.h)
+and [stack query implementation](https://github.com/wine-mirror/wine/blob/master/dlls/kernelbase/thread.c).
+The committed worker test verifies the actual API's bounds on the caller stack;
+worker cleanup verifies restoration of the original bounds. A separate local
+API probe and all 33 entry tests passed with this correction.
