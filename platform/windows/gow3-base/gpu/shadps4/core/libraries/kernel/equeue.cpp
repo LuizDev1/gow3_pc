@@ -226,6 +226,8 @@ bool EqueueInternal::TriggerEvent(u64 ident, s16 filter, void* trigger_data) {
         }
     }
     m_cond.notify_one();
+    LOG_TRACE(Kernel_Event, "queue = {} event = {:#x} filter = {} matched = {}",
+              m_name, ident, filter, has_found);
     return has_found;
 }
 
@@ -480,6 +482,7 @@ int PS4_SYSV_ABI sceKernelWaitEqueue(OrbisKernelEqueue eq, OrbisKernelEvent* ev,
     }
 
     *out = equeue->WaitForEvents(ev, num, timo);
+    LOG_TRACE(Kernel_Event, "queue = {} returned events = {}", equeue->GetName(), *out);
 
     if (*out == 0) {
         return ORBIS_KERNEL_ERROR_ETIMEDOUT;

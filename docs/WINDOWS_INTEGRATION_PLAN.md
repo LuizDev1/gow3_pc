@@ -1254,3 +1254,54 @@ stall. The serial setting was not made the default or represented as a fix.
 The next investigation is GPU/host-copy completion and the waiting submission;
 no synchronization bypass, guest patch, fabricated GPU completion or menu claim
 was introduced. Image/menu rendering remains unconfirmed.
+
+### First completed presentation capture (2026-10-14)
+
+Private paired runs of dc16c69 isolated the GoW concurrency defaults. Disabling
+only draw preparation, only Vulkan recording, or only copy workers did not
+produce a frame in the diagnostic windows. Neither draw+record nor draw+copy
+serial mode produced a frame. With recording and copies synchronous while draw
+preparation remained parallel, presentation completed and execution proceeded to
+sceSystemServiceHideSplashScreen, caller 0x27c48a, exit 20. The all-serial control
+also presented a frame. These comparisons identify a useful compatible baseline;
+they do not prove the individual root causes of the inherited asynchronous stalls.
+
+The capture trigger was consumed and GPU-completed readback wrote both a
+1920x1080 display buffer (8,294,400 bytes) and a 1280x720 output (3,686,400 bytes).
+Pixel inspection of both showed RGB zero and alpha 255 throughout, and the output
+was visually checked: a fully black frame. This is the first completed capture,
+not a game logo, scene or menu. Captures remain private under ignored out/.
+
+Commit 7ec3a07 makes synchronous Vulkan recording and CPU copy execution the
+defaults only for CUSA03627, before renderer initialization. Explicit nonempty
+experimental overrides are preserved and unrelated title defaults are untouched.
+Parallel draw preparation is retained. The standalone configuration test checks
+title scope, absent/empty options, defaults and explicit overrides and passed
+locally. A new CI step runs the same native test before building the renderer.
+
+The observed HideSplashScreen call now idempotently hides the absent PS4 shell
+overlay in this diagnostic; it does not report a rendered menu. Status tests
+cover repeat calls and field preservation, and a canonical import test checks
+the new export's identity gate. The CPU diagnostic compiled locally, but Windows
+Application Control blocked its execution with WinError 4551, so its new native
+tests require CI validation. No security policy was changed to bypass that block.
+
+CPU run 38636078867 passed all 55 entry tests and renderer run 38636079056
+passed the native submission-profile test and full build. The checksum-verified
+7ec3a07 renderer reproduced a completed capture with its new defaults and
+passed HideSplashScreen without an unsupported import or guest exception.
+The diagnostic was stopped at 90 seconds; no game scene or menu was observed.
+
+Further private snapshots located the main wait in semaphore 2, caller
+0xe4a399, with task workers waiting on semaphore 3. The rendering producer
+(entry 0xc53fe0) waits in a guest condition at caller 0xc4e27f. The submission
+thread (entry 0x1494d40) remains alive and waits in the renderer's EOP QUEUE,
+caller 0x1495102. Its reply counter remains zero. The command processor appeared
+idle in the earlier snapshots. Trace logs include GfxEop interrupts, but do not
+yet prove which subscribed event was delivered or consumed. New trace-level
+records correlate queue subscription, event matching, wait results and EOP
+packet interrupt/data selections without changing synchronization behavior.
+
+These are localized waits, not a confirmed renderer root cause or a completed
+fix. No semaphore signal or GPU completion is fabricated to advance execution.
+Private diagnostics and original-game disassembly remain under ignored out/.

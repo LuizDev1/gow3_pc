@@ -245,6 +245,9 @@ bool PipelinedOpcode(PM4ItOpcode opcode) {
 
 namespace {
 void SignalEop(const PM4CmdEventWriteEop& eop) {
+    LOG_TRACE(Render_Vulkan, "EOP address = {:#x} interrupt = {} data select = {}",
+              reinterpret_cast<u64>(eop.Address<void>()),
+              static_cast<u32>(eop.int_sel.Value()), static_cast<u32>(eop.data_sel.Value()));
     eop.SignalFence(
         [](void* address, u64 data, u32 num_bytes) {
             auto* memory = Core::Memory::Instance();
